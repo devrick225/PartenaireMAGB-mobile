@@ -83,7 +83,7 @@ const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ navigation })
 • De vous opposer à leur utilisation pour des finalités spécifiques
 • De retirer votre consentement à tout moment
 
-Pour exercer ces droits, contactez-nous à l'adresse : contact@partenairemagb.com`,
+Pour exercer ces droits, contactez-nous à l'adresse : partenaireadorationgene.brou@gmail.com`,
     },
     {
       title: '6. Mises à Jour de la Politique',
@@ -91,7 +91,7 @@ Pour exercer ces droits, contactez-nous à l'adresse : contact@partenairemagb.co
     },
     {
       title: '7. Contact',
-      content: `Pour toute question ou préoccupation concernant cette politique, veuillez nous écrire à : contact@partenairemagb.com`,
+      content: `Pour toute question ou préoccupation concernant cette politique, veuillez nous écrire à : partenaireadorationgene.brou@gmail.com`,
     },
   ];
 

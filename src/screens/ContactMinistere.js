@@ -36,7 +36,7 @@ const CONTACT_INFO = {
   name: 'Ministère de l\'Agriculture et de l\'Équipement Rural',
   address: 'Building Administratif, Dakar, Sénégal',
   phone: '+221 33 849 54 54',
-  email: 'contact@agriculture.gouv.sn',
+  email: 'partenaireadorationgene.brou@gmail.com',
   website: 'https://www.agriculture.gouv.sn',
   horaires: {
     semaine: 'Lundi - Vendredi: 8h00 - 17h00',

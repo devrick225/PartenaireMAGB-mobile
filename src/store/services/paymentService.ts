@@ -330,11 +330,10 @@ class PaymentService {
       'men': 'Hommes',
       'special': 'Spécial',
       'emergency': 'Urgence',
-      'don_mensuel': 'Don mensuel',
-      'don_ponctuel': 'Don ponctuel',
-      'don_libre': 'Don libre',
-      'don_concert_femmes': 'Don Concert des Femmes',
-      'don_ria_2025': 'Don RIA 2025',
+      'don_mensuel': 'Mensuelle',
+      'don_trimestriel': 'Trimestrielle',
+      'don_semestriel': 'Semestrielle',
+      'don_ponctuel': 'Ponctuel',
     };
     return categories[category as keyof typeof categories] || category;
   }

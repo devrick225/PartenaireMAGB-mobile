@@ -22,9 +22,9 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
 
   const handleContact = (type: 'phone' | 'email') => {
     if (type === 'phone') {
-      Linking.openURL('tel:+22500000000'); // Remplacez par le vrai numéro
+      Linking.openURL('tel:+2250768306162');
     } else if (type === 'email') {
-      Linking.openURL('mailto:contact@partenairemagb.com'); // Remplacez par le vrai email
+      Linking.openURL('mailto:partenaireadorationgene.brou@gmail.com');
     }
   };
 
@@ -156,7 +156,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
             >
               <MaterialIcons name="email" size={20} color={colors.primary} />
               <Text style={[styles.contactText, { color: colors.primary }]}>
-                Email: contact@partenairemagb.com
+                Email: partenaireadorationgene.brou@gmail.com
               </Text>
             </TouchableOpacity>
           </View>

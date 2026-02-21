@@ -35,8 +35,11 @@ const MINISTERE_LOCATION = {
 const CONTACT_INFO = {
   name: 'Ministère d\'Adoration Geneviève Brou',
   address: 'Abidjan, Cocody',
-  phone: '+2250103212054',
-  email: 'info@genevievebrou.com',
+  phone1: '0768306162',
+  phone1Display: '07 68 30 61 62',
+  phone2: '0555055454',
+  phone2Display: '05 55 05 54 54',
+  email: 'partenaireadorationgene.brou@gmail.com',
   website: 'https://www.genevievebrou.com/',
   horaires: {
     semaine: 'Lundi - Vendredi: 8h00 - 17h00',
@@ -79,15 +82,15 @@ const ContactMinistereSimple = ({ navigation }) => {
     ]).start();
   };
 
-  const handlePhoneCall = () => {
+  const handlePhoneCall = (phoneNumber, phoneDisplay) => {
     Alert.alert(
       'Appeler le Ministère',
-      `Voulez-vous appeler le ${CONTACT_INFO.phone} ?`,
+      `Voulez-vous appeler le ${phoneDisplay} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { 
           text: 'Appeler', 
-          onPress: () => Linking.openURL(`tel:${CONTACT_INFO.phone}`)
+          onPress: () => Linking.openURL(`tel:${phoneNumber}`)
         }
       ]
     );
@@ -239,69 +242,129 @@ const ContactMinistereSimple = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  const renderFormField = (icon, label, placeholder, value, onChange, options = {}) => (
+    <View style={styles.formField}>
+      <Text style={[styles.formFieldLabel, { color: colors.text }]}>{label}</Text>
+      <View style={[
+        styles.formFieldInputWrapper,
+        { 
+          borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(38,51,95,0.18)',
+          backgroundColor: dark ? '#1E1E2E' : '#F8F9FF',
+        }
+      ]}>
+        <MaterialIcons name={icon} size={20} color="#26335F" style={styles.formFieldIcon} />
+        <TextInput
+          style={[styles.formFieldInput, { color: colors.text }]}
+          placeholder={placeholder}
+          placeholderTextColor={dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
+          value={value}
+          onChangeText={onChange}
+          editable={!isLoading}
+          {...options}
+        />
+      </View>
+    </View>
+  );
+
   const renderEmailForm = () => (
     <View style={[styles.emailFormContainer, { backgroundColor: colors.background }]}>
-      <View style={[styles.emailFormHeader, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.emailFormTitle, { color: colors.text }]}>
-          Envoyer un message
-        </Text>
+      {/* Header avec gradient */}
+      <LinearGradient
+        colors={['#26335F', '#1a2347']}
+        style={styles.emailFormGradientHeader}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <TouchableOpacity
           onPress={() => setShowEmailForm(false)}
-          style={styles.closeButton}
+          style={styles.emailFormBackBtn}
         >
-          <MaterialIcons name="close" size={24} color={colors.text} />
+          <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-      </View>
+        <View style={styles.emailFormHeaderText}>
+          <Text style={styles.emailFormTitleMain}>Nous écrire</Text>
+          <Text style={styles.emailFormSubtitle}>Votre message nous parviendra directement</Text>
+        </View>
+        <View style={styles.emailFormHeaderIcon}>
+          <MaterialIcons name="mail-outline" size={28} color="rgba(255,255,255,0.6)" />
+        </View>
+      </LinearGradient>
 
-      <ScrollView style={styles.emailFormContent} showsVerticalScrollIndicator={false}>
-        <InputModern
-          icon="person"
-          placeholder="Votre nom complet"
-          value={emailForm.name}
-          onInputChanged={(value) => setEmailForm(prev => ({ ...prev, name: value }))}
-          editable={!isLoading}
-        />
+      <ScrollView
+        style={styles.emailFormContent}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.emailFormContentInner}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Carte du destinataire */}
+        <View style={[styles.recipientCard, { backgroundColor: dark ? '#1E1E2E' : '#EEF1FF' }]}>
+          <MaterialIcons name="send" size={18} color="#26335F" />
+          <Text style={[styles.recipientText, { color: '#26335F' }]}>
+            À : {CONTACT_INFO.email}
+          </Text>
+        </View>
 
-        <InputModern
-          icon="email"
-          placeholder="Votre adresse email"
-          value={emailForm.email}
-          onInputChanged={(value) => setEmailForm(prev => ({ ...prev, email: value }))}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          editable={!isLoading}
-        />
+        {/* Champs du formulaire */}
+        <View style={[styles.formCard, { backgroundColor: dark ? '#252535' : '#FFFFFF' }]}>
+          {renderFormField(
+            'person',
+            'Nom complet',
+            'Votre nom et prénom',
+            emailForm.name,
+            (v) => setEmailForm(prev => ({ ...prev, name: v }))
+          )}
+          {renderFormField(
+            'email',
+            'Adresse email',
+            'votre@email.com',
+            emailForm.email,
+            (v) => setEmailForm(prev => ({ ...prev, email: v })),
+            { keyboardType: 'email-address', autoCapitalize: 'none' }
+          )}
+          {renderFormField(
+            'title',
+            'Objet',
+            'Sujet de votre message',
+            emailForm.subject,
+            (v) => setEmailForm(prev => ({ ...prev, subject: v }))
+          )}
 
-        <InputModern
-          icon="subject"
-          placeholder="Objet du message"
-          value={emailForm.subject}
-          onInputChanged={(value) => setEmailForm(prev => ({ ...prev, subject: value }))}
-          editable={!isLoading}
-        />
-
-        <View style={styles.messageContainer}>
-          <Text style={[styles.messageLabel, { color: colors.text }]}>Message</Text>
-          <View style={[styles.messageInputContainer, { borderColor: colors.border, backgroundColor: dark ? '#2A2A2A' : '#FFFFFF' }]}>
-            <MaterialIcons name="message" size={20} color={colors.textSecondary} style={styles.messageIcon} />
-            <TextInput
-              style={[styles.messageInput, { color: colors.text }]}
-              placeholder="Tapez votre message ici..."
-              placeholderTextColor={colors.textSecondary}
-              value={emailForm.message}
-              onChangeText={(value) => setEmailForm(prev => ({ ...prev, message: value }))}
-              multiline
-              numberOfLines={6}
-              textAlignVertical="top"
-              editable={!isLoading}
-            />
+          {/* Champ message */}
+          <View style={styles.formField}>
+            <Text style={[styles.formFieldLabel, { color: colors.text }]}>Message</Text>
+            <View style={[
+              styles.formFieldInputWrapper,
+              styles.formMessageWrapper,
+              { 
+                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(38,51,95,0.18)',
+                backgroundColor: dark ? '#1E1E2E' : '#F8F9FF',
+              }
+            ]}>
+              <MaterialIcons name="message" size={20} color="#26335F" style={[styles.formFieldIcon, { top: 14 }]} />
+              <TextInput
+                style={[styles.formFieldInput, styles.formMessageInput, { color: colors.text }]}
+                placeholder="Rédigez votre message ici..."
+                placeholderTextColor={dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
+                value={emailForm.message}
+                onChangeText={(v) => setEmailForm(prev => ({ ...prev, message: v }))}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                editable={!isLoading}
+              />
+            </View>
+            <Text style={[styles.charCounter, { color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }]}>
+              {emailForm.message.length} / 1000
+            </Text>
           </View>
         </View>
 
+        {/* Bouton envoyer */}
         <TouchableOpacity
           style={[styles.sendButton, { opacity: isLoading ? 0.7 : 1 }]}
           onPress={handleSendCustomEmail}
           disabled={isLoading}
+          activeOpacity={0.85}
         >
           <LinearGradient
             colors={['#26335F', '#1a2347']}
@@ -310,15 +373,22 @@ const ContactMinistereSimple = ({ navigation }) => {
             end={{ x: 1, y: 0 }}
           >
             {isLoading ? (
-              <MaterialIcons name="hourglass-empty" size={20} color="#FFFFFF" />
+              <>
+                <MaterialIcons name="hourglass-empty" size={22} color="#FFFFFF" />
+                <Text style={styles.sendButtonText}>Envoi en cours...</Text>
+              </>
             ) : (
-              <MaterialIcons name="send" size={20} color="#FFFFFF" />
+              <>
+                <MaterialIcons name="send" size={22} color="#FFFFFF" />
+                <Text style={styles.sendButtonText}>Envoyer le message</Text>
+              </>
             )}
-            <Text style={styles.sendButtonText}>
-              {isLoading ? 'Envoi...' : 'Envoyer le message'}
-            </Text>
           </LinearGradient>
         </TouchableOpacity>
+
+        <Text style={[styles.formDisclaimer, { color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }]}>
+          Nous vous répondrons dans les plus brefs délais.
+        </Text>
       </ScrollView>
     </View>
   );
@@ -399,9 +469,17 @@ const ContactMinistereSimple = ({ navigation }) => {
 
           {renderContactCard(
             'phone',
-            'Téléphone',
-            CONTACT_INFO.phone,
-            handlePhoneCall,
+            'Téléphone 1',
+            CONTACT_INFO.phone1Display,
+            () => handlePhoneCall(CONTACT_INFO.phone1, CONTACT_INFO.phone1Display),
+            '#4CAF50'
+          )}
+
+          {renderContactCard(
+            'phone',
+            'Téléphone 2',
+            CONTACT_INFO.phone2Display,
+            () => handlePhoneCall(CONTACT_INFO.phone2, CONTACT_INFO.phone2Display),
             '#4CAF50'
           )}
 
@@ -709,74 +787,140 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     elevation: 10,
   },
-  emailFormHeader: {
+  emailFormGradientHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
+    paddingTop: 52,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    gap: 12,
   },
-  emailFormTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  closeButton: {
+  emailFormBackBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailFormHeaderText: {
+    flex: 1,
+  },
+  emailFormTitleMain: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  emailFormSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
+  emailFormHeaderIcon: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emailFormContent: {
     flex: 1,
-    padding: 20,
   },
-  messageContainer: {
+  emailFormContentInner: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  recipientCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     marginBottom: 20,
   },
-  messageLabel: {
-    fontSize: 16,
+  recipientText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  formCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  formField: {
+    marginBottom: 18,
+  },
+  formFieldLabel: {
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  messageInputContainer: {
-    borderWidth: 1,
+  formFieldInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
     borderRadius: 12,
-    padding: 12,
-    minHeight: 120,
+    paddingHorizontal: 14,
+    height: 52,
   },
-  messageIcon: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
+  formFieldIcon: {
+    marginRight: 10,
   },
-  messageInput: {
+  formFieldInput: {
     flex: 1,
-    fontSize: 16,
-    paddingLeft: 40,
+    fontSize: 15,
+    height: '100%',
+  },
+  formMessageWrapper: {
+    height: 'auto',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingTop: 14,
+  },
+  formMessageInput: {
+    height: 'auto',
+    minHeight: 110,
     paddingTop: 0,
+  },
+  charCounter: {
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 4,
   },
   sendButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    marginTop: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    elevation: 6,
+    shadowColor: '#26335F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
   sendButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 17,
+    gap: 10,
   },
   sendButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  formDisclaimer: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 16,
   },
 });
 

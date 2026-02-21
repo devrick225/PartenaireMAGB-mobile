@@ -12,6 +12,8 @@ import {
   Modal,
   FlatList,
   Animated,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
@@ -60,13 +62,14 @@ interface OccurrenceItem {
 
 interface RecurringFilters {
   status?: 'active' | 'inactive' | 'all';
-  category?: string;
+  donorType?: string;
   frequency?: string;
   amountRange?: 'low' | 'medium' | 'high' | 'all';
 }
 
 const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ navigation }) => {
   const { dark, colors } = useTheme();
+  const { height: screenHeight } = useWindowDimensions();
 
   // Options de filtres
   const statusFilterOptions = [
@@ -75,28 +78,19 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
     { value: 'inactive', label: 'Inactifs' },
   ];
 
-  const categoryFilterOptions = [
-    { value: '', label: 'Toutes les catégories' },
-    { value: 'tithe', label: 'Dîme' },
-    { value: 'offering', label: 'Offrande' },
-    { value: 'building', label: 'Construction' },
-    { value: 'missions', label: 'Missions' },
-    { value: 'charity', label: 'Charité' },
-    { value: 'education', label: 'Éducation' },
-    { value: 'youth', label: 'Jeunesse' },
-    { value: 'women', label: 'Femmes' },
-    { value: 'men', label: 'Hommes' },
-    { value: 'special', label: 'Spécial' },
-    { value: 'emergency', label: 'Urgence' },
+  const donorTypeFilterOptions = [
+    { value: '', label: 'Tous les types' },
+    { value: 'homme', label: 'Homme' },
+    { value: 'femme', label: 'Femme' },
+    { value: 'entreprise', label: 'Entreprise' },
   ];
 
   const frequencyFilterOptions = [
     { value: '', label: 'Toutes les fréquences' },
-    { value: 'daily', label: 'Quotidien' },
-    { value: 'weekly', label: 'Hebdomadaire' },
-    { value: 'monthly', label: 'Mensuel' },
-    { value: 'quarterly', label: 'Trimestriel' },
-    { value: 'yearly', label: 'Annuel' },
+    { value: 'monthly', label: 'Mensuelle' },
+    { value: 'quarterly', label: 'Trimestrielle' },
+    { value: 'semiannual', label: 'Semestrielle' },
+    { value: 'one_time', label: 'Ponctuel' },
   ];
 
   const amountRangeOptions = [
@@ -287,19 +281,21 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
 
   const formatCategory = (category: string) => {
     const categories: { [key: string]: string } = {
-      'tithe': 'Dîme',
-      'offering': 'Offrande',
-      'building': 'Construction',
-      'missions': 'Missions',
-      'charity': 'Charité',
-      'education': 'Éducation',
-      'youth': 'Jeunesse',
-      'women': 'Femmes',
-      'men': 'Hommes',
-      'special': 'Spécial',
-      'emergency': 'Urgence',
+      'don_mensuel': 'Mensuelle',
+      'don_trimestriel': 'Trimestrielle',
+      'don_semestriel': 'Semestrielle',
+      'don_ponctuel': 'Ponctuel',
     };
     return categories[category] || category;
+  };
+
+  const formatDonorType = (type: string) => {
+    const types: { [key: string]: string } = {
+      'homme': 'Homme',
+      'femme': 'Femme',
+      'entreprise': 'Entreprise',
+    };
+    return types[type] || type;
   };
 
   const formatFrequency = (frequency: string, interval: number) => {
@@ -370,7 +366,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
   };
 
   const filterRecurringDonations = (donations: RecurringDonation[]) => {
-    return donations.filter(donation => {
+    return donations.filter((donation: any) => {
       // Filtre par statut
       if (filters.status && filters.status !== 'all') {
         const isActive = donation.recurring.isActive;
@@ -378,9 +374,10 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
         if (filters.status === 'inactive' && isActive) return false;
       }
 
-      // Filtre par catégorie
-      if (filters.category && filters.category !== '') {
-        if (donation.category !== filters.category) return false;
+      // Filtre par type de donateur
+      if (filters.donorType && filters.donorType !== '') {
+        const donorType = donation.donorType || donation.donor?.personType || '';
+        if (donorType.toLowerCase() !== filters.donorType.toLowerCase()) return false;
       }
 
       // Filtre par fréquence
@@ -410,11 +407,6 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
 
   const filterOccurrences = (occurrences: OccurrenceItem[]) => {
     return occurrences.filter(occurrence => {
-      // Filtre par catégorie
-      if (filters.category && filters.category !== '') {
-        if (occurrence.category !== filters.category) return false;
-      }
-
       // Filtre par montant
       if (filters.amountRange && filters.amountRange !== 'all') {
         const amount = occurrence.amount;
@@ -709,7 +701,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
           </View>
 
           <ScrollView
-            style={styles.filterScrollView}
+            style={[styles.filterScrollView, { maxHeight: screenHeight * 0.52 }]}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.filterScrollContent}
           >
@@ -747,71 +739,63 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
               </View>
             </View>
 
-            {/* Filtre par catégorie */}
+            {/* Filtre par type de donateur */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterSectionTitle, { color: colors.text }]}>Catégorie</Text>
-              <View style={styles.filterOptions}>
-                {categoryFilterOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.filterOption,
-                      {
-                        backgroundColor: (filters.category === option.value) || (option.value === '' && !filters.category)
-                          ? colors.primary + '20'
-                          : 'transparent',
-                        borderColor: (filters.category === option.value) || (option.value === '' && !filters.category)
-                          ? colors.primary
-                          : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                      },
-                    ]}
-                    onPress={() => setFilters(prev => ({
-                      ...prev,
-                      category: option.value === '' ? undefined : option.value
-                    }))}
-                  >
-                    <Text style={[styles.filterOptionText, { color: colors.text }]}>
-                      {option.label}
-                    </Text>
-                    {((filters.category === option.value) || (option.value === '' && !filters.category)) && (
-                      <MaterialIcons name="check" size={16} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.filterChips}>
+                {donorTypeFilterOptions.map((option) => {
+                  const isSelected = (filters.donorType === option.value) || (option.value === '' && !filters.donorType);
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.filterChip,
+                        {
+                          backgroundColor: isSelected ? colors.primary : 'transparent',
+                          borderColor: isSelected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                        },
+                      ]}
+                      onPress={() => setFilters(prev => ({
+                        ...prev,
+                        donorType: option.value === '' ? undefined : option.value
+                      }))}
+                    >
+                      <Text style={[styles.filterChipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
             {/* Filtre par fréquence */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterSectionTitle, { color: colors.text }]}>Fréquence</Text>
-              <View style={styles.filterOptions}>
-                {frequencyFilterOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.filterOption,
-                      {
-                        backgroundColor: (filters.frequency === option.value) || (option.value === '' && !filters.frequency)
-                          ? colors.primary + '20'
-                          : 'transparent',
-                        borderColor: (filters.frequency === option.value) || (option.value === '' && !filters.frequency)
-                          ? colors.primary
-                          : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                      },
-                    ]}
-                    onPress={() => setFilters(prev => ({
-                      ...prev,
-                      frequency: option.value === '' ? undefined : option.value
-                    }))}
-                  >
-                    <Text style={[styles.filterOptionText, { color: colors.text }]}>
-                      {option.label}
-                    </Text>
-                    {((filters.frequency === option.value) || (option.value === '' && !filters.frequency)) && (
-                      <MaterialIcons name="check" size={16} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.filterChips}>
+                {frequencyFilterOptions.map((option) => {
+                  const isSelected = (filters.frequency === option.value) || (option.value === '' && !filters.frequency);
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.filterChip,
+                        {
+                          backgroundColor: isSelected ? colors.primary : 'transparent',
+                          borderColor: isSelected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                        },
+                      ]}
+                      onPress={() => setFilters(prev => ({
+                        ...prev,
+                        frequency: option.value === '' ? undefined : option.value
+                      }))}
+                    >
+                      <Text style={[styles.filterChipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -1070,21 +1054,21 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginTop: 10,
     borderRadius: 12,
     padding: 4,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
     borderRadius: 8,
     alignItems: 'center',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   listContainer: {
@@ -1340,7 +1324,7 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     position: 'absolute',
-    bottom: 30,
+    bottom: Platform.OS === 'android' ? 72 : 34,
     right: 20,
     width: 56,
     height: 56,
@@ -1377,7 +1361,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   filterModalContent: {
-    maxHeight: '85%',
+    maxHeight: '90%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
@@ -1385,11 +1369,10 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   filterScrollView: {
-    maxHeight: 500,
-    marginBottom: 20,
+    marginBottom: 8,
   },
   filterScrollContent: {
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   filterSection: {
     marginBottom: 24,
@@ -1413,11 +1396,26 @@ const styles = StyleSheet.create({
   filterOptionText: {
     fontSize: 14,
   },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   filterModalButtons: {
     flexDirection: 'row',
     gap: 12,
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: Platform.OS === 'android' ? 24 : 20,
     paddingHorizontal: 0,
     backgroundColor: 'transparent',
   },

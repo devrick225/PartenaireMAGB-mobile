@@ -836,11 +836,10 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               'Catégories de don',
               profile.donationPreferences.donationCategories.length > 0 ? profile.donationPreferences.donationCategories[0] : '',
               [
-                { label: 'Don mensuel', value: 'don_mensuel' },
-                { label: 'Don ponctuel', value: 'don_ponctuel' },
-                { label: 'Don libre', value: 'don_libre' },
-                { label: 'Don Concert des Femmes', value: 'don_concert_femmes' },
-                { label: 'Don RIA 2025', value: 'don_ria_2025' },
+                { label: 'Mensuelle', value: 'don_mensuel' },
+                { label: 'Trimestrielle', value: 'don_trimestriel' },
+                { label: 'Semestrielle', value: 'don_semestriel' },
+                { label: 'Ponctuel', value: 'don_ponctuel' },
               ],
               (value) => setProfile({...profile, donationPreferences: {...profile.donationPreferences, donationCategories: [value]}}),
               'attach-money-outline'

@@ -232,11 +232,10 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
       'men': 'man',
       'special': 'star',
       'emergency': 'warning',
-      'don_mensuel': 'calendar-month',           // Don mensuel
-      'don_ponctuel': 'calendar-today',         // Don ponctuel
-      'don_libre': 'calendar-today',            // Don libre
-      'don_concert_femmes': 'heart',   // Don Concert des Femmes
-      'don_ria_2025': 'church'          // Don RIA 2025
+      'don_mensuel': 'calendar-month',
+      'don_trimestriel': 'date-range',
+      'don_semestriel': 'event-repeat',
+      'don_ponctuel': 'favorite',
     };
     return iconMap[category] || 'help-circle';
   };

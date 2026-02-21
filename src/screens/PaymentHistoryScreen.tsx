@@ -11,6 +11,8 @@ import {
   Alert,
   ScrollView,
   Animated,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -34,6 +36,7 @@ interface PaymentFilters {
 const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation }) => {
   const { colors, dark } = useTheme();
   const { user } = useSelector((state: RootState) => state.auth);
+  const { height: screenHeight } = useWindowDimensions();
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -261,7 +264,7 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation 
           </View>
 
           <ScrollView
-            style={styles.modalScrollView}
+            style={[styles.modalScrollView, { maxHeight: screenHeight * 0.48 }]}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.modalScrollContent}
           >
@@ -683,7 +686,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    maxHeight: '80%',
+    maxHeight: '90%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
@@ -708,8 +711,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalScrollView: {
-    maxHeight: 400,
-    marginBottom: 20,
+    marginBottom: 8,
   },
   modalScrollContent: {
     paddingVertical: 10,
@@ -739,32 +741,37 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
-    paddingTop: 10,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'android' ? 28 : 20,
     paddingHorizontal: 0,
     backgroundColor: 'transparent',
   },
   clearButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
     alignItems: 'center',
   },
   clearButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   applyButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#26335F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
   applyButtonText: {
     color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   userAvatar: {
     width: 60,
@@ -786,7 +793,7 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     position: 'absolute',
-    bottom: 30,
+    bottom: Platform.OS === 'android' ? 72 : 34,
     right: 20,
     width: 56,
     height: 56,

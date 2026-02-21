@@ -348,10 +348,10 @@ class DonationService {
       'men': 'Hommes',
       'special': 'Spécial',
       'emergency': 'Urgence',
-      'don_ponctuel': 'Don ponctuel',
-      'don_libre': 'Don libre',
-      'don_concert_femmes': 'Don Concert des Femmes',
-      'don_ria_2025': 'Don RIA 2025',
+      'don_mensuel': 'Mensuelle',
+      'don_trimestriel': 'Trimestrielle',
+      'don_semestriel': 'Semestrielle',
+      'don_ponctuel': 'Ponctuel',
     };
     return categories[category as keyof typeof categories] || category;
   }
@@ -391,10 +391,10 @@ class DonationService {
       'men': 'man',
       'special': 'star',
       'emergency': 'emergency',
-      'don_ponctuel': 'calendar-today',
-      'don_libre': 'calendar-today',
-      'don_concert_femmes': 'heart',
-      'don_ria_2025': 'church',
+      'don_mensuel': 'calendar-today',
+      'don_trimestriel': 'date-range',
+      'don_semestriel': 'event-repeat',
+      'don_ponctuel': 'favorite',
     };
     return icons[category as keyof typeof icons] || 'favorite';
   }

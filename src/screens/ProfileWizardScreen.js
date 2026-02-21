@@ -36,6 +36,7 @@ const ProfileWizardScreen = ({ navigation }) => {
   // Données du formulaire complet correspondant au modèle backend
   const [formData, setFormData] = useState({
     // Informations personnelles
+    personType: 'particulier',
     dateOfBirth: null,
     gender: '',
     maritalStatus: 'single',
@@ -142,6 +143,7 @@ const ProfileWizardScreen = ({ navigation }) => {
         // Mapper les données existantes vers le format du formulaire
         const mappedData = {
           // Informations personnelles
+          personType: existingProfile.personType || 'particulier',
           dateOfBirth: existingProfile.dateOfBirth || null,
           gender: existingProfile.gender || '',
           maritalStatus: existingProfile.maritalStatus || 'single',
@@ -281,6 +283,10 @@ const ProfileWizardScreen = ({ navigation }) => {
 
   // Options pour les listes déroulantes (basées sur le modèle backend)
   const fieldOptions = {
+    personType: [
+      { label: 'Particulier', value: 'particulier' },
+      { label: 'Personne Morale (Entreprise)', value: 'personne_morale' },
+    ],
     gender: [
       { label: 'Homme', value: 'male' },
       { label: 'Femme', value: 'female' },
@@ -320,11 +326,10 @@ const ProfileWizardScreen = ({ navigation }) => {
       { label: 'Espèces', value: 'cash' }
     ],
     donationCategories: [
-      { label: 'Don mensuel', value: 'don_mensuel' },
-      { label: 'Don ponctuel', value: 'don_ponctuel' },
-      { label: 'Don libre', value: 'don_libre' },
-      { label: 'Don Concert des Femmes', value: 'don_concert_femmes' },
-      { label: 'Don RIA 2025', value: 'don_ria_2025' }
+      { label: 'Mensuelle', value: 'don_mensuel' },
+      { label: 'Trimestrielle', value: 'don_trimestriel' },
+      { label: 'Semestrielle', value: 'don_semestriel' },
+      { label: 'Ponctuel', value: 'don_ponctuel' },
     ],
     contactMethod: [
       { label: 'Email', value: 'email' },
@@ -518,6 +523,15 @@ const ProfileWizardScreen = ({ navigation }) => {
 
   const renderPersonalInfo = () => (
     <View style={styles.sectionContainer}>
+      {/* Type de personne */}
+      <TouchableOpacity
+        style={[styles.selectField, { borderColor: dark ? COLORS.gray : COLORS.black2 }]}
+        onPress={() => openModal('personType', fieldOptions.personType)}>
+        <Text style={[styles.selectFieldText, { color: formData.personType ? (dark ? COLORS.white : COLORS.black) : COLORS.gray }]}>
+          {fieldOptions.personType.find(option => option.value === formData.personType)?.label || 'Type de personne (Particulier / Personne Morale)'}
+        </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[styles.selectField, { borderColor: dark ? COLORS.gray : COLORS.black2 }]}
         onPress={() => openModal('gender', fieldOptions.gender)}>
@@ -1002,6 +1016,9 @@ const ProfileWizardScreen = ({ navigation }) => {
       <View style={styles.summarySection}>
         <Text style={[styles.summarySubtitle, { color: dark ? COLORS.white : COLORS.black }]}>
           Informations personnelles
+        </Text>
+        <Text style={[styles.summaryText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          Type: {fieldOptions.personType.find(p => p.value === formData.personType)?.label || 'Non renseigné'}
         </Text>
         <Text style={[styles.summaryText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
           Sexe: {fieldOptions.gender.find(g => g.value === formData.gender)?.label || 'Non renseigné'}

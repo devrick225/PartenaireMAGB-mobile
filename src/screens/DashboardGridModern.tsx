@@ -418,26 +418,44 @@ const DashboardGridModern: React.FC<DashboardGridModernProps> = ({ navigation })
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.avatarContainer}
-              onPress={() => navigation.navigate('ProfileImage')}
-            >
-              {user?.avatar ? (
-                <Image source={{ uri: user.avatar }} style={styles.avatar} />
-              ) : (
-                <LinearGradient
-                  colors={['#D32235', '#FFD61D']}
-                  style={styles.avatarPlaceholder}
-                >
-                  <Text style={styles.avatarText}>
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </Text>
-                </LinearGradient>
-              )}
-              <View style={styles.avatarBadge}>
-                <MaterialIcons name="verified" size={16} color="#4CAF50" />
-              </View>
-            </TouchableOpacity>
+            <View style={styles.headerRightColumn}>
+              {/* Bouton rafraîchissement visible */}
+              <TouchableOpacity
+                style={styles.refreshHeaderButton}
+                onPress={onRefresh}
+                disabled={refreshing}
+                activeOpacity={0.75}
+              >
+                {refreshing ? (
+                  <Animated.View>
+                    <MaterialIcons name="refresh" size={20} color="#FFD61D" />
+                  </Animated.View>
+                ) : (
+                  <MaterialIcons name="refresh" size={20} color="rgba(255,255,255,0.9)" />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.avatarContainer}
+                onPress={() => navigation.navigate('ProfileImage')}
+              >
+                {user?.avatar ? (
+                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                ) : (
+                  <LinearGradient
+                    colors={['#D32235', '#FFD61D']}
+                    style={styles.avatarPlaceholder}
+                  >
+                    <Text style={styles.avatarText}>
+                      {user?.firstName?.[0]}{user?.lastName?.[0]}
+                    </Text>
+                  </LinearGradient>
+                )}
+                <View style={styles.avatarBadge}>
+                  <MaterialIcons name="verified" size={16} color="#4CAF50" />
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Statistiques avec design moderne */}
@@ -584,6 +602,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255,255,255,0.9)',
     lineHeight: 20,
+  },
+  headerRightColumn: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshHeaderButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   avatarContainer: {
     position: 'relative',

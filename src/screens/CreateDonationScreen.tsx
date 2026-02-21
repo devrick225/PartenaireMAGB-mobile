@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -16,6 +15,7 @@ import {
   FlatList,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
@@ -174,11 +174,11 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         return {
           amount: 0,
           currency: 'XOF',
-          category: 'don_libre', // Catégorie par défaut "Don libre"
+          category: 'don_mensuel',
           type: initialType || 'one_time',
           paymentMethod: '',
           message: '',
-          isAnonymous: false, // Par défaut, pas anonyme
+          isAnonymous: false,
         };
     }
     
@@ -186,7 +186,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
     return {
       amount: 0,
       currency: 'XOF',
-      category: 'don_libre', // Catégorie par défaut "Don libre"
+      category: 'don_mensuel',
       type: initialType || 'one_time',
       paymentMethod: '',
       message: '',
@@ -234,11 +234,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
   const messageInputRef = useRef<TextInput>(null);
 
   const categories: CategoryOption[] = [
-    { value: 'don_mensuel', label: 'Don mensuel', icon: 'calendar-today', description: 'Contribution mensuelle régulière' },
-    { value: 'don_ponctuel', label: 'Don ponctuel', icon: 'favorite', description: 'Don unique pour une occasion spéciale' },
-    { value: 'don_libre', label: 'Don libre', icon: 'volunteer-activism', description: 'Don sans restriction d\'usage' },
-    { value: 'don_concert_femmes', label: 'Don Concert des Femmes', icon: 'music-note', description: 'Soutien pour le Concert des Femmes' },
-    { value: 'don_ria_2025', label: 'Don RIA 2025', icon: 'star', description: 'Contribution pour le projet RIA 2025' },
+    { value: 'don_mensuel', label: 'Mensuelle', icon: 'calendar-today', description: 'Contribution mensuelle régulière' },
+    { value: 'don_trimestriel', label: 'Trimestrielle', icon: 'date-range', description: 'Contribution tous les 3 mois' },
+    { value: 'don_semestriel', label: 'Semestrielle', icon: 'event-repeat', description: 'Contribution tous les 6 mois' },
+    { value: 'don_ponctuel', label: 'Ponctuel', icon: 'favorite', description: 'Don unique, sans engagement' },
   ];
 
   const paymentMethods: PaymentMethodOption[] = [
@@ -1700,19 +1699,27 @@ const styles = StyleSheet.create({
   submitContainer: {
     padding: 20,
     paddingTop: 12,
+    paddingBottom: Platform.OS === 'android' ? 28 : 20,
   },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     gap: 8,
+    elevation: 5,
+    shadowColor: '#26335F',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
+    letterSpacing: 0.3,
   },
   bottomPadding: {
     height: 20,

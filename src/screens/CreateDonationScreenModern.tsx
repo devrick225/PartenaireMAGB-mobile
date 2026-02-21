@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -18,6 +17,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeProvider';
@@ -99,7 +99,7 @@ const CreateDonationScreenModern: React.FC<CreateDonationScreenModernProps> = ({
   const [formData, setFormData] = useState<CreateDonationData>({
     amount: occurrenceData.amount || 0,
     currency: occurrenceData.currency || 'XOF',
-    category: occurrenceData.category || 'don_libre',
+    category: occurrenceData.category || 'don_mensuel',
     type: initialType || 'one_time',
     paymentMethod: '',
     message: '',
@@ -125,43 +125,35 @@ const CreateDonationScreenModern: React.FC<CreateDonationScreenModernProps> = ({
   const categories: CategoryOption[] = [
     {
       value: 'don_mensuel',
-      label: 'Don mensuel',
+      label: 'Mensuelle',
       icon: 'calendar-today',
       description: 'Contribution mensuelle régulière',
       emoji: '📅',
       gradient: ['#667eea', '#764ba2'],
     },
     {
-      value: 'don_ponctuel',
-      label: 'Don ponctuel',
-      icon: 'favorite',
-      description: 'Don unique pour une occasion spéciale',
-      emoji: '💝',
-      gradient: ['#FF6B6B', '#FF8E8E'],
+      value: 'don_trimestriel',
+      label: 'Trimestrielle',
+      icon: 'date-range',
+      description: 'Contribution tous les 3 mois',
+      emoji: '🗓️',
+      gradient: ['#4FACFE', '#00F2FE'],
     },
     {
-      value: 'don_libre',
-      label: 'Don libre',
-      icon: 'volunteer-activism',
-      description: 'Don sans restriction d\'usage',
-      emoji: '🤲',
+      value: 'don_semestriel',
+      label: 'Semestrielle',
+      icon: 'event-repeat',
+      description: 'Contribution tous les 6 mois',
+      emoji: '📆',
       gradient: ['#4ECDC4', '#44A08D'],
     },
     {
-      value: 'don_concert_femmes',
-      label: 'Concert des Femmes',
-      icon: 'music-note',
-      description: 'Soutien pour le Concert des Femmes',
-      emoji: '🎵',
-      gradient: ['#F093FB', '#F5576C'],
-    },
-    {
-      value: 'don_ria_2025',
-      label: 'RIA 2025',
-      icon: 'star',
-      description: 'Contribution pour le projet RIA 2025',
-      emoji: '⭐',
-      gradient: ['#A8EDEA', '#FED6E3'],
+      value: 'don_ponctuel',
+      label: 'Ponctuel',
+      icon: 'favorite',
+      description: 'Don unique, sans engagement',
+      emoji: '💝',
+      gradient: ['#FF6B6B', '#FF8E8E'],
     },
   ];
 
@@ -889,6 +881,7 @@ const styles = StyleSheet.create({
   },
   stepContent: {
     padding: 20,
+    paddingBottom: Platform.OS === 'android' ? 36 : 20,
   },
   stepTitle: {
     fontSize: 24,
@@ -1179,15 +1172,16 @@ const styles = StyleSheet.create({
   stepButtons: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 8,
   },
   backButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     gap: 8,
   },
   backButtonText: {
