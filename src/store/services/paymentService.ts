@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import logger from '../../utils/logger';
 
 export interface Payment {
   _id: string;
@@ -144,12 +145,12 @@ class PaymentService {
   // Récupérer un paiement par l'ID de donation (premier trouvé)
   async getPaymentByDonationId(donationId: string) {
     try {
-      console.log('Récupération paiement pour donation:', donationId);
+      logger.payment('Récupération paiement pour donation:', donationId);
       const response = await apiClient.get(`/payments/donation/${donationId}`);
-      console.log('Paiement trouvé pour donation:', response.data);
+      logger.payment('Paiement trouvé pour donation:', response.data);
       return response;
     } catch (error) {
-      console.error('Erreur service getPaymentByDonationId:', error);
+      logger.error('Erreur service getPaymentByDonationId:', error);
       throw error;
     }
   }
@@ -157,16 +158,16 @@ class PaymentService {
   // Récupérer TOUS les paiements pour une donation (pour gérer les cas multiples)
   async getAllPaymentsByDonationId(donationId: string) {
     try {
-      console.log('Récupération de TOUS les paiements pour donation:', donationId);
+      logger.payment('Récupération de TOUS les paiements pour donation:', donationId);
       const response = await apiClient.get(`/payments/donation/${donationId}/all`);
-      console.log(`${response.data.data?.payments?.length || 0} paiements trouvés pour donation:`, donationId);
+      logger.payment(`${response.data.data?.payments?.length || 0} paiements trouvés pour donation:`, donationId);
       return response;
     } catch (error: any) {
-      console.error('Erreur service getAllPaymentsByDonationId:', error);
+      logger.error('Erreur service getAllPaymentsByDonationId:', error);
       
       // Si l'endpoint n'existe pas, fallback sur la méthode classique
       if (error.response?.status === 404) {
-        console.log('Endpoint /all non trouvé, fallback sur méthode classique');
+        logger.warn('Endpoint /all non trouvé, fallback sur méthode classique');
         const fallbackResponse = await this.getPaymentByDonationId(donationId);
         // Transformer la réponse pour avoir le même format
         if (fallbackResponse.data.success && fallbackResponse.data.data.payment) {
@@ -187,16 +188,33 @@ class PaymentService {
   }
 
   // Vérifier un paiement (interroge directement le fournisseur)
-  async verifyPayment(paymentId: string) {
+  async verifyPayment(paymentId: string, timeout: number = 30000) {
     try {
-      console.log('🔍 Service verifyPayment - ID paiement:', paymentId);
-      const response = await apiClient.post(`/payments/${paymentId}/verify`);
-      console.log('REPONSE-KOFFI', response);
-      console.log('✅ Service verifyPayment - Réponse reçue:', response.data);
+      logger.moneyfusion('Service verifyPayment - ID paiement:', paymentId);
+      
+      // Créer un AbortController pour gérer le timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        logger.warn('Timeout de vérification du paiement après', timeout, 'ms');
+      }, timeout);
+      
+      const response = await apiClient.post(`/payments/${paymentId}/verify`, {}, {
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      logger.success('Service verifyPayment - Réponse reçue:', response.data);
       return response;
     } catch (error: any) {
-      console.error('❌ Service verifyPayment - Erreur:', error);
-      console.log('📋 Service verifyPayment - Détails erreur:', {
+      // Gestion du timeout
+      if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
+        logger.failure('Service verifyPayment - Timeout dépassé');
+        throw new Error(`Timeout de vérification du paiement (${timeout}ms)`);
+      }
+      
+      logger.error('Service verifyPayment - Erreur:', error);
+      logger.debug('Service verifyPayment - Détails erreur:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
@@ -208,20 +226,58 @@ class PaymentService {
       
       if (errorData?.statut !== undefined) {
         // Structure MoneyFusion directe: {statut: boolean, message: string, data: {...}}
-        console.log('✅ Service - Erreur contient structure MoneyFusion directe, traitement comme réponse valide');
-        console.log('📋 Service - Données MoneyFusion:', errorData);
+        logger.success('Service - Erreur contient structure MoneyFusion directe, traitement comme réponse valide');
+        logger.debug('Service - Données MoneyFusion:', errorData);
         return error.response;
       } else if (errorData?.data?.statut !== undefined) {
         // Structure MoneyFusion imbriquée
-        console.log('✅ Service - Erreur contient structure MoneyFusion imbriquée, traitement comme réponse valide');
-        console.log('📋 Service - Données MoneyFusion imbriquées:', errorData.data);
+        logger.success('Service - Erreur contient structure MoneyFusion imbriquée, traitement comme réponse valide');
+        logger.debug('Service - Données MoneyFusion imbriquées:', errorData.data);
         return error.response;
       }
       
       // Vraie erreur réseau/serveur
-      console.log('❌ Service - Vraie erreur, pas de données MoneyFusion trouvées');
+      logger.failure('Service - Vraie erreur, pas de données MoneyFusion trouvées');
       throw error;
     }
+  }
+
+  // Vérifier un paiement avec retry automatique
+  async verifyPaymentWithRetry(
+    paymentId: string, 
+    maxRetries: number = 5, 
+    retryDelay: number = 5000,
+    timeout: number = 45000
+  ) {
+    let lastError: any = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.moneyfusion(`Tentative de vérification ${attempt}/${maxRetries} pour paiement:`, paymentId);
+        
+        const response = await this.verifyPayment(paymentId, timeout);
+        
+        logger.success(`Vérification réussie à la tentative ${attempt}`);
+        return response;
+        
+      } catch (error: any) {
+        lastError = error;
+        logger.warn(`Tentative ${attempt}/${maxRetries} échouée:`, error.message);
+        
+        // Si c'est la dernière tentative, on lance l'erreur
+        if (attempt === maxRetries) {
+          logger.failure(`Échec définitif après ${maxRetries} tentatives`);
+          throw error;
+        }
+        
+        // Attendre avant le prochain retry
+        logger.info(`Attente de ${retryDelay}ms avant la prochaine tentative...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+    
+    // Ne devrait jamais arriver ici, mais au cas où
+    throw lastError || new Error('Échec de vérification du paiement');
   }
 
   // Rembourser un paiement
@@ -371,7 +427,7 @@ class PaymentService {
   // Calculer les frais de paiement
   calculateFees(amount: number, provider: string, currency: string = 'XOF') {
     const feeStructures = {
-      'moneyfusion': { percentage: 2.5, fixed: 100 },
+      'moneyfusion': { percentage: 2.5, fixed: 125 }, // Harmonisé avec le backend
       'fusionpay': { percentage: 2.5, fixed: 100 },
       'paydunya': { percentage: 3.0, fixed: 50 },
       'stripe': { percentage: 2.9, fixed: currency === 'XOF' ? 30 : 0.30 },

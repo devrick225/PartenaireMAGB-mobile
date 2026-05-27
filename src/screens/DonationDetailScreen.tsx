@@ -971,20 +971,23 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
 
         {/* Montant principal */}
         <View style={[styles.amountCard, { backgroundColor: colors.primary }]}>
-          <View style={styles.amountContainer}>
-            <Text style={styles.amountValue}>
-              {donationService.formatAmount(donation.amount, donation.currency)}
+          <Text
+            style={styles.amountValue}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+          >
+            {donationService.formatAmount(donation.amount, donation.currency)}
+          </Text>
+          <View style={[styles.statusBadge, { backgroundColor: donationService.getStatusColor(donation.status) }]}>
+            <Text style={styles.statusText} numberOfLines={1}>
+              {donationService.formatStatus(donation.status)}
             </Text>
-            <View style={[styles.statusBadge, { backgroundColor: donationService.getStatusColor(donation.status) }]}>
-              <Text style={styles.statusText}>
-                {donationService.formatStatus(donation.status)}
-              </Text>
-            </View>
           </View>
-          <Text style={styles.amountSubtext}>
+          <Text style={styles.amountSubtext} numberOfLines={1}>
             {donationService.formatCategory(donation.category)}
           </Text>
-          <Text style={styles.receiptNumber}>
+          <Text style={styles.receiptNumber} numberOfLines={1}>
             Reçu: {donation.receipt.number}
           </Text>
         </View>
@@ -1122,8 +1125,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                   Occurrences
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {donation.recurring.currentOccurrence || 1}
-                  {donation.recurring.maxOccurrences ? ` / ${donation.recurring.maxOccurrences}` : ''}
+                  {`${donation.recurring.currentOccurrence || 1}${donation.recurring.maxOccurrences ? ` / ${donation.recurring.maxOccurrences}` : ''}`}
                 </Text>
               </View>
             </View>
@@ -1530,11 +1532,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    textAlign: 'center',
+    width: '100%',
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    marginTop: 8,
   },
   statusText: {
     color: '#FFFFFF',
@@ -1542,16 +1547,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   amountSubtext: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#FFFFFF',
     opacity: 0.9,
     marginTop: 8,
+    textAlign: 'center',
   },
   receiptNumber: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#FFFFFF',
     opacity: 0.8,
     marginTop: 4,
+    textAlign: 'center',
   },
   card: {
     margin: 20,

@@ -118,7 +118,8 @@ export const updateUserPreferences = createAsyncThunk(
   'user/updatePreferences',
   async (preferences: Partial<UserProfile['preferences']>, { rejectWithValue }) => {
     try {
-      const response = await userService.updatePreferences(preferences);
+      // La méthode s'appelle updateUserPreferences dans userService, pas updatePreferences
+      const response = await userService.updateUserPreferences(preferences as any);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Erreur lors de la mise à jour des préférences');

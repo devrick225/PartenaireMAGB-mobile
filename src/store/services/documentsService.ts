@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Alert, Platform } from 'react-native';
 
@@ -152,11 +152,10 @@ class DocumentsService {
     try {
       const documentsDirectory = FileSystem.documentDirectory;
       if (!documentsDirectory) {
-        return { success: false, error: "Impossible d'accéder au répertoire de documents" };
+        return { success: false, error: "Impossible d'accéder au répertoire de documents." };
       }
       const filePath = `${documentsDirectory}${filename}`;
 
-      // Récupérer baseURL depuis l'instance axios
       const baseURL = apiClient.getAxiosInstance().defaults.baseURL || '';
       const token = await this.getAuthToken();
       const fullUrl = `${baseURL}${url}`;

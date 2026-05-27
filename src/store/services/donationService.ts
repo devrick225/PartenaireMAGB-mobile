@@ -138,12 +138,9 @@ export interface InitializePaymentData {
 class DonationService {
   async createDonation(donationData: CreateDonationData) {
     try {
-      console.log('Envoi données don:', donationData);
       const response = await apiClient.post('/donations', donationData);
-      console.log('Réponse création don:', response.data);
       return response;
     } catch (error) {
-      console.error('Erreur service createDonation:', error);
       throw error;
     }
   }
@@ -401,54 +398,35 @@ class DonationService {
 
   async initializePayment(paymentData: InitializePaymentData) {
     try {
-      console.log('Envoi données paiement:', paymentData);
       const response = await apiClient.post('/payments/initialize', paymentData);
-      console.log('Réponse initialisation paiement:', response.data);
       return response;
     } catch (error) {
-      console.error('Erreur service initializePayment:', error);
       throw error;
     }
   }
 
-  // Vérifier tous les paiements en attente (pour admins)
   async verifyAllPayments() {
     try {
-      console.log('Lancement vérification de tous les paiements en attente');
       const response = await apiClient.post('/donations/verify-payments');
-      console.log('Résultat vérification globale:', response.data);
       return response;
     } catch (error) {
-      console.error('Erreur service verifyAllPayments:', error);
       throw error;
     }
   }
 
-  // Mettre à jour le statut d'un don basé sur le statut du paiement
   async updateDonationStatusFromPayment(donationId: string, paymentStatus: 'pending' | 'paid' | 'failed') {
     try {
       let donationStatus = 'pending';
-      
-      if (paymentStatus === 'paid') {
-        donationStatus = 'completed';
-      } else if (paymentStatus === 'failed') {
-        donationStatus = 'failed';
-      } else if (paymentStatus === 'pending') {
-        donationStatus = 'pending';
-      }
-      
-      console.log(`Mise à jour statut don ${donationId}: ${paymentStatus} -> ${donationStatus}`);
-      
+      if (paymentStatus === 'paid') donationStatus = 'completed';
+      else if (paymentStatus === 'failed') donationStatus = 'failed';
+
       const response = await apiClient.patch(`/donations/${donationId}/status`, {
         status: donationStatus,
         updatedFrom: 'payment_verification',
-        paymentStatus: paymentStatus,
+        paymentStatus,
       });
-      
-      console.log('Statut don mis à jour:', response.data);
       return response;
     } catch (error) {
-      console.error('Erreur mise à jour statut don:', error);
       throw error;
     }
   }

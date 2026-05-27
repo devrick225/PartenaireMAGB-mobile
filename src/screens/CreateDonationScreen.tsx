@@ -287,7 +287,9 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
 
   const handleAmountChange = (text: string) => {
     const numericValue = parseFloat(text.replace(/[^0-9.]/g, '')) || 0;
-    setFormData(prev => ({ ...prev, amount: numericValue }));
+    if (numericValue <= 2000000) {
+      setFormData(prev => ({ ...prev, amount: numericValue }));
+    }
   };
 
   const formatAmount = (amount: number) => {
@@ -333,6 +335,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
   const validateForm = () => {
     if (formData.amount < 200) {
       Alert.alert('Erreur', 'Le montant minimum est de 200');
+      return false;
+    }
+    if (formData.amount > 2000000) {
+      Alert.alert('Erreur', 'Le montant maximum est de 2 000 000 XOF');
       return false;
     }
     // Catégorie automatiquement définie à "soutien", pas besoin de vérification
@@ -798,12 +804,17 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
               </TouchableOpacity>
             </TouchableOpacity>
             {formData.amount > 0 && (
-              <Text style={[styles.amountDisplay, { color: colors.primary }]}>
+              <Text
+                style={[styles.amountDisplay, { color: colors.primary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
                 {formatAmount(formData.amount)}
               </Text>
             )}
             <Text style={[styles.helperText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Montant minimum: 200 {currencies.find(c => c.value === formData.currency)?.symbol}
+              Montant: 200 — 2 000 000 {currencies.find(c => c.value === formData.currency)?.symbol}
             </Text>
           </View>
 
@@ -1256,7 +1267,12 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
             ) : (
               <>
                 <MaterialIcons name="favorite" size={20} color="#FFFFFF" />
-                <Text style={styles.submitButtonText}>
+                <Text
+                  style={styles.submitButtonText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
                   Faire le don de {formatAmount(formData.amount)}
                 </Text>
               </>

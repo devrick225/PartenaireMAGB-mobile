@@ -1,19 +1,21 @@
-import { Platform, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { requestMediaLibraryPermission, requestCameraPermission } from './permissions';
 
 /**
  * Lancer le sélecteur d'images avec options d'édition
  */
 export const launchImagePicker = async (options = {}) => {
   try {
-    await checkMediaPermissions();
+    const granted = await requestMediaLibraryPermission();
+    if (!granted) return null;
 
     const defaultOptions = {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8, // Réduire la qualité pour optimiser la taille
+      quality: 0.8,
       ...options
     };
 
@@ -21,8 +23,6 @@ export const launchImagePicker = async (options = {}) => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const image = result.assets[0];
-      
-      // Optimiser l'image pour l'upload
       const optimizedImage = await optimizeImage(image.uri);
       return optimizedImage;
     }
@@ -39,7 +39,8 @@ export const launchImagePicker = async (options = {}) => {
  */
 export const launchCamera = async (options = {}) => {
   try {
-    await checkCameraPermissions();
+    const granted = await requestCameraPermission();
+    if (!granted) return null;
 
     const defaultOptions = {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -53,8 +54,6 @@ export const launchCamera = async (options = {}) => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const image = result.assets[0];
-      
-      // Optimiser l'image pour l'upload
       const optimizedImage = await optimizeImage(image.uri);
       return optimizedImage;
     }
@@ -151,34 +150,4 @@ export const convertToBase64WithPrefix = (base64Data) => {
   }
   
   return base64Data;
-};
-
-/**
- * Vérifier les permissions pour accéder à la galerie
- */
-const checkMediaPermissions = async () => {
-  if (Platform.OS !== 'web') {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      throw new Error('Permission d\'accès à la galerie refusée. Veuillez autoriser l\'accès dans les paramètres.');
-    }
-  }
-  
-  return true;
-};
-
-/**
- * Vérifier les permissions pour utiliser la caméra
- */
-const checkCameraPermissions = async () => {
-  if (Platform.OS !== 'web') {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (status !== 'granted') {
-      throw new Error('Permission d\'accès à la caméra refusée. Veuillez autoriser l\'accès dans les paramètres.');
-    }
-  }
-  
-  return true;
 };

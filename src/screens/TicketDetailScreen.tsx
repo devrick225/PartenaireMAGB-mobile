@@ -148,9 +148,15 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   };
 
   const handleChangeStatus = (newStatus: string) => {
+    const isReopen = ticket?.status === 'closed' && newStatus === 'in_progress';
+    const title = isReopen ? 'Rouvrir le ticket' : 'Changer le statut';
+    const message = isReopen 
+      ? 'Voulez-vous rouvrir ce ticket ? Il passera au statut "En cours".'
+      : `Voulez-vous changer le statut vers "${ticketService.formatTicketStatus(newStatus)}" ?`;
+
     Alert.alert(
-      'Changer le statut',
-      `Voulez-vous changer le statut du ticket vers "${ticketService.formatTicketStatus(newStatus)}" ?`,
+      title,
+      message,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -158,7 +164,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           onPress: async () => {
             try {
               await ticketService.changeTicketStatus(ticketId, newStatus);
-              Alert.alert('Succès', 'Statut modifié avec succès');
+              Alert.alert('Succès', isReopen ? 'Ticket rouvert avec succès' : 'Statut modifié avec succès');
               loadTicketDetails();
             } catch (error: any) {
               Alert.alert('Erreur', error.message || 'Impossible de changer le statut');
@@ -297,20 +303,22 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       {/* Informations utilisateur pour les agents de support */}
       {permissions.canViewAllTickets && ticket?.user && (
         <View style={styles.userSection}>
-          <MaterialIcons name="person" size={16} color={colors.primary} />
-          <Text style={[styles.userText, { color: colors.text }]}>
-            Créé par {ticket.user.firstName} {ticket.user.lastName}
-          </Text>
-          <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <View style={styles.userSectionRow}>
+            <MaterialIcons name="person" size={16} color={colors.primary} />
+            <Text style={[styles.userText, { color: colors.text }]} numberOfLines={1}>
+              Créé par {ticket.user.firstName} {ticket.user.lastName}
+            </Text>
+            {ticket.user.role && (
+              <View style={[styles.userRoleBadge, { backgroundColor: getUserRoleColor(ticket.user.role as UserRole) + '20' }]}>
+                <Text style={[styles.userRoleText, { color: getUserRoleColor(ticket.user.role as UserRole) }]}>
+                  {getUserRoleLabel(ticket.user.role as UserRole)}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
             {ticket.user.email}
           </Text>
-          {ticket.user.role && (
-            <View style={[styles.userRoleBadge, { backgroundColor: getUserRoleColor(ticket.user.role as UserRole) + '20' }]}>
-              <Text style={[styles.userRoleText, { color: getUserRoleColor(ticket.user.role as UserRole) }]}>
-                {getUserRoleLabel(ticket.user.role as UserRole)}
-              </Text>
-            </View>
-          )}
         </View>
       )}
 
@@ -674,118 +682,96 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     if (!permissions.isSupportRole || !ticket) return null;
 
     const actions = ticketService.getAvailableActions(ticket, currentUser?.id, currentUser?.role);
-    
-    // Si aucune action administrative possible, ne pas afficher
-    if (!actions.canChangeStatus && !actions.canAssign && !actions.canEscalate) {
-      return null;
-    }
+    const isClosed = ticket.status === 'closed';
+    const isCancelled = ticket.status === 'cancelled';
+    const isResolved = ticket.status === 'resolved';
+
+    // États terminaux : pas de section admin
+    if (isClosed || isCancelled) return null;
+
+    // Résolu : pas de changement de statut admin (fermeture gérée par bouton dédié)
+    if (isResolved && !actions.canAssign && !actions.canEscalate) return null;
+
+    // Si aucune action admin disponible
+    if (!actions.canChangeStatus && !actions.canAssign && !actions.canEscalate) return null;
 
     return (
       <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions administrateur</Text>
+        <View style={styles.adminSectionHeader}>
+          <MaterialIcons name="admin-panel-settings" size={22} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+            Actions administrateur
+          </Text>
+        </View>
         
         {/* Changement de statut */}
         {actions.canChangeStatus && actions.availableStatusTransitions.length > 0 && (
           <View style={styles.adminActionGroup}>
-            <Text style={[styles.adminActionLabel, { color: colors.text }]}>Changer le statut</Text>
+            <Text style={[styles.adminActionLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              Changer le statut
+            </Text>
             <View style={styles.statusActions}>
-              {actions.availableStatusTransitions.slice(0, 4).map((transition) => (
+              {actions.availableStatusTransitions.map((transition) => (
                 <TouchableOpacity
                   key={transition.status}
                   style={[
                     styles.statusActionButton,
                     { 
-                      backgroundColor: ticketService.getStatusColor(transition.status) + '20'
+                      backgroundColor: ticketService.getStatusColor(transition.status) + '15',
+                      borderWidth: 1,
+                      borderColor: ticketService.getStatusColor(transition.status) + '40',
                     }
                   ]}
                   onPress={() => handleChangeStatus(transition.status)}
                 >
                   <MaterialIcons 
                     name={ticketService.getStatusIcon(transition.status) as any} 
-                    size={16} 
+                    size={18} 
                     color={ticketService.getStatusColor(transition.status)} 
                   />
                   <Text style={[
                     styles.statusActionText, 
                     { color: ticketService.getStatusColor(transition.status) }
-                  ]}>
+                  ]} numberOfLines={1}>
                     {transition.label}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-            
-            {/* Afficher les autres transitions si nombreuses */}
-            {actions.availableStatusTransitions.length > 4 && (
-              <View style={styles.moreStatusActions}>
-                {actions.availableStatusTransitions.slice(4).map((transition) => (
-                  <TouchableOpacity
-                    key={transition.status}
-                    style={[
-                      styles.statusActionButton,
-                      { 
-                        backgroundColor: ticketService.getStatusColor(transition.status) + '20',
-                        flex: 1
-                      }
-                    ]}
-                    onPress={() => handleChangeStatus(transition.status)}
-                  >
-                    <MaterialIcons 
-                      name={ticketService.getStatusIcon(transition.status) as any} 
-                      size={16} 
-                      color={ticketService.getStatusColor(transition.status)} 
-                    />
-                    <Text style={[
-                      styles.statusActionText, 
-                      { color: ticketService.getStatusColor(transition.status) }
-                    ]}>
-                      {transition.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
         )}
 
-        {/* Actions de gestion */}
+        {/* Actions de gestion (Assigner / Escalader) */}
         {(actions.canAssign || actions.canEscalate) && (
           <View style={styles.adminActionGroup}>
-            <Text style={[styles.adminActionLabel, { color: colors.text }]}>Gestion</Text>
+            <Text style={[styles.adminActionLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              Gestion
+            </Text>
             <View style={styles.managementActions}>
               {actions.canAssign && (
                 <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                  style={[styles.managementButton, { backgroundColor: colors.primary }]}
                   onPress={() => setShowAssignModal(true)}
                 >
-                  <MaterialIcons name="person-add" size={20} color={COLORS.white} />
-                  <Text style={styles.actionButtonText}>Assigner</Text>
+                  <MaterialIcons name="person-add" size={18} color={COLORS.white} />
+                  <Text style={styles.managementButtonText}>Assigner</Text>
                 </TouchableOpacity>
               )}
 
               {actions.canEscalate && (
                 <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: COLORS.warning }]}
+                  style={[styles.managementButton, { backgroundColor: COLORS.warning }]}
                   onPress={() => setShowEscalateModal(true)}
                 >
-                  <MaterialIcons name="trending-up" size={20} color={COLORS.white} />
-                  <Text style={styles.actionButtonText}>Escalader</Text>
+                  <MaterialIcons name="trending-up" size={18} color={COLORS.white} />
+                  <Text style={styles.managementButtonText}>Escalader</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
         )}
 
-        {/* Informations sur les restrictions */}
-        {!actions.canChangeStatus && ticket.status === 'cancelled' && (
-          <View style={[styles.restrictionInfo, { backgroundColor: COLORS.error + '10' }]}>
-            <MaterialIcons name="block" size={16} color={COLORS.error} />
-            <Text style={[styles.restrictionText, { color: COLORS.error }]}>
-              Les tickets annulés ne peuvent plus être modifiés.
-            </Text>
-          </View>
-        )}
-
+        {/* Info si déjà escaladé */}
         {!actions.canEscalate && ticketService.isTicketEscalated(ticket) && (
           <View style={[styles.restrictionInfo, { backgroundColor: COLORS.warning + '10' }]}>
             <MaterialIcons name="info" size={16} color={COLORS.warning} />
@@ -804,33 +790,91 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     const actions = ticketService.getAvailableActions(ticket, currentUser?.id, currentUser?.role);
     const statusRules = ticketService.getTicketStatusRules(ticket);
 
-    // Si aucune action possible, ne pas afficher la section
-    if (!actions.canComment && !actions.canClose && !actions.canRate && !actions.canReopen) {
+    // Ticket annulé : aucune action possible
+    if (ticket.status === 'cancelled') {
+      return (
+        <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
+          <View style={[styles.statusAlert, { backgroundColor: COLORS.error + '20' }]}>
+            <MaterialIcons name="block" size={20} color={COLORS.error} />
+            <Text style={[styles.statusAlertText, { color: COLORS.error }]}>
+              Ce ticket a été annulé. Aucune action n'est possible.
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Ticket fermé : seule la réouverture est possible
+    if (ticket.status === 'closed') {
+      return (
+        <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
+          <View style={[styles.statusAlert, { backgroundColor: COLORS.gray + '20' }]}>
+            <MaterialIcons name="lock" size={20} color={COLORS.gray} />
+            <Text style={[styles.statusAlertText, { color: COLORS.gray }]}>
+              Ce ticket est fermé.
+            </Text>
+          </View>
+          {actions.canReopen && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={() => handleChangeStatus('in_progress')}
+            >
+              <MaterialIcons name="refresh" size={20} color={COLORS.white} />
+              <Text style={styles.actionButtonText} numberOfLines={1}>Rouvrir le ticket</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+
+    // Ticket résolu : fermeture + évaluation
+    if (ticket.status === 'resolved') {
+      const hasActions = actions.canClose || actions.canRate;
+      if (!hasActions) return null;
+
+      return (
+        <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
+          <View style={[styles.statusAlert, { backgroundColor: COLORS.success + '20' }]}>
+            <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
+            <Text style={[styles.statusAlertText, { color: COLORS.success }]}>
+              Ce ticket a été résolu. Vous pouvez le fermer ou l'évaluer.
+            </Text>
+          </View>
+
+          {actions.canRate && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#FFB300' }]}
+              onPress={() => setShowRatingModal(true)}
+            >
+              <MaterialIcons name="star" size={20} color={COLORS.white} />
+              <Text style={styles.actionButtonText} numberOfLines={1}>Évaluer le support</Text>
+            </TouchableOpacity>
+          )}
+
+          {actions.canClose && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.closeButton]}
+              onPress={handleCloseTicket}
+            >
+              <MaterialIcons name="lock" size={20} color={COLORS.white} />
+              <Text style={styles.actionButtonText} numberOfLines={1}>Fermer le ticket</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+
+    // Tickets actifs (open, in_progress, waiting_user, waiting_admin)
+    if (!actions.canComment && !actions.canClose) {
       return null;
     }
 
     return (
       <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-        
-        {/* Message informatif selon le statut */}
-        {statusRules.isClosed && (
-          <View style={[styles.statusAlert, { backgroundColor: COLORS.gray + '20' }]}>
-            <MaterialIcons name="info" size={20} color={COLORS.gray} />
-            <Text style={[styles.statusAlertText, { color: COLORS.gray }]}>
-              Ce ticket est fermé. Seule la réouverture est possible.
-            </Text>
-          </View>
-        )}
-
-        {statusRules.isResolved && !statusRules.isClosed && (
-          <View style={[styles.statusAlert, { backgroundColor: COLORS.success + '20' }]}>
-            <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
-            <Text style={[styles.statusAlertText, { color: COLORS.success }]}>
-              Ce ticket est résolu.
-            </Text>
-          </View>
-        )}
 
         {statusRules.isOverdue && (
           <View style={[styles.statusAlert, { backgroundColor: COLORS.error + '20' }]}>
@@ -841,47 +885,23 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           </View>
         )}
 
-        {/* Bouton réouverture - Désactivé pour les tickets résolus */}
-        {actions.canReopen && ticket.status !== 'resolved' && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => handleChangeStatus('in_progress')}
-          >
-            <MaterialIcons name="refresh" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1} ellipsizeMode="tail">Rouvrir le ticket</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Bouton commentaire */}
         {actions.canComment && (
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
             onPress={() => setShowCommentInput(true)}
           >
             <MaterialIcons name="comment" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1} ellipsizeMode="tail">Ajouter un commentaire</Text>
+            <Text style={styles.actionButtonText} numberOfLines={1}>Ajouter un commentaire</Text>
           </TouchableOpacity>
         )}
 
-        {/* Bouton fermeture */}
         {actions.canClose && (
           <TouchableOpacity
             style={[styles.actionButton, styles.closeButton]}
             onPress={handleCloseTicket}
           >
             <MaterialIcons name="close" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1} ellipsizeMode="tail">Fermer le ticket</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Bouton évaluation */}
-        {actions.canRate && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowRatingModal(true)}
-          >
-            <MaterialIcons name="star" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1} ellipsizeMode="tail">Évaluer le support</Text>
+            <Text style={styles.actionButtonText} numberOfLines={1}>Fermer le ticket</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1427,6 +1447,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1701,49 +1724,84 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  adminSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
   adminActionGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   adminActionLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
   statusActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   statusActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    borderRadius: 8,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    minWidth: '45%',
+    flexGrow: 1,
   },
   statusActionText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
   },
   managementActions: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  userSection: {
+  managementButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    flex: 1,
+    minWidth: '45%',
+  },
+  managementButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  userSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: COLORS.greyscale300,
+    gap: 4,
+  },
+  userSectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   userText: {
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 1,
   },
   userEmail: {
-    fontSize: 12,
+    fontSize: 13,
     fontStyle: 'italic',
+    marginLeft: 24,
   },
   adminModal: {
     width: '90%',
@@ -1961,10 +2019,6 @@ const styles = StyleSheet.create({
   statusAlertText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  moreStatusActions: {
-    flexDirection: 'row',
-    gap: 8,
   },
   restrictionInfo: {
     padding: 12,

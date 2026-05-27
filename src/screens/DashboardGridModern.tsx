@@ -389,11 +389,37 @@ const DashboardGridModern: React.FC<DashboardGridModernProps> = ({ navigation })
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+
+      {/* Barre de navigation fixe — toujours visible */}
+      <View style={[styles.topNavBar, { backgroundColor: '#26335F' }]}>
+        <Text style={styles.topNavTitle}>Tableau de bord</Text>
+        <TouchableOpacity
+          style={[
+            styles.topNavRefreshBtn,
+            refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
+          ]}
+          onPress={onRefresh}
+          disabled={refreshing}
+          activeOpacity={0.7}
+        >
+          {refreshing ? (
+            <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
+          ) : (
+            <MaterialIcons name="refresh" size={26} color="#FFD61D" />
+          )}
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#FFD61D']}
+            tintColor="#FFD61D"
+          />
         }
       >
         {/* Header moderne avec gradient */}
@@ -418,44 +444,26 @@ const DashboardGridModern: React.FC<DashboardGridModernProps> = ({ navigation })
               </Text>
             </View>
 
-            <View style={styles.headerRightColumn}>
-              {/* Bouton rafraîchissement visible */}
-              <TouchableOpacity
-                style={styles.refreshHeaderButton}
-                onPress={onRefresh}
-                disabled={refreshing}
-                activeOpacity={0.75}
-              >
-                {refreshing ? (
-                  <Animated.View>
-                    <MaterialIcons name="refresh" size={20} color="#FFD61D" />
-                  </Animated.View>
-                ) : (
-                  <MaterialIcons name="refresh" size={20} color="rgba(255,255,255,0.9)" />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.avatarContainer}
-                onPress={() => navigation.navigate('ProfileImage')}
-              >
-                {user?.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                ) : (
-                  <LinearGradient
-                    colors={['#D32235', '#FFD61D']}
-                    style={styles.avatarPlaceholder}
-                  >
-                    <Text style={styles.avatarText}>
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
-                    </Text>
-                  </LinearGradient>
-                )}
-                <View style={styles.avatarBadge}>
-                  <MaterialIcons name="verified" size={16} color="#4CAF50" />
-                </View>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={() => navigation.navigate('ProfileImage')}
+            >
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <LinearGradient
+                  colors={['#D32235', '#FFD61D']}
+                  style={styles.avatarPlaceholder}
+                >
+                  <Text style={styles.avatarText}>
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </Text>
+                </LinearGradient>
+              )}
+              <View style={styles.avatarBadge}>
+                <MaterialIcons name="verified" size={16} color="#4CAF50" />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* Statistiques avec design moderne */}
@@ -603,19 +611,28 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     lineHeight: 20,
   },
-  headerRightColumn: {
+  topNavBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
   },
-  refreshHeaderButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  topNavTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  topNavRefreshBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 1.5,
+    borderColor: '#FFD61D',
   },
   avatarContainer: {
     position: 'relative',

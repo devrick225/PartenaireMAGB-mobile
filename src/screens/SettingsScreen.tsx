@@ -153,8 +153,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         dispatch(updateUser(updatedUser) as any);
       }
       
-      console.log('✅ Préférences mises à jour avec succès:', newPreferences);
-    } catch (error) {
       console.error('Erreur mise à jour préférences:', error);
       Alert.alert('Erreur', 'Impossible de mettre à jour les préférences');
       
@@ -284,28 +282,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'toggle' as const,
           value: preferences.emailNotifications.donations,
           onToggle: (value: boolean) => {
-            console.log('🔄 Toggle donations email:', value);
-            console.log('📊 État avant:', preferences.emailNotifications);
-            
-            // Mise à jour immédiate de l'état local
-            setPreferences(prev => {
-              const newState = {
-                ...prev,
-                emailNotifications: {
-                  ...prev.emailNotifications,
-                  donations: value,
-                },
-              };
-              return newState;
-            });
-            
-            // Envoi au backend
-            const newPrefs = {
-              emailNotifications: {
-                donations: value,
-              },
-            };
-            updatePreferences(newPrefs);
+            setPreferences(prev => ({
+              ...prev,
+              emailNotifications: { ...prev.emailNotifications, donations: value },
+            }));
+            updatePreferences({ emailNotifications: { donations: value } });
           },
         },
         {
@@ -315,26 +296,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'toggle' as const,
           value: preferences.emailNotifications.reminders,
           onToggle: (value: boolean) => {
-            // Mise à jour immédiate de l'état local
-            setPreferences(prev => {
-              const newState = {
-                ...prev,
-                emailNotifications: {
-                  ...prev.emailNotifications,
-                  reminders: value,
-                },
-              };
-              console.log('📊 Nouvel état:', newState.emailNotifications);
-              return newState;
-            });
-            
-            // Envoi au backend
-            const newPrefs = {
-              emailNotifications: {
-                reminders: value,
-              },
-            };
-            updatePreferences(newPrefs);
+            setPreferences(prev => ({
+              ...prev,
+              emailNotifications: { ...prev.emailNotifications, reminders: value },
+            }));
+            updatePreferences({ emailNotifications: { reminders: value } });
           },
         },
         /*

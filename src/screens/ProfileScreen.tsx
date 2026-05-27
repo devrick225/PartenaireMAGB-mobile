@@ -22,6 +22,7 @@ import { updateUser, logoutUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
 import PartnerIdDisplay from '../components/PartnerIdDisplay';
 import RefreshableHeader from '../components/RefreshableHeader';
+import { requestMediaLibraryPermission } from '../utils/permissions';
 
 interface UserProfile {
   user: {
@@ -71,7 +72,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       setIsLoading(true);
       const response = await userService.getProfile();
-      console.log('🔍 Profile:', response.data.data.profile);
       
       if (response.data?.data?.profile) {
         setProfile(response.data.data.profile);
@@ -106,12 +106,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const handleImagePicker = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission requise', 'Nous avons besoin de votre permission pour accéder à vos photos');
-        return;
-      }
+      const granted = await requestMediaLibraryPermission();
+      if (!granted) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,

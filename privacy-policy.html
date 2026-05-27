@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Politique de Confidentialité — PartenaireMAGB</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #F4F6FB;
+      color: #1C2340;
+      line-height: 1.75;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #26335F 0%, #1a2347 100%);
+      color: #fff;
+      padding: 48px 24px 36px;
+      text-align: center;
+    }
+    header .logo-ring {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,214,29,0.6);
+      margin-bottom: 18px;
+    }
+    header .logo-ring svg { width: 36px; height: 36px; fill: #FFD61D; }
+    header h1 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    header p.app-name {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.75);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    header .badge {
+      display: inline-block;
+      margin-top: 16px;
+      background: rgba(255,214,29,0.2);
+      border: 1px solid #FFD61D;
+      color: #FFD61D;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    /* ── INTRO CARD ── */
+    .intro-card {
+      background: #fff;
+      border-left: 5px solid #26335F;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 36px;
+      box-shadow: 0 2px 12px rgba(38,51,95,0.08);
+    }
+    .intro-card p { font-size: 0.95rem; color: #444; }
+
+    /* ── SECTION ── */
+    section {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 12px rgba(38,51,95,0.06);
+    }
+    section h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #26335F;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #EEF1FF;
+    }
+    section h2 .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: #EEF1FF;
+      flex-shrink: 0;
+    }
+    section h2 .icon svg { width: 18px; height: 18px; fill: #26335F; }
+
+    section h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1C2340;
+      margin: 20px 0 8px;
+    }
+    section p, section li {
+      font-size: 0.93rem;
+      color: #444;
+      margin-bottom: 8px;
+    }
+    section ul {
+      padding-left: 20px;
+      margin-top: 6px;
+    }
+    section ul li { list-style: disc; }
+
+    /* ── RIGHTS LIST ── */
+    .rights-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    .rights-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #F0F2FA;
+    }
+    .rights-list li:last-child { border-bottom: none; }
+    .rights-list li::before {
+      content: '✓';
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      background: #E8FBF0;
+      color: #27AE60;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: 900;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ── CONTACT BOX ── */
+    .contact-box {
+      background: linear-gradient(135deg, #26335F 0%, #1a2347 100%);
+      border-radius: 16px;
+      padding: 28px 32px;
+      color: #fff;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .contact-box h2 {
+      color: #FFD61D;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .contact-box p { color: rgba(255,255,255,0.8); font-size: 0.92rem; margin-bottom: 16px; }
+    .contact-box a {
+      display: inline-block;
+      background: #FFD61D;
+      color: #1C2340;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 10px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .contact-box a:hover { opacity: 0.85; }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 24px 20px 32px;
+      font-size: 0.82rem;
+      color: #999;
+      border-top: 1px solid #E5E8F0;
+    }
+    footer strong { color: #26335F; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ HEADER ════════════════ -->
+<header>
+  <div class="logo-ring">
+    <!-- Shield icon -->
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+    </svg>
+  </div>
+  <h1>Politique de Confidentialité</h1>
+  <p class="app-name">PartenaireMAGB</p>
+  <span class="badge">Dernière mise à jour : 12 juillet 2025</span>
+</header>
+
+<!-- ════════════════ MAIN ════════════════ -->
+<main>
+
+  <!-- Introduction -->
+  <div class="intro-card">
+    <p>
+      Bienvenue sur <strong>PartenaireMAGB</strong>, l'application dédiée à la gestion des partenariats
+      et à la facilitation des transactions au sein de la communauté <strong>Ministère d'Adoration Geneviève Brou</strong>.
+      Cette Politique de Confidentialité a pour objectif de vous informer sur la manière dont nous collectons,
+      utilisons, partageons et protégeons vos données personnelles.
+      <br/><br/>
+      En utilisant PartenaireMAGB, vous acceptez les termes de cette politique.
+    </p>
+  </div>
+
+  <!-- 1. Données collectées -->
+  <section>
+    <h2>
+      <span class="icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10
+          10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/></svg>
+      </span>
+      1. Données Collectées
+    </h2>
+    <h3>1.1 Informations d'Inscription</h3>
+    <p>Lors de votre inscription sur PartenaireMAGB, nous collectons les informations nécessaires telles que
+      votre nom, prénom, adresse e-mail, numéro de téléphone, et autres détails pertinents pour votre
+      identification et la communication.</p>
+
+    <h3>1.2 Données de Paiement</h3>
+    <p>Pour les transactions électroniques, nous collectons les informations de paiement, y compris les détails
+      de virement ou de portefeuille mobile. Ces données sont traitées de manière sécurisée via des
+      plateformes de paiement certifiées. Nous ne stockons jamais vos informations bancaires sur nos serveurs.</p>
+
+    <h3>1.3 Données d'Utilisation</h3>
+    <p>Nous recueillons des données sur votre interaction avec l'application, notamment les fonctionnalités
+      utilisées, les transactions effectuées, et les préférences de navigation, afin d'améliorer
+      continuellement votre expérience.</p>
+
+    <h3>1.4 Données de Profil</h3>
+    <p>Votre photo de profil, votre type (Particulier ou Personne Morale), et vos préférences de don
+      (catégorie, fréquence) peuvent être enregistrés afin de personnaliser l'application.</p>
+  </section>
+
+  <!-- 2. Utilisation des données -->
+  <section>
+    <h2>
+      <span class="icon">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14
+          c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13
+          s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82
+          9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+      </span>
+      2. Utilisation des Données
+    </h2>
+    <h3>2.1 Traitement des Transactions</h3>
+    <p>Les informations de paiement sont utilisées exclusivement pour exécuter les transactions
+      demandées via PartenaireMAGB (dons mensuels, trimestriels, semestriels ou ponctuels).</p>
+
+    <h3>2.2 Communication</h3>
+    <p>Nous utilisons vos coordonnées pour vous envoyer des notifications relatives à votre compte,
+      des confirmations de dons, des rappels de prélèvements récurrents, et des informations
+      sur les activités du Ministère.</p>
+
+    <h3>2.3 Amélioration des Services</h3>
+    <p>Les données d'utilisation nous aident à optimiser l'application, à corriger les anomalies
+      techniques, et à personnaliser votre expérience utilisateur.</p>
+  </section>
+
+  <!-- 3. Partage des données -->
+  <section>
+    <h2>
+      <span class="icon">
+        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91
+          12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81
+          1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81
+          C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81
+          l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31
+          2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+      </span>
+      3. Partage des Données
+    </h2>
+    <h3>3.1 Fournisseurs de Services</h3>
+    <p>Nous pouvons partager vos données avec des prestataires tiers qui nous assistent dans la gestion
+      de l'application (traitement des paiements via MoneyFusion, hébergement des données). Ces partenaires
+      sont contractuellement tenus de respecter des obligations strictes de confidentialité.</p>
+
+    <h3>3.2 Conformité Légale</h3>
+    <p>Vos informations peuvent être divulguées si la loi l'exige ou pour protéger nos droits légaux,
+      notamment en cas de requête judiciaire ou administrative.</p>
+
+    <h3>3.3 Ce que nous ne faisons pas</h3>
+    <ul>
+      <li>Nous ne vendons jamais vos données personnelles à des tiers.</li>
+      <li>Nous ne partageons pas vos informations à des fins publicitaires.</li>
+      <li>Nous ne transférons pas vos données hors du cadre décrit dans cette politique sans votre consentement.</li>
+    </ul>
+  </section>
+
+  <!-- 4. Sécurité -->
+  <section>
+    <h2>
+      <span class="icon">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12
+          5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10
+          14.17l6.59-6.59L18 9l-8 8z"/></svg>
+      </span>
+      4. Sécurité des Données
+    </h2>
+    <p>Nous mettons en œuvre des mesures techniques et organisationnelles robustes pour protéger
+      vos données contre tout accès non autorisé, altération, divulgation ou destruction :</p>
+    <ul>
+      <li>Chiffrement des communications (HTTPS / TLS)</li>
+      <li>Authentification sécurisée avec mots de passe hachés</li>
+      <li>Aucune donnée bancaire stockée sur nos serveurs</li>
+      <li>Accès aux données restreint au personnel habilité</li>
+      <li>Mises à jour de sécurité régulières de l'application</li>
+    </ul>
+  </section>
+
+  <!-- 5. Vos droits -->
+  <section>
+    <h2>
+      <span class="icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10
+          10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      </span>
+      5. Vos Droits
+    </h2>
+    <p>Conformément à la réglementation applicable sur la protection des données, vous disposez des droits suivants :</p>
+    <ul class="rights-list">
+      <li>Droit d'accès à vos données personnelles</li>
+      <li>Droit de rectification des informations inexactes</li>
+      <li>Droit à la suppression de votre compte et de vos données</li>
+      <li>Droit d'opposition à certains traitements de données</li>
+      <li>Droit de retirer votre consentement à tout moment</li>
+      <li>Droit à la portabilité de vos données</li>
+    </ul>
+    <p style="margin-top:16px;">Pour exercer ces droits, contactez-nous à l'adresse :
+      <strong>partenaireadorationgene.brou@gmail.com</strong>
+    </p>
+  </section>
+
+  <!-- 6. Mises à jour -->
+  <section>
+    <h2>
+      <span class="icon">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42
+          0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08
+          c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0
+          3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      </span>
+      6. Mises à Jour de la Politique
+    </h2>
+    <p>Cette Politique de Confidentialité peut être modifiée pour refléter les évolutions de l'application
+      ou les changements légaux. En cas de modification significative, les utilisateurs seront notifiés
+      via l'application ou par email. La date de dernière mise à jour est toujours indiquée en haut
+      de ce document.</p>
+  </section>
+
+  <!-- 7. Contact -->
+  <div class="contact-box">
+    <h2>📩 Nous Contacter</h2>
+    <p>Pour toute question ou préoccupation concernant cette Politique de Confidentialité,
+      ou pour exercer vos droits, contactez notre équipe :</p>
+    <a href="mailto:partenaireadorationgene.brou@gmail.com">
+      partenaireadorationgene.brou@gmail.com
+    </a>
+    <p style="margin-top:14px; font-size:0.85rem;">
+      Tél. : 07 68 30 61 62 &nbsp;|&nbsp; 05 55 05 54 54
+    </p>
+  </div>
+
+</main>
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<footer>
+  <p>© 2025 <strong>Ministère d'Adoration Geneviève Brou</strong> — Tous droits réservés</p>
+  <p style="margin-top:6px;">Application <strong>PartenaireMAGB</strong> — Politique de Confidentialité</p>
+  <p style="margin-top:6px;">Dernière mise à jour : 12 juillet 2025</p>
+</footer>
+
+</body>
+</html>

@@ -16,8 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../theme/ThemeProvider';
+import { requestCameraAndMediaPermissions } from '../utils/permissions';
 import { COLORS } from '../constants';
 import userService from '../store/services/userService';
 import { RootState } from '../store';
@@ -39,20 +40,8 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(user?.avatar || null);
 
-  // Demander les permissions pour la caméra et la galerie
   const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: galleryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== 'granted' || galleryStatus !== 'granted') {
-      Alert.alert(
-        'Permissions requises',
-        'Nous avons besoin des permissions pour accéder à votre caméra et à vos photos.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
-    return true;
+    return await requestCameraAndMediaPermissions();
   };
 
   // Afficher les options pour choisir une image

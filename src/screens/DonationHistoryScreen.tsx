@@ -112,7 +112,12 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
           />
         </View>
         <View style={styles.donationInfo}>
-          <Text style={[styles.donationAmount, { color: colors.text }]}>
+          <Text
+            style={[styles.donationAmount, { color: colors.text }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
             {donationService.formatAmount(item.amount, item.currency)}
           </Text>
           <Text style={[styles.donationCategory, { color: dark ? COLORS.grayTie : COLORS.gray }]}>

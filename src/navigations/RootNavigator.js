@@ -19,23 +19,17 @@ const RootNavigator = () => {
     let timeoutId;
 
     const initializeApp = async () => {
-      // Check authentication status on app start
       if (!isInitialized && !isInitializing) {
         setIsInitializing(true);
-        console.log('🔄 Vérification du statut d\'authentification...');
         
-        // Set a safety timeout to prevent infinite loading
+        // Timeout de sécurité pour éviter un chargement infini
         timeoutId = setTimeout(() => {
-          console.log('⏰ Timeout de vérification d\'auth - initialisation forcée');
           dispatch(setInitialized(true));
-        }, 8000); // 8 secondes max
+        }, 8000);
         
         try {
           await dispatch(checkAuthStatus()).unwrap();
-          console.log('✅ Vérification d\'auth terminée avec succès');
         } catch (error) {
-          console.log('❌ Erreur lors de la vérification d\'auth:', error);
-          // Force l'initialisation même en cas d'erreur
           dispatch(setInitialized(true));
         } finally {
           clearTimeout(timeoutId);
@@ -46,29 +40,18 @@ const RootNavigator = () => {
 
     initializeApp();
 
-    // Cleanup timeout on unmount
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [dispatch, isInitialized, isInitializing]);
 
-  // Show loading screen while checking auth status
   if (!isInitialized) {
-    console.log('🔄 État de chargement:', { isInitialized, isLoading, isInitializing });
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
-
-  console.log('🔍 État d\'authentification final:', {
-    isAuthenticated,
-    isInitialized,
-    isLoading
-  });
 
   return (
     <NavigationContainer>

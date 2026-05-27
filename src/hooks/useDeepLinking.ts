@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Linking } from 'react-native';
+import logger from '../utils/logger';
 
 interface DeepLinkData {
   url: string;
@@ -36,7 +37,7 @@ export const useDeepLinking = (navigation?: any) => {
   }, [navigation]);
 
   const handleDeepLink = (url: string) => {
-    console.log('Deep link received:', url);
+    logger.info('Deep link received:', url);
     
     try {
       const parsedUrl = new URL(url);
@@ -64,12 +65,13 @@ export const useDeepLinking = (navigation?: any) => {
       };
 
       setLastDeepLink(deepLinkData);
-      console.log('Parsed deep link:', deepLinkData);
+      logger.debug('Parsed deep link:', deepLinkData);
       
       // Navigation automatique si navigation est disponible
       if (navigation && deepLinkData.type === 'payment') {
         const paymentData = parsePaymentDeepLink(deepLinkData);
         if (paymentData) {
+          logger.payment('Navigation vers PaymentVerification avec:', paymentData);
           navigation.navigate('PaymentVerification', {
             transactionId: paymentData.transactionId,
             donationId: paymentData.donationId,
@@ -80,7 +82,7 @@ export const useDeepLinking = (navigation?: any) => {
       }
       
     } catch (error) {
-      console.error('Error parsing deep link:', error);
+      logger.error('Error parsing deep link:', error);
       
       // Fallback pour les liens mal formés
       setLastDeepLink({
@@ -96,14 +98,24 @@ export const useDeepLinking = (navigation?: any) => {
 
     const { params } = deepLink;
     
+    // Validation des statuts possibles
+    const VALID_STATUSES = ['success', 'failed', 'cancelled', 'completed'] as const;
+    
     if (!params.transactionId || !params.status) {
-      console.warn('Missing required payment deep link parameters');
+      logger.warn('Missing required payment deep link parameters:', params);
+      return null;
+    }
+    
+    const status = params.status as PaymentDeepLinkData['status'];
+    
+    if (!VALID_STATUSES.includes(status)) {
+      logger.warn('Invalid payment status:', status, '- Valid statuses:', VALID_STATUSES);
       return null;
     }
 
     return {
       transactionId: params.transactionId,
-      status: params.status as PaymentDeepLinkData['status'],
+      status,
       donationId: params.donationId,
       paymentId: params.paymentId,
     };

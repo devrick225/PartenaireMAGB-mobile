@@ -4,15 +4,14 @@ import { useFonts } from 'expo-font'
 import { useCallback } from 'react'
 import { FONTS } from './src/constants/fonts'
 import AppNavigation from './src/navigations/AppNavigation'
-import { LogBox } from 'react-native'
 import { ThemeProvider } from './src/theme/ThemeProvider'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'
 import { store, persistor } from './src/store'
 import ToastNotification from './src/components/ToastNotification'
 
-//Ignore all log notifications
-LogBox.ignoreAllLogs();
+// Ne pas ignorer les logs — ils sont essentiels pour détecter les bugs
+// LogBox.ignoreAllLogs() a été retiré intentionnellement
 
 SplashScreen.preventAutoHideAsync()
 

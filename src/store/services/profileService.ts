@@ -40,7 +40,7 @@ export interface CompleteProfile {
     preferredFrequency?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
     preferredDay?: number;
     preferredPaymentMethod?: 'card' | 'mobile_money' | 'bank_transfer' | 'cash';
-    donationCategories?: ('soutien''tithe' | 'offering' | 'building' | 'missions' | 'charity' | 'education' | 'youth' | 'women' | 'men')[];
+    donationCategories?: ('tithe' | 'offering' | 'building' | 'missions' | 'charity' | 'education' | 'youth' | 'women' | 'men')[];
   };
   
   financialInfo: {
@@ -140,10 +140,7 @@ class ProfileService {
   // Mettre à jour le profil - correspond au backend PUT /api/users/profile
   async updateProfile(userId: string, profileData: Partial<CompleteProfile>): Promise<any> {
     try {
-      console.log('Updating profile with data:', profileData);
-      
       const response = await apiClient.put('/users/profile', profileData);
-      console.log('Update profile response:', response.data);
       
       if (response.data.success) {
         return response.data.data;

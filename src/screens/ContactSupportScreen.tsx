@@ -18,6 +18,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import apiClient from '../store/services/apiClient';
 import useUserPermissions from '../hooks/useUserPermissions';
+import { requestMediaLibraryPermission } from '../utils/permissions';
 
 interface SupportCategory {
   id: string;
@@ -276,6 +277,9 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
 
   const pickDocument = async () => {
     try {
+      const hasPermission = await requestMediaLibraryPermission();
+      if (!hasPermission) return;
+
       const result = await DocumentPicker.getDocumentAsync({
         type: ['image/*', 'application/pdf', 'text/*'],
         copyToCacheDirectory: true,

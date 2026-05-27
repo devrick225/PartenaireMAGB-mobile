@@ -28,18 +28,8 @@ interface ResetPasswordData {
 
 class AuthService {
   async login(credentials: LoginCredentials) {
-    console.log('🔄 AuthService.login - Début avec:', {
-      email: credentials.email,
-      hasPassword: !!credentials.password
-    });
-
     try {
       const response = await apiClient.post('/auth/login', credentials);
-      console.log('✅ AuthService.login - Réponse API:', {
-        success: response.data.success,
-        hasUser: !!response.data.data?.user,
-        hasToken: !!response.data.data?.token
-      });
       
       // Sauvegarder les tokens après connexion réussie
       if (response.data.success && response.data.data.token) {
@@ -47,16 +37,10 @@ class AuthService {
           response.data.data.token,
           response.data.data.refreshToken
         );
-        console.log('✅ Tokens sauvegardés avec succès');
       }
       
       return response.data;
     } catch (error: any) {
-      console.error('❌ AuthService.login - Erreur:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
       throw error;
     }
   }
@@ -93,63 +77,31 @@ class AuthService {
   }
 
   async forgotPassword(email: string) {
-    console.log('🔄 AuthService.forgotPassword - Début avec email:', email);
-    
     try {
       const response = await apiClient.post('/auth/forgot-password', { email });
-      console.log('✅ AuthService.forgotPassword - Réponse API:', {
-        success: response.data.success,
-        message: response.data.message
-      });
-      
       return response.data;
     } catch (error: any) {
-      console.error('❌ AuthService.forgotPassword - Erreur:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      // Retourner une erreur plus explicite
       let errorMessage = 'Une erreur est survenue lors de la demande de réinitialisation';
-      if (error.response?.status === 404) {
-        errorMessage = 'Aucun compte associé à cette adresse email';
-      } else if (error.response?.data?.error) {
+      if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      
       throw new Error(errorMessage);
     }
   }
 
   async resetPassword(data: ResetPasswordData) {
-    console.log('🔄 AuthService.resetPassword - Début avec token:', data.token);
-    
     try {
       const response = await apiClient.post(`/auth/reset-password/${data.token}`, { 
         password: data.password 
       });
-      console.log('✅ AuthService.resetPassword - Réponse API:', {
-        success: response.data.success,
-        message: response.data.message
-      });
-      
       return response.data;
     } catch (error: any) {
-      console.error('❌ AuthService.resetPassword - Erreur:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      // Retourner une erreur plus explicite
       let errorMessage = 'Une erreur est survenue lors de la réinitialisation';
       if (error.response?.status === 400) {
         errorMessage = 'Le lien de réinitialisation a expiré ou est invalide';
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      
       throw new Error(errorMessage);
     }
   }
@@ -174,37 +126,25 @@ class AuthService {
 
   async checkAuthStatus() {
     try {
-      console.log('🔄 AuthService.checkAuthStatus - Vérification du token stocké...');
-      
-      // Vérifier d'abord si on a un token
       const token = await apiClient.getToken();
       if (!token) {
-        console.log('❌ AuthService.checkAuthStatus - Aucun token trouvé');
         throw new Error('No token found');
       }
 
-      console.log('✅ AuthService.checkAuthStatus - Token trouvé, vérification avec le serveur...');
-      
-      // Créer une promesse avec timeout plus court pour l'initialisation
+      // Timeout court pour l'initialisation (5 secondes)
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Auth check timeout')), 5000); // 5 secondes pour l'auth check
+        setTimeout(() => reject(new Error('Auth check timeout')), 5000);
       });
 
       const authCheckPromise = apiClient.get('/auth/me');
-
       const response: any = await Promise.race([authCheckPromise, timeoutPromise]);
       
-      console.log('✅ AuthService.checkAuthStatus - Statut vérifié avec succès');
       return response.data;
     } catch (error: any) {
-      console.log('❌ AuthService.checkAuthStatus - Erreur:', error.message);
-      
       // Si l'erreur est due à un token invalide, nettoyer les tokens
       if (error.response?.status === 401 || error.message === 'No token found') {
-        console.log('🧹 AuthService.checkAuthStatus - Nettoyage des tokens invalides');
         await apiClient.clearTokens();
       }
-      
       throw error;
     }
   }

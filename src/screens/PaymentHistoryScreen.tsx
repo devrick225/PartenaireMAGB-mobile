@@ -200,7 +200,12 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation 
             />
           </View>
           <View style={styles.paymentDetails}>
-            <Text style={[styles.paymentAmount, { color: colors.text }]}>
+            <Text
+              style={[styles.paymentAmount, { color: colors.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
               {paymentService.formatAmount(item.amount, item.currency)}
             </Text>
             <Text style={[styles.paymentProvider, { color: dark ? COLORS.grayTie : COLORS.gray }]}>

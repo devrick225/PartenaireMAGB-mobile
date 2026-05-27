@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -55,6 +56,7 @@ const ContactMinistereSimple = ({ navigation }) => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const formScrollRef = useRef(null);
   const [emailForm, setEmailForm] = useState({
     name: '',
     email: '',
@@ -267,7 +269,11 @@ const ContactMinistereSimple = ({ navigation }) => {
   );
 
   const renderEmailForm = () => (
-    <View style={[styles.emailFormContainer, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.emailFormContainer, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
       {/* Header avec gradient */}
       <LinearGradient
         colors={['#26335F', '#1a2347']}
@@ -291,10 +297,12 @@ const ContactMinistereSimple = ({ navigation }) => {
       </LinearGradient>
 
       <ScrollView
+        ref={formScrollRef}
         style={styles.emailFormContent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.emailFormContentInner}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* Carte du destinataire */}
         <View style={[styles.recipientCard, { backgroundColor: dark ? '#1E1E2E' : '#EEF1FF' }]}>
@@ -340,7 +348,12 @@ const ContactMinistereSimple = ({ navigation }) => {
                 backgroundColor: dark ? '#1E1E2E' : '#F8F9FF',
               }
             ]}>
-              <MaterialIcons name="message" size={20} color="#26335F" style={[styles.formFieldIcon, { top: 14 }]} />
+              <MaterialIcons
+                name="message"
+                size={20}
+                color="#26335F"
+                style={[styles.formFieldIcon, { marginTop: 2 }]}
+              />
               <TextInput
                 style={[styles.formFieldInput, styles.formMessageInput, { color: colors.text }]}
                 placeholder="Rédigez votre message ici..."
@@ -348,9 +361,15 @@ const ContactMinistereSimple = ({ navigation }) => {
                 value={emailForm.message}
                 onChangeText={(v) => setEmailForm(prev => ({ ...prev, message: v }))}
                 multiline
-                numberOfLines={6}
+                numberOfLines={Platform.OS === 'ios' ? undefined : 6}
                 textAlignVertical="top"
                 editable={!isLoading}
+                scrollEnabled={true}
+                onFocus={() => {
+                  setTimeout(() => {
+                    formScrollRef.current?.scrollToEnd({ animated: true });
+                  }, 350);
+                }}
               />
             </View>
             <Text style={[styles.charCounter, { color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }]}>
@@ -389,8 +408,11 @@ const ContactMinistereSimple = ({ navigation }) => {
         <Text style={[styles.formDisclaimer, { color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }]}>
           Nous vous répondrons dans les plus brefs délais.
         </Text>
+
+        {/* Espace supplémentaire pour éviter que le clavier cache le bouton */}
+        <View style={styles.keyboardSpacer} />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 
   return (
@@ -880,15 +902,18 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   formMessageWrapper: {
-    height: 'auto',
+    height: undefined,
     alignItems: 'flex-start',
     paddingVertical: 12,
     paddingTop: 14,
   },
   formMessageInput: {
-    height: 'auto',
-    minHeight: 110,
+    minHeight: 120,
     paddingTop: 0,
+    flex: 1,
+  },
+  keyboardSpacer: {
+    height: Platform.OS === 'android' ? 120 : 40,
   },
   charCounter: {
     fontSize: 11,

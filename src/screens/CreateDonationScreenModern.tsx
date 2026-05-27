@@ -207,7 +207,9 @@ const CreateDonationScreenModern: React.FC<CreateDonationScreenModernProps> = ({
 
   const handleAmountChange = (text: string) => {
     const numericValue = parseFloat(text.replace(/[^0-9.]/g, '')) || 0;
-    setFormData(prev => ({ ...prev, amount: numericValue }));
+    if (numericValue <= 2000000) {
+      setFormData(prev => ({ ...prev, amount: numericValue }));
+    }
   };
 
   const formatAmount = (amount: number) => {
@@ -221,6 +223,10 @@ const CreateDonationScreenModern: React.FC<CreateDonationScreenModernProps> = ({
   const validateForm = () => {
     if (formData.amount < 200) {
       Alert.alert('Erreur', 'Le montant minimum est de 200');
+      return false;
+    }
+    if (formData.amount > 2000000) {
+      Alert.alert('Erreur', 'Le montant maximum est de 2 000 000 XOF');
       return false;
     }
     if (!formData.paymentMethod) {

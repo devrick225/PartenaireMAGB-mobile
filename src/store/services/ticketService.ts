@@ -876,21 +876,20 @@ class TicketService {
   }
 
   canUserChangeStatus(ticket: Ticket, newStatus: string, userRole?: string): boolean {
-    // Seuls les admins peuvent changer le statut
     if (!['admin', 'moderator', 'support_agent'].includes(userRole || '')) {
       return false;
     }
     
-    // Transitions de statut autorisées
+    // Transitions gérées par les boutons admin "Changer le statut"
+    // Note : "closed" est géré par le bouton dédié "Fermer le ticket" (avec motif)
+    //        "reopen" est géré par le bouton dédié "Rouvrir le ticket"
     const allowedTransitions: Record<string, string[]> = {
-      'open': ['in_progress', 'waiting_admin', 'resolved', 'closed', 'cancelled'],
-      'in_progress': ['waiting_user', 'waiting_admin', 'resolved', 'closed', 'cancelled'],
-      'waiting_user': ['in_progress', 'waiting_admin', 'resolved', 'closed', 'cancelled'],
-      'waiting_admin': ['in_progress', 'resolved', 'closed', 'cancelled'],
-      // Important: un ticket résolu ne peut pas être rouvert (pas de retour vers in_progress)
-      'resolved': ['closed'],
-      // Un ticket fermé peut éventuellement être rouvert (si politique le permet)
-      'closed': ['in_progress'],
+      'open': ['in_progress', 'waiting_admin'],
+      'in_progress': ['waiting_user', 'waiting_admin', 'resolved'],
+      'waiting_user': ['in_progress', 'waiting_admin', 'resolved'],
+      'waiting_admin': ['in_progress', 'resolved'],
+      'resolved': [],
+      'closed': [],
       'cancelled': []
     };
     
@@ -947,19 +946,18 @@ class TicketService {
     availableStatusTransitions: Array<{ status: string; label: string }>;
   } {
     const statusTransitions = [
-      { status: 'open', label: 'Ouvrir' },
-      { status: 'in_progress', label: 'En cours' },
-      { status: 'waiting_user', label: 'Attendre utilisateur' },
-      { status: 'waiting_admin', label: 'Attendre admin' },
-      { status: 'resolved', label: 'Résoudre' },
-      { status: 'closed', label: 'Fermer' },
-      { status: 'cancelled', label: 'Annuler' }
+      { status: 'in_progress', label: 'Mettre en cours' },
+      { status: 'waiting_user', label: 'Attente utilisateur' },
+      { status: 'waiting_admin', label: 'Attente admin' },
+      { status: 'resolved', label: 'Marquer résolu' },
     ];
 
     const availableTransitions = statusTransitions.filter(transition => 
       this.canUserChangeStatus(ticket, transition.status, userRole) &&
       transition.status !== ticket.status
     );
+
+    const isAdminRole = ['admin', 'moderator', 'support_agent'].includes(userRole || '');
 
     return {
       canComment: this.canUserComment(ticket, currentUserId, userRole),
@@ -968,7 +966,7 @@ class TicketService {
       canReopen: this.canUserReopen(ticket, currentUserId, userRole),
       canAssign: this.canUserAssign(ticket, userRole),
       canEscalate: this.canUserEscalate(ticket, currentUserId, userRole),
-      canChangeStatus: ['admin', 'moderator', 'support_agent'].includes(userRole || ''),
+      canChangeStatus: isAdminRole && availableTransitions.length > 0,
       availableStatusTransitions: availableTransitions
     };
   }

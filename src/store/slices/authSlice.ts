@@ -166,12 +166,9 @@ export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      console.log('🔄 Vérification du statut d\'authentification...');
       const response = await authService.checkAuthStatus();
-      console.log('✅ Statut d\'authentification vérifié avec succès');
       return response;
     } catch (error: any) {
-      console.log('❌ Erreur lors de la vérification du statut:', error.message);
       return rejectWithValue(
         error.response?.data?.error || error.message || 'Session expirée'
       );
@@ -202,7 +199,16 @@ const authSlice = createSlice({
     setInitialized: (state, action: PayloadAction<boolean>) => {
       state.isInitialized = action.payload;
       state.isLoading = false;
-      console.log('🔧 État d\'initialisation forcé:', action.payload);
+    },
+    // Déconnexion forcée quand le refresh token est invalide/expiré
+    forceLogout: (state) => {
+      state.user = null;
+      state.token = null;
+      state.refreshToken = null;
+      state.isAuthenticated = false;
+      state.isEmailVerified = false;
+      state.isLoading = false;
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
@@ -277,7 +283,6 @@ const authSlice = createSlice({
         state.user = action.payload.data.user;
         state.isAuthenticated = true;
         state.isEmailVerified = action.payload.data.user.isEmailVerified;
-        console.log('✅ Utilisateur authentifié:', action.payload.data.user.email);
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {
         state.isLoading = false;
@@ -287,7 +292,6 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.isAuthenticated = false;
         state.isEmailVerified = false;
-        console.log('❌ Utilisateur non authentifié:', action.payload);
       })
 
     // Forgot Password
@@ -336,10 +340,9 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isEmailVerified = false;
         state.error = null;
-        console.log('✅ Déconnexion réussie');
       });
   },
 });
 
-export const { clearError, updateUser, updateTokens, setAuthenticated, setInitialized } = authSlice.actions;
+export const { clearError, updateUser, updateTokens, setAuthenticated, setInitialized, forceLogout } = authSlice.actions;
 export default authSlice.reducer; 

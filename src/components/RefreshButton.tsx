@@ -4,6 +4,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
@@ -66,29 +67,30 @@ const RefreshButton: React.FC<RefreshButtonProps> = ({
   };
 
   const getPositionStyle = () => {
-    const sizeValues = getSizeValues();
-    const offset = 16;
+    const horizontalOffset = 20;
+    const topOffset = 16;
+    const bottomOffset = Platform.OS === 'android' ? 80 : 24;
 
     switch (position) {
       case 'top-right':
         return {
           position: 'absolute',
-          top: offset,
-          right: offset,
+          top: topOffset,
+          right: horizontalOffset,
           zIndex: 1000,
         };
       case 'bottom-right':
         return {
           position: 'absolute',
-          bottom: offset,
-          right: offset,
+          bottom: bottomOffset,
+          right: horizontalOffset,
           zIndex: 1000,
         };
       case 'bottom-left':
         return {
           position: 'absolute',
-          bottom: offset,
-          left: offset,
+          bottom: bottomOffset,
+          left: horizontalOffset,
           zIndex: 1000,
         };
       case 'center':

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,21 @@ interface PaymentVerificationScreenProps {
   route?: any;
 }
 
+// Fonction centralisée — évite la duplication 3× dans le fichier
+const getStatusInFrench = (status: string): string => {
+  const map: Record<string, string> = {
+    paid: 'Payé',
+    pending: 'En attente',
+    failed: 'Échoué',
+    processing: 'En cours',
+    completed: 'Complété',
+    cancelled: 'Annulé',
+    expired: 'Expiré',
+    initialized: 'Initialisé',
+  };
+  return map[status] ?? status;
+};
+
 const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({ 
   navigation, 
   route 
@@ -35,9 +50,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
     details?: any;
   } | null>(null);
 
-  // Récupérer les paramètres depuis la route ou le deep link
-  const getPaymentParams = () => {
-    // Priorité aux paramètres de route (navigation directe)
+  const getPaymentParams = useCallback(() => {
     if (route?.params) {
       return {
         transactionId: route.params.transactionId,
@@ -46,17 +59,13 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
         status: route.params.status,
       };
     }
-
-    // Fallback sur le deep link
     if (lastDeepLink) {
-      const paymentData = parsePaymentDeepLink(lastDeepLink);
-      return paymentData;
+      return parsePaymentDeepLink(lastDeepLink);
     }
-
     return null;
-  };
+  }, [route?.params, lastDeepLink, parsePaymentDeepLink]);
 
-  const verifyPayment = async () => {
+  const verifyPayment = useCallback(async () => {
     const params = getPaymentParams();
     
     if (!params) {
@@ -70,92 +79,53 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
       let response;
       
       if (params.donationId) {
-        // Récupérer les détails de la donation
         response = await donationService.getDonationById(params.donationId);
-        console.log('Donation response:', response.data.data);
       
         if (response.data.success) {
           const donation = response.data.data.donation;
-          console.log('donation', donation);
-          
-          // Récupérer le paiement avec système de retry pour laisser le temps aux webhooks
+
+          // Retry progressif pour laisser le temps aux webhooks (1s, 3s, 5s)
           const verifyWithRetry = async (maxRetries = 3) => {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
-              console.log(`🔄 Tentative de récupération du paiement ${attempt}/${maxRetries}`);
-              
-              // Délai progressif : 1s, 3s, 5s
               if (attempt > 1) {
                 const delay = attempt * 2000 - 1000;
-                console.log(`⏳ Attente de ${delay/1000}s pour laisser le temps aux webhooks...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
               }
               
               try {
-                // Essayer d'abord getAllPaymentsByDonationId pour une recherche plus complète
                 const allPaymentsResponse = await paymentService.getAllPaymentsByDonationId(donation._id);
-                console.log(`Tentative ${attempt} - Payment response:`, allPaymentsResponse.data);
                 
                 if (allPaymentsResponse.data.success && allPaymentsResponse.data.data.payments) {
                   const allPayments = allPaymentsResponse.data.data.payments;
-                  console.log(`📋 Tentative ${attempt}: ${allPayments.length} paiement(s) trouvé(s)`);
                   
                   if (allPayments.length > 0) {
-                    // Prendre le paiement le plus récent
                     const payment = allPayments.sort((a: any, b: any) => 
                       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                     )[0];
 
-                    
-                    console.log(`✅ Payment trouvé (tentative ${attempt}):`, payment);
-
-                    // Si c'est MoneyFusion, vérifier le statut directement avec l'API selon la documentation
+                    // MoneyFusion : vérifier le statut directement via l'API
                     if (payment.provider === 'moneyfusion' && payment.moneyfusion?.token) {
-                      console.log(`🔍 Vérification MoneyFusion directe avec token: ${payment.moneyfusion.token}`);
                       try {
                         const verifyResponse = await paymentService.verifyPayment(payment._id);
-                        console.log('Réponse vérification MoneyFusion:', verifyResponse.data);
                         
-                        // Selon la doc MoneyFusion, la structure de réponse contient statut/message/data
                         if (verifyResponse.data.statut !== undefined) {
                           const moneyFusionData = verifyResponse.data.data;
-                          const realStatus = moneyFusionData?.statut; // "pending", "paid", ou "failed"
-                          
-                          console.log(`✅ Statut MoneyFusion réel: ${realStatus}`);
-                          
-                          // Utiliser les statuts MoneyFusion officiels selon la documentation
+                          const realStatus = moneyFusionData?.statut;
                           const isSuccess = realStatus === 'paid';
                           const isProcessing = realStatus === 'pending';
-                          const isFailed = realStatus === 'failed';
-                          
-                          // Convertir le statut en français
-                          const getStatusInFrench = (status: string) => {
-                            switch (status) {
-                              case 'paid': return 'Payé';
-                              case 'pending': return 'En attente';
-                              case 'failed': return 'Échoué';
-                              case 'processing': return 'En cours';
-                              case 'completed': return 'Complété';
-                              case 'cancelled': return 'Annulé';
-                              case 'expired': return 'Expiré';
-                              case 'initialized': return 'Initialisé';
-                              default: return status;
-                            }
-                          };
                           
                           let message = '';
                           if (isSuccess) {
-                            message = `✅ Paiement confirmé par MoneyFusion${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}`;
+                            message = `✅ Paiement confirmé par MoneyFusion${attempt > 1 ? ` (tentative ${attempt})` : ''}`;
                           } else if (isProcessing) {
-                            message = `⏳ Paiement en attente chez MoneyFusion${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${getStatusInFrench(realStatus)}`;
-                          } else if (isFailed) {
-                            message = `❌ Paiement échoué chez MoneyFusion${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${getStatusInFrench(realStatus)}`;
+                            message = `⏳ Paiement en attente chez MoneyFusion\n\nStatut: ${getStatusInFrench(realStatus)}`;
                           } else {
-                            message = `📊 Statut MoneyFusion: ${getStatusInFrench(realStatus)}${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}`;
+                            message = `❌ Paiement échoué chez MoneyFusion\n\nStatut: ${getStatusInFrench(realStatus)}`;
                           }
                           
                           setVerificationResult({
                             success: isSuccess,
-                            message: message,
+                            message,
                             details: {
                               amount: moneyFusionData?.Montant || payment.amount,
                               currency: payment.currency,
@@ -170,41 +140,37 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                           });
                           return true;
                         }
-                      } catch (verifyError) {
-                        console.log(`❌ Erreur vérification MoneyFusion directe:`, verifyError);
-                        // Continuer avec le statut local en cas d'erreur
+                      } catch {
+                        // Continuer avec le statut local en cas d'erreur MoneyFusion
                       }
                     }
                     
-                    // Fallback: utiliser le statut local (pour autres providers ou en cas d'erreur MoneyFusion)
+                    // Fallback : statut local (autres providers ou erreur MoneyFusion)
                     const isSuccess = ['completed', 'paid'].includes(payment.status);
                     const isProcessing = ['processing', 'pending', 'initialized'].includes(payment.status);
-                    const isFailed = ['failed', 'cancelled', 'expired'].includes(payment.status);
                     
                     let message = '';
                     if (isSuccess) {
-                      message = `✅ Paiement confirmé avec succès${attempt > 1 ? ` (trouvé à la tentative ${attempt})` : ''}`;
+                      message = `✅ Paiement confirmé avec succès${attempt > 1 ? ` (tentative ${attempt})` : ''}`;
                     } else if (isProcessing) {
-                      message = `⏳ Paiement en cours de traitement${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut local: ${payment.status}`;
-                    } else if (isFailed) {
-                      message = `❌ Paiement échoué${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${payment.status}`;
+                      message = `⏳ Paiement en cours de traitement\n\nStatut: ${getStatusInFrench(payment.status)}`;
                     } else {
-                      message = `📊 Statut du paiement: ${payment.status}${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}`;
+                      message = `❌ Paiement échoué\n\nStatut: ${getStatusInFrench(payment.status)}`;
                     }
                     
-            setVerificationResult({
+                    setVerificationResult({
                       success: isSuccess,
-                      message: message,
-              details: {
-                amount: payment.amount,
-                currency: payment.currency,
-                status: payment.status,
+                      message,
+                      details: {
+                        amount: payment.amount,
+                        currency: payment.currency,
+                        status: payment.status,
                         transactionId: payment.transaction?.externalId || payment.transactionId,
-                provider: payment.provider,
+                        provider: payment.provider,
                         paymentUrl: payment.moneyfusion?.paymentUrl || payment.fusionpay?.paymentUrl || null,
-              },
-            });
-                    return true; // Succès
+                      },
+                    });
+                    return true;
                   }
                 } else {
                   // Fallback vers getPaymentByDonationId
@@ -212,52 +178,29 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                     const paymentResponse = await paymentService.getPaymentByDonationId(donation._id);
                     if (paymentResponse.data.success && paymentResponse.data.data.payment) {
                       const payment = paymentResponse.data.data.payment;
-                      console.log(`✅ Payment trouvé via fallback (tentative ${attempt}):`, payment);
                       
-                                            // Si c'est MoneyFusion, vérifier le statut directement selon la documentation
                       if (payment.provider === 'moneyfusion' && payment.moneyfusion?.token) {
-                        console.log(`🔍 Vérification MoneyFusion directe (fallback) avec token: ${payment.moneyfusion.token}`);
                         try {
                           const verifyResponse = await paymentService.verifyPayment(payment._id);
-                          console.log('Réponse vérification MoneyFusion (fallback):', verifyResponse.data);
                           
                           if (verifyResponse.data.statut !== undefined) {
                             const moneyFusionData = verifyResponse.data.data;
                             const realStatus = moneyFusionData?.statut;
-                            
                             const isSuccess = realStatus === 'paid';
                             const isProcessing = realStatus === 'pending';
-                            const isFailed = realStatus === 'failed';
-                            
-                            // Convertir le statut en français
-                            const getStatusInFrench = (status: string) => {
-                              switch (status) {
-                                case 'paid': return 'Payé';
-                                case 'pending': return 'En attente';
-                                case 'failed': return 'Échoué';
-                                case 'processing': return 'En cours';
-                                case 'completed': return 'Complété';
-                                case 'cancelled': return 'Annulé';
-                                case 'expired': return 'Expiré';
-                                case 'initialized': return 'Initialisé';
-                                default: return status;
-                              }
-                            };
                             
                             let message = '';
                             if (isSuccess) {
-                              message = `✅ Paiement confirmé par MoneyFusion${attempt > 1 ? ` (trouvé à la tentative ${attempt})` : ''}`;
+                              message = `✅ Paiement confirmé par MoneyFusion${attempt > 1 ? ` (tentative ${attempt})` : ''}`;
                             } else if (isProcessing) {
-                              message = `⏳ Paiement en attente chez MoneyFusion${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${getStatusInFrench(realStatus)}`;
-                            } else if (isFailed) {
-                              message = `❌ Paiement échoué chez MoneyFusion${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${getStatusInFrench(realStatus)}`;
+                              message = `⏳ Paiement en attente chez MoneyFusion\n\nStatut: ${getStatusInFrench(realStatus)}`;
                             } else {
-                              message = `📊 Statut MoneyFusion: ${getStatusInFrench(realStatus)}${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}`;
+                              message = `❌ Paiement échoué chez MoneyFusion\n\nStatut: ${getStatusInFrench(realStatus)}`;
                             }
                             
                             setVerificationResult({
                               success: isSuccess,
-                              message: message,
+                              message,
                               details: {
                                 amount: moneyFusionData?.Montant || payment.amount,
                                 currency: payment.currency,
@@ -272,45 +215,26 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                             });
                             return true;
                           }
-                        } catch (verifyError) {
-                          console.log(`❌ Erreur vérification MoneyFusion directe (fallback):`, verifyError);
+                        } catch {
+                          // Continuer avec le statut local
                         }
                       }
                       
-                                            // Fallback final: utiliser le statut local
                       const isSuccess = ['completed', 'paid'].includes(payment.status);
                       const isProcessing = ['processing', 'pending', 'initialized'].includes(payment.status);
-                      const isFailed = ['failed', 'cancelled', 'expired'].includes(payment.status);
-                      
-                      // Convertir le statut en français
-                      const getStatusInFrench = (status: string) => {
-                        switch (status) {
-                          case 'paid': return 'Payé';
-                          case 'pending': return 'En attente';
-                          case 'failed': return 'Échoué';
-                          case 'processing': return 'En cours';
-                          case 'completed': return 'Complété';
-                          case 'cancelled': return 'Annulé';
-                          case 'expired': return 'Expiré';
-                          case 'initialized': return 'Initialisé';
-                          default: return status;
-                        }
-                      };
                       
                       let message = '';
                       if (isSuccess) {
-                        message = `✅ Paiement confirmé avec succès${attempt > 1 ? ` (trouvé à la tentative ${attempt})` : ''}`;
+                        message = `✅ Paiement confirmé avec succès${attempt > 1 ? ` (tentative ${attempt})` : ''}`;
                       } else if (isProcessing) {
-                        message = `⏳ Paiement en cours de traitement${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${getStatusInFrench(payment.status)}`;
-                      } else if (isFailed) {
-                        message = `❌ Paiement échoué${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}\n\nStatut: ${getStatusInFrench(payment.status)}`;
-          } else {
-                        message = `📊 Statut du paiement: ${getStatusInFrench(payment.status)}${attempt > 1 ? ` (vérifié à la tentative ${attempt})` : ''}`;
+                        message = `⏳ Paiement en cours de traitement\n\nStatut: ${getStatusInFrench(payment.status)}`;
+                      } else {
+                        message = `❌ Paiement échoué\n\nStatut: ${getStatusInFrench(payment.status)}`;
                       }
                       
                       setVerificationResult({
                         success: isSuccess,
-                        message: message,
+                        message,
                         details: {
                           amount: payment.amount,
                           currency: payment.currency,
@@ -378,30 +302,27 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
         }
       }
     } catch (error: any) {
-      console.error('Erreur vérification paiement:', error);
       setVerificationResult({
         success: false,
         message: error.response?.data?.error || 'Erreur lors de la vérification',
-            });
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getPaymentParams, lastDeepLink, clearLastDeepLink]);
 
   useEffect(() => {
-    // Vérifier automatiquement le paiement au chargement
     verifyPayment();
-    
-    // Nettoyer le deep link après utilisation
     if (lastDeepLink) {
       clearLastDeepLink();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     setVerificationResult(null);
     verifyPayment();
-  };
+  }, [verifyPayment]);
 
   const handleViewDonation = () => {
     const params = getPaymentParams();
@@ -495,7 +416,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                     Détails du Paiement
                   </Text>
                   
-                  {verificationResult.details.amount && (
+                  {verificationResult.details.amount != null && (
                     <View style={styles.detailRow}>
                       <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
                         Montant:
@@ -540,7 +461,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                 </View>
               )}
 
-              {verificationResult.details.fees && (
+              {verificationResult.details.fees != null && (
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
                     Frais MoneyFusion:

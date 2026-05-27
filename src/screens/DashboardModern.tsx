@@ -91,7 +91,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
   const { user } = useAppSelector((state: RootState) => state.auth);
   const dispatch = useAppDispatch();
 
-  console.log('user', user)
+  // console.log('user', user) — retiré : ne pas logger les données utilisateur en clair
 
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [donationStats, setDonationStats] = useState<DonationStats | null>(null);
@@ -101,8 +101,11 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
   const [showDonationTypeModal, setShowDonationTypeModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
 
-  // Event Modal Hook
-  const { showEventModal, dismissEventModal, markAsParticipated } = useEventModal();
+  // Event Modal Hook - désactivé pour l'instant
+  // const { showEventModal, dismissEventModal, markAsParticipated } = useEventModal();
+  const showEventModal = false;
+  const dismissEventModal = () => {};
+  const markAsParticipated = async () => {};
 
   // Besoin de vérification ?
   const needsEmailVerification = user ? !user.isEmailVerified : false;
@@ -263,11 +266,36 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+
+      {/* Barre de navigation fixe avec bouton rafraîchissement */}
+      <View style={[styles.topNavBar, { backgroundColor: colors.primary }]}>
+        <Text style={styles.topNavTitle}>Tableau de bord</Text>
+        <TouchableOpacity
+          style={[
+            styles.topNavRefreshBtn,
+            refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
+          ]}
+          onPress={onRefresh}
+          disabled={refreshing}
+          activeOpacity={0.7}
+        >
+          {refreshing ? (
+            <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
+          ) : (
+            <MaterialIcons name="refresh" size={26} color="#FFD61D" />
+          )}
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
         }
       >
         {/* Header avec salutation */}
@@ -356,7 +384,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
               style={[styles.statCard, styles.largeCard]}
             >
               <MaterialIcons name="monetization-on" size={32} color="#FFFFFF" />
-              <Text style={styles.statValue}>
+              <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
                 {formatAmount(userStats?.totalDonations || 0)}
               </Text>
               <Text style={styles.statLabel}>Total des dons</Text>
@@ -384,7 +412,12 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={[styles.statValueSmall, { color: colors.text }]}>
+              <Text
+                style={[styles.statValueSmall, { color: colors.text }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
                 {formatAmount(userStats?.averageDonation || 0)}
               </Text>
               <Text style={[styles.statLabelSmall, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
@@ -472,7 +505,12 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
                       <MaterialIcons name="favorite" size={16} color={COLORS.primary} />
                     </View>
                     <View style={styles.donationDetails}>
-                      <Text style={[styles.donationAmount, { color: dark ? COLORS.white : COLORS.black }]}>
+                      <Text
+                        style={[styles.donationAmount, { color: dark ? COLORS.white : COLORS.black }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                      >
                         {formatAmount(donation.amount, donation.currency)}
                       </Text>
                       <Text style={[styles.donationDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
@@ -523,7 +561,12 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
               </Text>
             </View>
             <View style={styles.lastDonationContent}>
-              <Text style={[styles.lastDonationAmount, { color: colors.primary }]}>
+              <Text
+                style={[styles.lastDonationAmount, { color: colors.primary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
                 {formatAmount(userStats.lastDonation.amount, userStats.lastDonation.currency)}
               </Text>
               <View style={styles.lastDonationDetails}>
@@ -877,6 +920,29 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  topNavBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  topNavTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  topNavRefreshBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFD61D',
   },
   centered: {
     justifyContent: 'center',
