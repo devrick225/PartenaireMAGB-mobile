@@ -130,6 +130,15 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
               {donationService.formatStatus(item.status)}
             </Text>
           </View>
+          {/* Échéance d'un don récurrent : don distinct à régler, créé par le backend à chaque échéance */}
+          {!!item.recurringParent && (
+            <View style={[styles.recurringBadge, { backgroundColor: colors.primary + '20' }]}>
+              <MaterialIcons name="event-repeat" size={12} color={colors.primary} />
+              <Text style={[styles.recurringText, { color: colors.primary }]}>
+                {item.occurrenceNumber ? `Échéance n°${item.occurrenceNumber}` : 'Échéance'}
+              </Text>
+            </View>
+          )}
           {item.type === 'recurring' && (
             <View style={[styles.recurringBadge, { backgroundColor: colors.primary + '20' }]}>
               <MaterialIcons name="repeat" size={12} color={colors.primary} />

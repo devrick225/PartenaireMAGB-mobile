@@ -31,6 +31,10 @@ interface Donation {
   currency: string;
   category: string;
   type: 'one_time' | 'recurring';
+  /** Don récurrent d'origine quand ce don est une échéance générée par le backend */
+  recurringParent?: string;
+  /** Rang de l'échéance dans le don récurrent */
+  occurrenceNumber?: number;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   paymentMethod: string;
   message?: string;

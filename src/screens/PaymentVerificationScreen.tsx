@@ -145,6 +145,24 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                       }
                     }
                     
+                    // Autres fournisseurs (GeniusPay, PayDunya…) : tant que le paiement n'est pas
+                    // finalisé localement, demander au backend de le vérifier auprès du fournisseur
+                    // au lieu d'attendre uniquement le webhook.
+                    if (
+                      payment.provider !== 'moneyfusion' &&
+                      ['processing', 'pending', 'initialized'].includes(payment.status)
+                    ) {
+                      try {
+                        const verifyResponse = await paymentService.verifyPayment(payment._id);
+                        const backendStatus = verifyResponse.data?.data?.status;
+                        if (backendStatus) {
+                          payment.status = backendStatus;
+                        }
+                      } catch {
+                        // Garder le statut local si la vérification échoue
+                      }
+                    }
+
                     // Fallback : statut local (autres providers ou erreur MoneyFusion)
                     const isSuccess = ['completed', 'paid'].includes(payment.status);
                     const isProcessing = ['processing', 'pending', 'initialized'].includes(payment.status);
