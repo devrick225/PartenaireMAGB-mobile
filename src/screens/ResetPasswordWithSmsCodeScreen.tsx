@@ -15,6 +15,8 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient from '../store/services/apiClient';
+import { useOtpClipboard } from '../hooks/useOtpClipboard';
+import { showApiError } from '../store/services/apiClient';
 
 interface ResetPasswordWithSmsCodeScreenProps {
   navigation: any;
@@ -33,6 +35,13 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
   const [isLoading, setIsLoading] = useState(false);
 
   const codeInputRefs = useRef<TextInput[]>([]);
+
+  // Auto-remplissage depuis le presse-papier
+  useOtpClipboard({
+    onCodeDetected: (digits) => {
+      setCode(digits);
+    },
+  });
 
   const handleCodeChange = (text: string, index: number) => {
     const newCode = [...code];
@@ -121,16 +130,12 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
             }
           ]
         );
+      } else {
+        Alert.alert('Erreur réseau', 'Impossible de réinitialiser le mot de passe. Vérifiez votre connexion.');
       }
     } catch (error: any) {
       console.error('Erreur reset password SMS:', error);
-      
-      let errorMessage = 'Une erreur est survenue lors de la réinitialisation';
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      
-      Alert.alert('Erreur', errorMessage);
+      showApiError(error, 'Une erreur est survenue lors de la réinitialisation');
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +161,7 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
       }
     } catch (error: any) {
       console.error('Erreur nouveau code SMS:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer un nouveau code');
+      showApiError(error, 'Impossible d\'envoyer un nouveau code');
     } finally {
       setIsLoading(false);
     }

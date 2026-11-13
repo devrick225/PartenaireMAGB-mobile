@@ -1,16 +1,14 @@
 // Configuration de l'API pour différents environnements
 const API_CONFIG = {
   development: {
-    //baseURL: 'https://39a2-160-154-128-237.ngrok-free.app/api', // URL ngrok synchronisée
     baseURL: 'https://partenairemagb-backend.onrender.com/api',
-
-    timeout: 30000,
+    timeout: 90000,  // 90s — Render free tier peut mettre jusqu'à 60s à se réveiller
     retryAttempts: 3,
     enableLogging: true,
   },
   staging: {
     baseURL: 'https://partenairemagb-backend.onrender.com/api',
-    timeout: 15000,
+    timeout: 60000,
     retryAttempts: 2,
     enableLogging: false,
   },

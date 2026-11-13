@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -88,7 +89,7 @@ const LoginRedux: React.FC = () => {
       // Le succès est géré dans useEffect ci-dessus
     } catch (err) {
       // L'erreur est automatiquement gérée par Redux et affichée dans useEffect
-      console.error('Erreur de connexion:', err);
+      logger.error('Erreur de connexion:', err);
     }
   };
 

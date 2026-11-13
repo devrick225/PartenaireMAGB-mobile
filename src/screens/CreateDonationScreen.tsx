@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -21,11 +22,13 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import donationService, { CreateDonationData, InitializePaymentData } from '../store/services/donationService';
 import paymentService from '../store/services/paymentService';
+import { showApiError } from '../store/services/apiClient';
 import PayDunyaOperatorSelector from '../components/PayDunyaOperatorSelector';
 import { PaymentOperator } from '../constants/paymentMethods';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { checkAuthStatus } from '../store/slices/authSlice';
+import { buildPaymentReturnDeepLink } from '../utils/deepLinkScheme';
 
 interface CreateDonationScreenProps {
   navigation: any;
@@ -242,6 +245,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
 
   const paymentMethods: PaymentMethodOption[] = [
     { value: 'moneyfusion', label: 'MoneyFusion', icon: 'account-balance-wallet', description: 'Paiement mobile sécurisé' },
+    { value: 'geniuspay', label: 'GeniusPay', icon: 'payment', description: 'Wave, Orange Money, MTN, Carte bancaire' },
     // PayDunya désactivé côté mobile
     // { value: 'paydunya', label: 'PayDunya', icon: 'smartphone', description: 'Mobile Money Afrique de l\'Ouest' },
   //  { value: 'mobile_money', label: 'Mobile Money', icon: 'smartphone', description: 'Orange Money, MTN, Moov' },
@@ -389,7 +393,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
           id: donationData._id,
           receiptNumber: `Existant-${donationData._id.slice(-6)}`, // Numéro temporaire
         };
-        console.log('Utilisation du don existant:', donation);
+        logger.log('Utilisation du don existant:', donation);
       } else if (mode === 'pay_occurrence' && occurrenceData.donationId) {
         // Mode paiement d'occurrence - créer un nouveau don lié au don récurrent
         const newDonationData: CreateDonationData = {
@@ -404,14 +408,14 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
           type: 'occurrence_payment'
         };
 
-        console.log('Création don pour occurrence:', newDonationData);
+        logger.log('Création don pour occurrence:', newDonationData);
 
         // Créer le don d'occurrence
         const response = await donationService.createDonation(newDonationData);
         
         if (response.data.success) {
           donation = response.data.data.donation;
-          console.log('Don d\'occurrence créé avec succès:', donation);
+          logger.log('Don d\'occurrence créé avec succès:', donation);
         } else {
           Alert.alert('Erreur', 'Erreur lors de la création du don d\'occurrence');
           return;
@@ -459,7 +463,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         
         if (response.data.success) {
           donation = response.data.data.donation;
-          console.log('Don créé avec succès:', donation);
+          logger.log('Don créé avec succès:', donation);
         } else {
           Alert.alert('Erreur', 'Erreur lors de la création du don');
           return;
@@ -469,40 +473,42 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
       // Initialiser le paiement (pour tous les modes)
       const paymentData: InitializePaymentData = {
         donationId: donation.id,
-        provider: 'moneyfusion', // Forcer MoneyFusion côté mobile
-        paymentMethod: 'moneyfusion',
+        provider: formData.paymentMethod,
+        paymentMethod: formData.paymentMethod,
+        // Envoyer le deep link adapté à l'environnement (Expo Go, dev client, production)
+        callbackUrl: buildPaymentReturnDeepLink(donation.id),
       };
 
       // Si on est en mode "existing_donation", récupérer l'ID du paiement existant
       if (mode === 'existing_donation' && donationData) {
         try {
-          console.log('🔍 Mode existing_donation - Récupération des paiements existants pour donation:', donationData._id);
+          logger.log('🔍 Mode existing_donation - Récupération des paiements existants pour donation:', donationData._id);
           
           // Récupérer TOUS les paiements pour cette donation
           const allPaymentsResponse = await paymentService.getAllPaymentsByDonationId(donationData._id);
           
           if (allPaymentsResponse.data.success && allPaymentsResponse.data.data.payments.length > 0) {
             const existingPayments = allPaymentsResponse.data.data.payments;
-            console.log(`✅ ${existingPayments.length} paiement(s) trouvé(s) pour cette donation`);
+            logger.log(`✅ ${existingPayments.length} paiement(s) trouvé(s) pour cette donation`);
             
             // Prendre le premier paiement (le plus récent)
             const existingPayment = existingPayments[0];
             paymentData.existingPaymentId = existingPayment._id;
             
-            console.log('🔄 Mode mise à jour - Utilisation du paiement existant:', existingPayment._id);
-            console.log('📊 Statut paiement existant:', existingPayment.status);
+            logger.log('🔄 Mode mise à jour - Utilisation du paiement existant:', existingPayment._id);
+            logger.log('📊 Statut paiement existant:', existingPayment.status);
           } else {
-            console.log('⚠️ Aucun paiement existant trouvé - Création d\'un nouveau paiement');
+            logger.log('⚠️ Aucun paiement existant trouvé - Création d\'un nouveau paiement');
           }
         } catch (error) {
-          console.error('❌ Erreur récupération paiements existants:', error);
-          console.log('🆕 Fallback: Création d\'un nouveau paiement');
+          logger.error('❌ Erreur récupération paiements existants:', error);
+          logger.log('🆕 Fallback: Création d\'un nouveau paiement');
         }
       }
 
-      console.log('📝 Données finales pour initialisation paiement:', paymentData);
+      logger.log('📝 Données finales pour initialisation paiement:', paymentData);
       const paymentResponse = await donationService.initializePayment(paymentData);
-      console.log('Réponse paiement:', paymentResponse.data);
+      logger.log('Réponse paiement:', paymentResponse.data);
       
       if (paymentResponse.data.success) {
         const paymentInfo = paymentResponse.data.data;
@@ -510,9 +516,13 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         // Récupérer l'URL de paiement - elle est directement dans la réponse
         const paymentUrl = paymentInfo.paymentUrl;
         
-        // Si c'est MoneyFusion, PayDunya ou un autre provider qui nécessite une redirection web
-        if (paymentUrl && (formData.paymentMethod === 'moneyfusion' || formData.paymentMethod === 'paydunya')) {
-          const paymentProvider = formData.paymentMethod === 'paydunya' ? 'PayDunya' : 'MoneyFusion';
+        // Si c'est MoneyFusion, GeniusPay, PayDunya ou un autre provider qui nécessite une redirection web
+        if (paymentUrl && (formData.paymentMethod === 'moneyfusion' || formData.paymentMethod === 'geniuspay' || formData.paymentMethod === 'paydunya')) {
+          const paymentProvider = formData.paymentMethod === 'paydunya'
+            ? 'PayDunya'
+            : formData.paymentMethod === 'geniuspay'
+              ? 'GeniusPay'
+              : 'MoneyFusion';
           const operatorName = formData.paymentMethod === 'paydunya' && selectedPayDunyaOperator 
             ? ` (${selectedPayDunyaOperator.name})` 
             : '';
@@ -520,7 +530,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
           const alertTitle = mode === 'existing_donation' ? 'Paiement initié' : 'Don créé avec succès';
           const alertMessage = mode === 'existing_donation' 
             ? `Le paiement de ${formatAmount(formData.amount)} va être initié pour votre don existant.\n\nVous allez être redirigé vers la page de paiement ${paymentProvider}${operatorName}.`
-            : `Votre don de ${formatAmount(formData.amount)} a été créé. Numéro de reçu: ${donation.receiptNumber}.\n\nVous allez être redirigé vers la page de paiement ${paymentProvider}${operatorName}.`;
+            : `Votre don de ${formatAmount(formData.amount)} a été créé.\n\nVous allez être redirigé vers la page de paiement ${paymentProvider}${operatorName}.`;
             
           Alert.alert(
             alertTitle,
@@ -535,18 +545,14 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                 text: 'Continuer le paiement',
                 onPress: async () => {
                   try {
-                    // Rediriger vers MoneyFusion
                     await Linking.openURL(paymentUrl);
-                    
-                    // Naviguer vers l'écran de vérification
                     navigation.replace('PaymentVerification', {
                       paymentId: paymentInfo.paymentId,
                       donationId: donation.id,
                       transactionId: paymentInfo.transactionId,
-                      paymentUrl: paymentUrl,
                     });
                   } catch (error) {
-                    console.error('Erreur ouverture URL:', error);
+                    logger.error('Erreur ouverture URL:', error);
                     Alert.alert('Erreur', 'Impossible d\'ouvrir la page de paiement. Veuillez réessayer.');
                     navigation.navigate('DashboardModern');
                   }
@@ -576,17 +582,14 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         Alert.alert('Erreur', 'Erreur lors de l\'initialisation du paiement');
       }
     } catch (error: any) {
-      console.error('Erreur création don:', error);
-      console.error('Détails erreur:', {
+      logger.error('Erreur création don:', error);
+      logger.error('Détails erreur:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
       });
       
-      Alert.alert(
-        'Erreur',
-        error.response?.data?.error || error.message || 'Une erreur est survenue lors de la création du don'
-      );
+      showApiError(error, 'Une erreur est survenue lors de la création du don');
     } finally {
       setIsLoading(false);
     }

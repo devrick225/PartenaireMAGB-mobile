@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { currentConfig } from '../../config/api';
+import { parseHttpError } from '../../utils/httpErrors';
 
 // Clés de stockage
 const TOKEN_KEY = 'auth_token';
@@ -148,12 +149,14 @@ class ApiClient {
           }
         }
 
+        // Enrichir l'erreur avec un message lisible avant de la propager
+        const appError = parseHttpError(error);
+        error.appError = appError;
         return Promise.reject(error);
       }
     );
   }
 
-  // Méthodes HTTP
   async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> {
     return this.axiosInstance.get(url, config);
   }
@@ -209,3 +212,18 @@ const apiClient = new ApiClient();
 
 export default apiClient;
 export type { ApiResponse };
+export { parseHttpError } from '../../utils/httpErrors';
+export type { AppError } from '../../utils/httpErrors';
+
+/**
+ * Affiche une alerte React Native avec le message d'erreur enrichi.
+ * Usage dans les catch : showApiError(error)
+ */
+export function showApiError(
+  error: any,
+  fallbackMessage = 'Une erreur inattendue s\'est produite.'
+): void {
+  const { Alert } = require('react-native');
+  const appError = error?.appError ?? require('../../utils/httpErrors').parseHttpError(error);
+  Alert.alert(appError.title, appError.message || fallbackMessage);
+}

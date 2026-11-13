@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import logger from '../../utils/logger';
 
 // Types
 export interface Ministry {
@@ -96,84 +97,77 @@ class MinistryService {
       const response = await apiClient.get(`/ministries?${params.toString()}`);
       return response.data as MinistriesResponse;
     } catch (error) {
-      console.error('Erreur lors de la récupération des ministères:', error);
+      logger.error('Erreur lors de la récupération des ministères:', error);
       throw error;
     }
   }
 
-  // Récupérer les ministères par catégorie
   async getMinistriesByCategory(category: string) {
     try {
       const response = await apiClient.get(`/ministries/category/${category}`);
       return response.data as MinistriesResponse;
     } catch (error) {
-      console.error('Erreur lors de la récupération des ministères par catégorie:', error);
+      logger.error('Erreur lors de la récupération des ministères par catégorie:', error);
       throw error;
     }
   }
 
-  // Récupérer un ministère par ID
   async getMinistryById(id: string) {
     try {
       const response = await apiClient.get(`/ministries/${id}`);
       return response.data as MinistryResponse;
     } catch (error) {
-      console.error('Erreur lors de la récupération du ministère:', error);
+      logger.error('Erreur lors de la récupération du ministère:', error);
       throw error;
     }
   }
 
-  // Créer un nouveau ministère (Admin)
   async createMinistry(ministryData: CreateMinistryData) {
     try {
       const response = await apiClient.post('/ministries', ministryData);
       return response.data as MinistryResponse;
     } catch (error) {
-      console.error('Erreur lors de la création du ministère:', error);
+      logger.error('Erreur lors de la création du ministère:', error);
       throw error;
     }
   }
 
-  // Mettre à jour un ministère (Admin)
   async updateMinistry(id: string, updateData: UpdateMinistryData) {
     try {
       const response = await apiClient.put(`/ministries/${id}`, updateData);
       return response.data as MinistryResponse;
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du ministère:', error);
+      logger.error('Erreur lors de la mise à jour du ministère:', error);
       throw error;
     }
   }
 
-  // Supprimer un ministère (Admin)
   async deleteMinistry(id: string) {
     try {
       const response = await apiClient.delete(`/ministries/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Erreur lors de la suppression du ministère:', error);
+      logger.error('Erreur lors de la suppression du ministère:', error);
       throw error;
     }
   }
 
-  // Activer/Désactiver un ministère (Admin)
   async toggleMinistryStatus(id: string) {
     try {
       const response = await apiClient.patch(`/ministries/${id}/toggle`);
       return response.data as MinistryResponse;
     } catch (error) {
-      console.error('Erreur lors du changement de statut du ministère:', error);
+      logger.error('Erreur lors du changement de statut du ministère:', error);
       throw error;
     }
   }
 
-  // Récupérer les statistiques des ministères
   async getMinistryStats() {
     try {
       const response = await apiClient.get('/ministries/stats/overview');
       return response.data as MinistryStatsResponse;
     } catch (error) {
-      console.error('Erreur lors de la récupération des statistiques:', error);
+      logger.error('Erreur lors de la récupération des statistiques:', error);
       throw error;
     }
   }
@@ -279,43 +273,30 @@ class MinistryService {
     return parts.join(' • ');
   }
 
-  // Rechercher des ministères
+  // NOTE: /ministries/search n'existe pas — filtrer via getAllMinistries
   async searchMinistries(query: string, filters: MinistryFilters = {}) {
     try {
       const params = new URLSearchParams();
       params.append('search', query);
-      
       if (filters.category) params.append('category', filters.category);
       if (filters.isActive !== undefined) params.append('isActive', filters.isActive.toString());
-
-      const response = await apiClient.get(`/ministries/search?${params.toString()}`);
+      // Utilise la route principale avec le paramètre search
+      const response = await apiClient.get(`/ministries?${params.toString()}`);
       return response.data as MinistriesResponse;
     } catch (error) {
-      console.error('Erreur lors de la recherche de ministères:', error);
+      logger.error('Erreur lors de la recherche de ministères:', error);
       throw error;
     }
   }
 
-  // Récupérer les ministères favoris (si implémenté)
+  // NOTE: /ministries/favorites n'existe pas côté backend
   async getFavoriteMinistries() {
-    try {
-      const response = await apiClient.get('/ministries/favorites');
-      return response.data as MinistriesResponse;
-    } catch (error) {
-      console.error('Erreur lors de la récupération des ministères favoris:', error);
-      throw error;
-    }
+    throw new Error('Les ministères favoris ne sont pas encore disponibles');
   }
 
-  // Ajouter/Retirer des favoris (si implémenté)
+  // NOTE: /ministries/:id/favorite n'existe pas côté backend
   async toggleFavorite(ministryId: string) {
-    try {
-      const response = await apiClient.post(`/ministries/${ministryId}/favorite`);
-      return response.data;
-    } catch (error) {
-      console.error('Erreur lors de la modification des favoris:', error);
-      throw error;
-    }
+    throw new Error('Les favoris de ministères ne sont pas encore disponibles');
   }
 }
 

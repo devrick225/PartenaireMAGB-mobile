@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -13,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
-import apiClient from '../store/services/apiClient';
+import apiClient, { showApiError } from '../store/services/apiClient';
 
 interface ChangePasswordScreenProps {
   navigation: any;
@@ -89,9 +90,8 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
         ]
       );
     } catch (error: any) {
-      console.error('Erreur changement mot de passe:', error);
-      const errorMessage = error.response?.data?.message || 'Erreur lors du changement de mot de passe';
-      Alert.alert('Erreur', errorMessage);
+      logger.error('Erreur changement mot de passe:', error);
+      showApiError(error, 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -59,7 +60,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
         setRecurringDonations(response.data.data.donations || []);
       }
     } catch (error) {
-      console.error('Erreur chargement dons:', error);
+      logger.error('Erreur chargement dons:', error);
       Alert.alert('Erreur', 'Impossible de charger l\'historique des dons');
     } finally {
       setIsLoading(false);
@@ -83,7 +84,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
               Alert.alert('Succès', 'Le don récurrent a été annulé');
               loadDonations(true);
             } catch (error) {
-              console.error('Erreur annulation don récurrent:', error);
+              logger.error('Erreur annulation don récurrent:', error);
               Alert.alert('Erreur', 'Impossible d\'annuler le don récurrent');
             } finally {
               setIsLoading(false);

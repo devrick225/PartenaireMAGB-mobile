@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import BirthDatePicker from '../components/BirthDatePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -22,6 +24,7 @@ import { COLORS } from '../constants';
 import userService from '../store/services/userService';
 import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
+import { showApiError } from '../store/services/apiClient';
 
 interface Country {
   code: string;
@@ -89,7 +92,6 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
   
   // Date picker
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     loadProfile();
@@ -181,42 +183,13 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
     return new Date(year, month - 1, day);
   };
 
-  // Gestionnaire pour le changement de date
-  const handleDateChange = (event: any, selectedDate?: Date) => {
+  // Gestionnaire pour le changement de date (conservé pour compatibilité)
+  const handleDateChange = (_event: any, _selectedDate?: Date) => {
     setShowDatePicker(false);
-    if (selectedDate) {
-      setSelectedDate(selectedDate);
-      const formattedDate = formatDateDisplay(selectedDate);
-      setProfile({...profile, dateOfBirth: formattedDate});
-    }
   };
 
-  // Fonction pour ouvrir le DatePicker
+  // Fonction pour ouvrir le BirthDatePicker
   const openDatePicker = () => {
-    if (profile.dateOfBirth && profile.dateOfBirth !== 'NaN-NaN-NaN') {
-      // Essayer de parser en DD-MM-YYYY d'abord, puis en YYYY-MM-DD
-      try {
-        const parsedDate = parseDateDisplay(profile.dateOfBirth);
-        if (parsedDate.getFullYear() > 1900) {
-          setSelectedDate(parsedDate);
-        } else {
-          setSelectedDate(new Date());
-        }
-      } catch {
-        try {
-          const parsedDate = parseDateBackend(profile.dateOfBirth);
-          if (parsedDate.getFullYear() > 1900) {
-            setSelectedDate(parsedDate);
-          } else {
-            setSelectedDate(new Date());
-          }
-        } catch {
-          setSelectedDate(new Date());
-        }
-      }
-    } else {
-      setSelectedDate(new Date());
-    }
     setShowDatePicker(true);
   };
 
@@ -246,7 +219,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               displayDateOfBirth = formatDateDisplay(backendDate);
             }
           } catch (error) {
-            console.log('Erreur parsing date backend:', error);
+            logger.log('Erreur parsing date backend:', error);
             displayDateOfBirth = '';
           }
         }
@@ -292,8 +265,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         });
       }
     } catch (error: any) {
-      console.error('Erreur chargement profil:', error);
-      Alert.alert('Erreur', error.response?.data?.error || 'Impossible de charger le profil');
+      logger.error('Erreur chargement profil:', error);
+      showApiError(error, 'Impossible de charger le profil');
     } finally {
       setIsLoading(false);
     }
@@ -312,7 +285,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
             backendDateOfBirth = formatDateBackend(displayDate);
           }
         } catch (error) {
-          console.log('Erreur parsing date display:', error);
+          logger.log('Erreur parsing date display:', error);
           // Si le parsing échoue, essayer le format backend
           try {
             const backendDate = parseDateBackend(profile.dateOfBirth);
@@ -320,7 +293,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               backendDateOfBirth = formatDateBackend(backendDate);
             }
           } catch (backendError) {
-            console.log('Erreur parsing date backend:', backendError);
+            logger.log('Erreur parsing date backend:', backendError);
             backendDateOfBirth = '';
           }
         }
@@ -371,8 +344,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         navigation.goBack();
       }
     } catch (error: any) {
-      console.error('Erreur mise à jour profil:', error);
-      Alert.alert('Erreur', error.response?.data?.error || 'Impossible de mettre à jour le profil');
+      logger.error('Erreur mise à jour profil:', error);
+      showApiError(error, 'Impossible de mettre à jour le profil');
     } finally {
       setIsSaving(false);
     }
@@ -718,7 +691,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               'Code postal',
               profile.address.postalCode,
               (text) => setProfile({...profile, address: {...profile.address, postalCode: text}}),
-              'Code postal',
+              'Ex: 01 BP 2206 Abidjan 01',
               'default',
               'mail-outline'
             )}
@@ -871,17 +844,16 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-          minimumDate={new Date(1900, 0, 1)}
-        />
-      )}
+      {/* BirthDatePicker — sélecteur Année → Mois → Jour */}
+      <BirthDatePicker
+        visible={showDatePicker}
+        value={profile.dateOfBirth}
+        onConfirm={(date) => {
+          setProfile({ ...profile, dateOfBirth: date });
+          setShowDatePicker(false);
+        }}
+        onCancel={() => setShowDatePicker(false)}
+      />
 
       {/* Country Selector Modal */}
       <Modal

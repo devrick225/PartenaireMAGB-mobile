@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -495,7 +496,7 @@ const ProfileWizardScreen = ({ navigation }) => {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      console.log('Saving complete profile:', formData);
+      logger.log('Saving complete profile:', formData);
       
       dispatch(showSuccess({
         title: 'Profil complet sauvegardé',

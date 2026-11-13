@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -15,6 +16,8 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient from '../store/services/apiClient';
+import { useOtpClipboard } from '../hooks/useOtpClipboard';
+import { showApiError } from '../store/services/apiClient';
 
 interface ResetPasswordWithCodeScreenProps {
   navigation: any;
@@ -33,6 +36,13 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
   const [isLoading, setIsLoading] = useState(false);
 
   const codeInputRefs = useRef<TextInput[]>([]);
+
+  // Auto-remplissage depuis le presse-papier
+  useOtpClipboard({
+    onCodeDetected: (digits) => {
+      setCode(digits);
+    },
+  });
 
   const handleCodeChange = (text: string, index: number) => {
     const newCode = [...code];
@@ -113,14 +123,8 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
         );
       }
     } catch (error: any) {
-      console.error('Erreur reset password:', error);
-      
-      let errorMessage = 'Une erreur est survenue lors de la réinitialisation';
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      
-      Alert.alert('Erreur', errorMessage);
+      logger.error('Erreur reset password:', error);
+      showApiError(error, 'Une erreur est survenue lors de la réinitialisation');
     } finally {
       setIsLoading(false);
     }
@@ -145,8 +149,8 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
         setCode(['', '', '', '', '', '']);
       }
     } catch (error: any) {
-      console.error('Erreur nouveau code:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer un nouveau code');
+      logger.error('Erreur nouveau code:', error);
+      showApiError(error, 'Impossible d\'envoyer un nouveau code');
     } finally {
       setIsLoading(false);
     }

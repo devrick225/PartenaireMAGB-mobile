@@ -18,6 +18,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import documentsService, { AvailableDocuments, DownloadProgress, DownloadResult } from '../store/services/documentsService';
 import RefreshableHeader from '../components/RefreshableHeader';
+import { showApiError } from '../store/services/apiClient';
 import { WebView } from 'react-native-webview';
 import Constants from 'expo-constants';
 
@@ -60,7 +61,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
       setDocuments(response.data);
     } catch (error: any) {
       console.error('Erreur chargement documents:', error);
-      Alert.alert('Erreur', 'Impossible de charger les documents disponibles');
+      showApiError(error, 'Impossible de charger les documents disponibles');
     } finally {
       setIsLoading(false);
     }
@@ -164,7 +165,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
       }
     } catch (error: any) {
       console.error('Erreur téléchargement:', error);
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue lors du téléchargement');
+      showApiError(error, 'Une erreur est survenue lors du téléchargement');
     } finally {
       setDownloadingItems(prev => {
         const newSet = new Set(prev);

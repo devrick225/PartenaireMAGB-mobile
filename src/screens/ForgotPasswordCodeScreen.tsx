@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient from '../store/services/apiClient';
+import { showApiError } from '../store/services/apiClient';
 
 interface ForgotPasswordCodeScreenProps {
   navigation: any;
@@ -64,13 +65,7 @@ const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ nav
       }
     } catch (error: any) {
       console.error('Erreur demande code reset:', error);
-      
-      let errorMessage = 'Une erreur est survenue lors de l\'envoi du code';
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      
-      Alert.alert('Erreur', errorMessage);
+      showApiError(error, 'Une erreur est survenue lors de l\'envoi du code');
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -199,7 +200,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
 
   const handlePlatformPress = async (platform: SocialMediaPlatform) => {
     try {
-      console.log(`🔗 Ouverture de ${platform.name}: ${platform.url}`);
+      logger.log(`🔗 Ouverture de ${platform.name}: ${platform.url}`);
       
       // Vérifier si l'URL peut être ouverte
       const canOpen = await Linking.canOpenURL(platform.url);
@@ -214,7 +215,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
         );
       }
     } catch (error) {
-      console.error(`❌ Erreur ouverture ${platform.name}:`, error);
+      logger.error(`❌ Erreur ouverture ${platform.name}:`, error);
       Alert.alert(
         'Erreur',
         ERROR_MESSAGES.networkError,
@@ -238,7 +239,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
         dialogTitle: SHARE_CONFIG.dialogTitle,
       });
     } catch (error) {
-      console.error('❌ Erreur partage:', error);
+      logger.error('❌ Erreur partage:', error);
     }
   };
 

@@ -193,19 +193,24 @@ class UserService {
   }
 
   async changeUserRole(data: { userId: string; role: string }) {
-    return apiClient.patch(`/users/${data.userId}/role`, { role: data.role });
+    // Backend attend PUT, pas PATCH
+    return apiClient.put(`/users/${data.userId}/role`, { role: data.role });
   }
 
   async deleteUser(userId: string) {
-    return apiClient.delete(`/users/${userId}`);
+    // NOTE: /users/:id DELETE n'existe pas côté backend
+    // Utiliser updateUserStatus pour désactiver à la place
+    return apiClient.put(`/users/${userId}/status`, { isActive: false });
   }
 
   async blockUser(userId: string, reason?: string) {
-    return apiClient.patch(`/users/${userId}/block`, { reason });
+    // NOTE: /users/:id/block n'existe pas — utiliser /users/:id/status
+    return apiClient.put(`/users/${userId}/status`, { isActive: false, reason });
   }
 
   async unblockUser(userId: string) {
-    return apiClient.patch(`/users/${userId}/unblock`);
+    // NOTE: /users/:id/unblock n'existe pas — utiliser /users/:id/status
+    return apiClient.put(`/users/${userId}/status`, { isActive: true });
   }
 
   async getUserStats(userId?: string) {
@@ -239,40 +244,30 @@ class UserService {
   }
 
   async exportUsers(filters: GetUsersParams = {}) {
-    const queryString = new URLSearchParams();
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryString.append(key, value.toString());
-      }
-    });
-
-    const url = `/users/export${queryString.toString() ? `?${queryString.toString()}` : ''}`;
-    return apiClient.get(url, {
-      responseType: 'blob',
-    });
+    // NOTE: /users/export n'existe pas côté backend
+    throw new Error('L\'export des utilisateurs n\'est pas encore disponible');
   }
 
   async changeEmail(newEmail: string, password: string) {
-    return apiClient.post('/users/change-email', {
-      newEmail,
-      password,
-    });
+    // NOTE: /users/change-email n'existe pas côté backend
+    throw new Error('Le changement d\'email n\'est pas encore disponible');
   }
 
   async verifyEmailChange(token: string) {
-    return apiClient.post('/users/verify-email-change', { token });
+    // NOTE: /users/verify-email-change n'existe pas côté backend
+    throw new Error('La vérification de changement d\'email n\'est pas encore disponible');
   }
 
   async deactivateAccount(password: string, reason?: string) {
-    return apiClient.post('/users/deactivate', {
-      password,
-      reason,
+    // NOTE: /users/deactivate n'existe pas — utiliser /users/account DELETE
+    return apiClient.delete('/users/account', {
+      data: { password, confirmation: 'DELETE' }
     });
   }
 
   async reactivateAccount(email: string) {
-    return apiClient.post('/users/reactivate', { email });
+    // NOTE: /users/reactivate n'existe pas côté backend
+    throw new Error('La réactivation de compte n\'est pas encore disponible');
   }
 
   async getUserPreferences() {
@@ -297,14 +292,16 @@ class UserService {
   }
 
   async downloadPersonalData() {
-    return apiClient.get('/users/download-data', {
+    // Backend expose /users/profile/download-data, pas /users/download-data
+    return apiClient.get('/users/profile/download-data', {
       responseType: 'blob',
     });
   }
 
   async deleteAccount(password: string) {
+    // Backend exige aussi confirmation: 'DELETE'
     return apiClient.delete('/users/account', {
-      data: { password }
+      data: { password, confirmation: 'DELETE' }
     });
   }
 }

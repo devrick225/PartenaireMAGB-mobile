@@ -27,6 +27,7 @@ import paymentService from '../store/services/paymentService';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { checkAuthStatus } from '../store/slices/authSlice';
+import { showApiError } from '../store/services/apiClient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -285,7 +286,7 @@ const CreateDonationScreenModern: React.FC<CreateDonationScreenModernProps> = ({
                       });
                     } catch (error) {
                       console.error('Erreur ouverture URL:', error);
-                      Alert.alert('Erreur', 'Impossible d\'ouvrir la page de paiement. Veuillez réessayer.');
+                      showApiError(error, 'Impossible d\'ouvrir la page de paiement. Veuillez réessayer.');
                       navigation.navigate('DashboardGridModern');
                     }
                   },
@@ -294,17 +295,14 @@ const CreateDonationScreenModern: React.FC<CreateDonationScreenModernProps> = ({
             );
           }
         } else {
-          Alert.alert('Erreur', 'Erreur lors de l\'initialisation du paiement');
+          showApiError(null, 'Erreur lors de l\'initialisation du paiement');
         }
       } else {
-        Alert.alert('Erreur', 'Erreur lors de la création du don');
+        showApiError(null, 'Erreur lors de la création du don');
       }
     } catch (error: any) {
       console.error('Erreur création don:', error);
-      Alert.alert(
-        'Erreur',
-        error.response?.data?.error || error.message || 'Une erreur est survenue lors de la création du don'
-      );
+      showApiError(error, 'Une erreur est survenue lors de la création du don');
     } finally {
       setIsLoading(false);
       setShowSuccessAnimation(false);

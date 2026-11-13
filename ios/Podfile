@@ -60,5 +60,22 @@ target 'PartenaireMAGB' do
         end
       end
     end
+
+    # Xcode 26's clang triggers fmt's FMT_USE_CONSTEVAL=1 path (via its
+    # FMT_CLANG_VERSION >= 1101 branch, independent of __cpp_consteval), and
+    # that consteval format-string validation fails to compile with this
+    # clang on the bundled fmt version (RN 0.81 folly/glog dep). fmt/base.h
+    # has no #ifndef guard on FMT_USE_CONSTEVAL, so compiler-flag overrides
+    # get silently clobbered by the header's own #define — patch the vendored
+    # source directly instead, forcing the non-consteval branch.
+    fmt_base_h = File.join(installer.sandbox.pod_dir('fmt'), 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base_h)
+      contents = File.read(fmt_base_h)
+      patched = contents.sub(/#if FMT_USE_CONSTEVAL\n/, "#if 0 // patched: Xcode 26 clang consteval incompatibility\n")
+      if patched != contents
+        File.chmod(0644, fmt_base_h)
+        File.write(fmt_base_h, patched)
+      end
+    end
   end
 end

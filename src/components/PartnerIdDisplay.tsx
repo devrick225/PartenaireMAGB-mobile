@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React from 'react';
 import {
   View,
@@ -45,7 +46,7 @@ const PartnerIdDisplay: React.FC<PartnerIdDisplayProps> = ({
         [{ text: 'OK', style: 'default' }]
       );
     } catch (error) {
-      console.error('Erreur copie:', error);
+      logger.error('Erreur copie:', error);
       Alert.alert(
         'Erreur',
         'Impossible de copier l\'ID Partenaire',

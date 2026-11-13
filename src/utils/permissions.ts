@@ -46,6 +46,15 @@ async function checkAndRequestPermission(type: PermissionType): Promise<Permissi
     return { granted: true, canAskAgain: true };
   }
 
+  // On Android the system photo picker (used by expo-image-picker's
+  // launchImageLibraryAsync) does NOT require READ_MEDIA_IMAGES or any
+  // storage permission.  Requesting it would trigger the Google Play
+  // "broad storage permission" policy violation.  We only need to check
+  // the actual CAMERA permission when the user wants to take a photo.
+  if (type === 'mediaLibrary' && Platform.OS === 'android') {
+    return { granted: true, canAskAgain: true };
+  }
+
   const getStatus = type === 'camera'
     ? ImagePicker.getCameraPermissionsAsync
     : ImagePicker.getMediaLibraryPermissionsAsync;
@@ -88,6 +97,10 @@ export async function requestCameraPermission(): Promise<boolean> {
   return result.granted;
 }
 
+/**
+ * On Android, the system photo picker handles its own access — no permission
+ * needed.  On iOS, NSPhotoLibraryUsageDescription covers it.
+ */
 export async function requestMediaLibraryPermission(): Promise<boolean> {
   const result = await checkAndRequestPermission('mediaLibrary');
   return result.granted;

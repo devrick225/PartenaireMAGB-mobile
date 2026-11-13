@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import apiClient from './apiClient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -65,7 +66,7 @@ class DocumentsService {
       const response = await apiClient.get('/documents/available');
       return response.data;
     } catch (error: any) {
-      console.error('Erreur récupération documents disponibles:', error);
+      logger.error('Erreur récupération documents disponibles:', error);
       throw error;
     }
   }
@@ -80,7 +81,7 @@ class DocumentsService {
       const downloadUrl = `/documents/donation-receipt/${donationId}`;
       return await this.downloadFile(downloadUrl, filename, 'pdf', onProgress);
     } catch (error: any) {
-      console.error('Erreur téléchargement reçu:', error);
+      logger.error('Erreur téléchargement reçu:', error);
       return { success: false, error: error.message || 'Erreur lors du téléchargement du reçu' };
     }
   }
@@ -95,7 +96,7 @@ class DocumentsService {
       const downloadUrl = `/documents/schedule-pdf/${recurringDonationId}`;
       return await this.downloadFile(downloadUrl, filename, 'pdf', onProgress);
     } catch (error: any) {
-      console.error("Erreur téléchargement échéancier PDF:", error);
+      logger.error("Erreur téléchargement échéancier PDF:", error);
       return { success: false, error: error.message || "Erreur lors du téléchargement de l'échéancier PDF" };
     }
   }
@@ -110,7 +111,7 @@ class DocumentsService {
       const downloadUrl = `/documents/schedule-excel/${recurringDonationId}`;
       return await this.downloadFile(downloadUrl, filename, 'excel', onProgress);
     } catch (error: any) {
-      console.error("Erreur téléchargement échéancier Excel:", error);
+      logger.error("Erreur téléchargement échéancier Excel:", error);
       return { success: false, error: error.message || "Erreur lors du téléchargement de l'échéancier Excel" };
     }
   }
@@ -137,7 +138,7 @@ class DocumentsService {
       const downloadUrl = `/documents/donations-report?${queryParams.toString()}`;
       return await this.downloadFile(downloadUrl, filename, 'excel', onProgress);
     } catch (error: any) {
-      console.error('Erreur téléchargement rapport:', error);
+      logger.error('Erreur téléchargement rapport:', error);
       return { success: false, error: error.message || 'Erreur lors du téléchargement du rapport' };
     }
   }
@@ -160,7 +161,7 @@ class DocumentsService {
       const token = await this.getAuthToken();
       const fullUrl = `${baseURL}${url}`;
 
-      console.log('🔄 Début du téléchargement:', { url: fullUrl, filename, filePath });
+      logger.log('Début du téléchargement:', { url: fullUrl, filename, filePath });
 
       const downloadResumable = FileSystem.createDownloadResumable(
         fullUrl,
@@ -191,7 +192,7 @@ class DocumentsService {
       // Ne pas partager automatiquement: laisser l'UI décider (prévisualisation, partage, etc.)
       return { success: true, filePath, filename };
     } catch (error: any) {
-      console.error('Erreur téléchargement:', error);
+      logger.error('Erreur téléchargement:', error);
       return { success: false, error: error.message || 'Erreur lors du téléchargement' };
     }
   }
@@ -216,7 +217,7 @@ class DocumentsService {
       });
       return true;
     } catch (error) {
-      console.error('Erreur partage fichier:', error);
+      logger.error('Erreur partage fichier:', error);
       return false;
     }
   }
@@ -227,7 +228,7 @@ class DocumentsService {
       const fileInfo = await FileSystem.getInfoAsync(filePath);
       return fileInfo.exists ? fileInfo : null;
     } catch (error) {
-      console.error('Erreur récupération info fichier:', error);
+      logger.error('Erreur récupération info fichier:', error);
       return null;
     }
   }
@@ -238,7 +239,7 @@ class DocumentsService {
       await FileSystem.deleteAsync(filePath);
       return true;
     } catch (error) {
-      console.error('Erreur suppression fichier:', error);
+      logger.error('Erreur suppression fichier:', error);
       return false;
     }
   }
@@ -269,7 +270,7 @@ class DocumentsService {
 
       return fileInfos.sort((a, b) => b.modificationTime - a.modificationTime);
     } catch (error) {
-      console.error('Erreur listage fichiers:', error);
+      logger.error('Erreur listage fichiers:', error);
       return [];
     }
   }

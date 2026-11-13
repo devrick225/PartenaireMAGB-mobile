@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,9 @@ import { COLORS } from '../constants';
 import donationService, { Donation } from '../store/services/donationService';
 import paymentService, { Payment } from '../store/services/paymentService';
 import documentsService from '../store/services/documentsService';
+import { showApiError } from '../store/services/apiClient';
 import Constants from 'expo-constants';
+import logger from '../utils/logger';
 
 interface DonationDetailScreenProps {
   navigation: any;
@@ -39,9 +41,15 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
   const [isInitiateLoading, setIsInitiateLoading] = useState(false);
   const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
-  console.log('donation', donation);
-  console.log('payment.status', payment?.status);
-
+  // La vérification retry peut prendre jusqu'à ~12s ; si l'utilisateur quitte
+  // l'écran avant la fin, on arrête les tentatives au lieu d'afficher une
+  // Alert sur un écran que l'utilisateur a déjà quitté.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     loadDonationDetails();
@@ -51,17 +59,17 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
   const selectBestPayment = (payments: Payment[], donation: Donation): Payment | null => {
     if (!payments || payments.length === 0) return null;
     
-    console.log(`Sélection du meilleur paiement parmi ${payments.length} paiements pour donation ${donation._id}`);
+    logger.log(`Sélection du meilleur paiement parmi ${payments.length} paiements pour donation ${donation._id}`);
     
     // Si un seul paiement, le retourner
     if (payments.length === 1) {
-      console.log('Un seul paiement trouvé:', payments[0]._id);
+      logger.log('Un seul paiement trouvé:', payments[0]._id);
       return payments[0];
     }
     
     // Logique de sélection selon le type de don
     if (donation.type === 'recurring') {
-      console.log('Don récurrent détecté - sélection du paiement le plus approprié');
+      logger.log('Don récurrent détecté - sélection du paiement le plus approprié');
       
       // Pour les dons récurrents, priorité aux paiements en cours ou récents
       // 1. D'abord chercher un paiement pending/processing
@@ -69,23 +77,23 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
       if (pendingPayments.length > 0) {
         // Prendre le plus récent parmi les pending
         const latest = pendingPayments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        console.log('Paiement pending/processing sélectionné pour don récurrent:', latest._id);
+        logger.log('Paiement pending/processing sélectionné pour don récurrent:', latest._id);
         return latest;
       }
       
       // 2. Sinon, prendre le plus récent (completed ou failed)
       const sortedByDate = payments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      console.log('Paiement le plus récent sélectionné pour don récurrent:', sortedByDate[0]._id);
+      logger.log('Paiement le plus récent sélectionné pour don récurrent:', sortedByDate[0]._id);
       return sortedByDate[0];
     } else {
-      console.log('Don unique détecté - sélection selon priorité de statut');
+      logger.log('Don unique détecté - sélection selon priorité de statut');
       
       // Pour les dons uniques, priorité aux statuts actifs
       // 1. Pending/processing en premier
       let activePayments = payments.filter(p => ['pending', 'processing', 'initialized'].includes(p.status));
       if (activePayments.length > 0) {
         const latest = activePayments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        console.log('Paiement actif sélectionné pour don unique:', latest._id);
+        logger.log('Paiement actif sélectionné pour don unique:', latest._id);
         return latest;
       }
       
@@ -93,13 +101,13 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
       let completedPayments = payments.filter(p => ['completed', 'paid'].includes(p.status));
       if (completedPayments.length > 0) {
         const latest = completedPayments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        console.log('Paiement complété sélectionné pour don unique:', latest._id);
+        logger.log('Paiement complété sélectionné pour don unique:', latest._id);
         return latest;
       }
       
       // 3. Enfin failed (le plus récent)
       const sortedByDate = payments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      console.log('Paiement par défaut (plus récent) sélectionné pour don unique:', sortedByDate[0]._id);
+      logger.log('Paiement par défaut (plus récent) sélectionné pour don unique:', sortedByDate[0]._id);
       return sortedByDate[0];
     }
   };
@@ -116,23 +124,23 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
         setDonation(donationData);
         
 
-        console.log('donationData', donationData);
+        logger.log('donationData', donationData);
         
         // Stratégie intelligente pour gérer les paiements multiples
         let selectedPayment = null;
         
         try {
-          console.log('🔍 Recherche intelligente des paiements pour donation:', donationData._id);
+          logger.log('🔍 Recherche intelligente des paiements pour donation:', donationData._id);
           
           // 1. D'abord essayer de récupérer TOUS les paiements pour cette donation
           const allPaymentsResponse = await paymentService.getAllPaymentsByDonationId(donationData._id);
           
           if (allPaymentsResponse.data.success && allPaymentsResponse.data.data.payments) {
             const allPayments = allPaymentsResponse.data.data.payments;
-            console.log(`📋 ${allPayments.length} paiement(s) trouvé(s) pour cette donation`);
+            logger.log(`📋 ${allPayments.length} paiement(s) trouvé(s) pour cette donation`);
             
                          if (allPayments.length > 1) {
-               console.warn(`⚠️ ALERTE: ${allPayments.length} paiements trouvés pour la même donation!`);
+               logger.warn(`⚠️ ALERTE: ${allPayments.length} paiements trouvés pour la même donation!`);
                console.table(allPayments.map((p: Payment) => ({
                  id: p._id,
                  status: p.status,
@@ -146,43 +154,43 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
              selectedPayment = selectBestPayment(allPayments, donationData);
             
             if (selectedPayment) {
-              console.log(`✅ Paiement sélectionné: ${selectedPayment._id} (statut: ${selectedPayment.status})`);
+              logger.log(`✅ Paiement sélectionné: ${selectedPayment._id} (statut: ${selectedPayment.status})`);
               setPayment(selectedPayment);
             } else {
-              console.log('❌ Aucun paiement sélectionné par la logique intelligente');
+              logger.log('❌ Aucun paiement sélectionné par la logique intelligente');
               setPayment(null);
             }
           } else {
-            console.log('📭 Aucun paiement trouvé dans la réponse');
+            logger.log('📭 Aucun paiement trouvé dans la réponse');
             setPayment(null);
           }
           
         } catch (paymentError: any) {
-          console.error('❌ Erreur lors de la recherche intelligente des paiements:', paymentError);
+          logger.error('❌ Erreur lors de la recherche intelligente des paiements:', paymentError);
           
           // Fallback : essayer la méthode classique avec l'ID direct si disponible
           if (donationData.payment?._id) {
             try {
-              console.log('🔄 Fallback: tentative via ID direct:', donationData.payment._id);
+              logger.log('🔄 Fallback: tentative via ID direct:', donationData.payment._id);
               const paymentResponse = await paymentService.getPaymentById(donationData.payment._id);
               if (paymentResponse.data.success) {
                 setPayment(paymentResponse.data.data.payment);
-                console.log('✅ Fallback réussi via ID direct');
+                logger.log('✅ Fallback réussi via ID direct');
               } else {
                 setPayment(null);
               }
             } catch (fallbackError) {
-              console.error('❌ Fallback échoué:', fallbackError);
+              logger.error('❌ Fallback échoué:', fallbackError);
               setPayment(null);
             }
           } else {
-            console.log('💭 Aucun paiement associé à ce don - statut:', donationData.status);
+            logger.log('💭 Aucun paiement associé à ce don - statut:', donationData.status);
             setPayment(null);
           }
         }
       }
     } catch (error: any) {
-      console.error('Erreur chargement don:', error);
+      logger.error('Erreur chargement don:', error);
       Alert.alert('Erreur', 'Impossible de charger les détails du don');
       navigation.goBack();
     } finally {
@@ -208,7 +216,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               Alert.alert('Succès', 'Don récurrent annulé avec succès');
               await loadDonationDetails();
             } catch (error: any) {
-              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'annulation');
+              showApiError(error, 'Erreur lors de l\'annulation du don récurrent');
             } finally {
               setIsVerifyLoading(false);
             }
@@ -245,7 +253,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
         await documentsService.shareFile(result.filePath, 'pdf');
       }
     } catch (error: any) {
-      console.error('Erreur téléchargement reçu:', error);
+      logger.error('Erreur téléchargement reçu:', error);
       Alert.alert('Erreur', error.message || 'Impossible de télécharger le reçu');
     } finally {
       setIsDownloadingReceipt(false);
@@ -263,7 +271,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
         title: 'Mon don PARTENAIRE MAGB',
       });
     } catch (error) {
-      console.error('Erreur partage:', error);
+      logger.error('Erreur partage:', error);
     }
   };
 
@@ -273,8 +281,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
     switch (donation.status) {
       case 'pending':
         // Don en attente - vérifier d'abord s'il existe un paiement réutilisable
-        console.log('🔍 Initiation paiement pour don pending:', donation._id);
-        console.log('📋 Type de don:', donation.type, '- Récurrent:', donation.type === 'recurring');
+        logger.log('🔍 Initiation paiement pour don pending:', donation._id);
+        logger.log('📋 Type de don:', donation.type, '- Récurrent:', donation.type === 'recurring');
         
         setIsInitiateLoading(true);
         try {
@@ -283,14 +291,14 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
           
           // 1. Chercher les paiements existants pour éviter les doublons
           if (donation.type !== 'recurring') {
-            console.log('🔍 Don unique détecté - recherche de paiements existants pour réutilisation');
+            logger.log('🔍 Don unique détecté - recherche de paiements existants pour réutilisation');
             
             try {
               const allPaymentsResponse = await paymentService.getAllPaymentsByDonationId(donation._id);
               
               if (allPaymentsResponse.data.success && allPaymentsResponse.data.data.payments) {
                 const allPayments = allPaymentsResponse.data.data.payments;
-                console.log(`📋 ${allPayments.length} paiement(s) existant(s) trouvé(s)`);
+                logger.log(`📋 ${allPayments.length} paiement(s) existant(s) trouvé(s)`);
                 
                                  // Chercher un paiement réutilisable (pending, failed, ou processing récent)
                  const reusablePayments = allPayments.filter((p: Payment) => 
@@ -303,29 +311,29 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                    )[0];
                   
-                  console.log(`♻️ Paiement réutilisable trouvé: ${existingPayment._id} (statut: ${existingPayment.status})`);
-                  console.log(`📅 Créé le: ${new Date(existingPayment.createdAt).toLocaleString('fr-FR')}`);
+                  logger.log(`♻️ Paiement réutilisable trouvé: ${existingPayment._id} (statut: ${existingPayment.status})`);
+                  logger.log(`📅 Créé le: ${new Date(existingPayment.createdAt).toLocaleString('fr-FR')}`);
                   
                   if (allPayments.length > 1) {
-                    console.warn(`⚠️ ${allPayments.length} paiements trouvés - réutilisation pour éviter les doublons`);
+                    logger.warn(`⚠️ ${allPayments.length} paiements trouvés - réutilisation pour éviter les doublons`);
                   }
                 }
               }
             } catch (searchError) {
-              console.log('🔄 Erreur recherche paiements existants, création d\'un nouveau:', searchError);
+              logger.log('🔄 Erreur recherche paiements existants, création d\'un nouveau:', searchError);
             }
           } else {
-            console.log('🔄 Don récurrent détecté - création d\'un nouveau paiement (normal pour les récurrences)');
+            logger.log('🔄 Don récurrent détecté - création d\'un nouveau paiement (normal pour les récurrences)');
           }
           
           // 2. Décider de réutiliser ou créer un nouveau paiement
           if (existingPayment && donation.type !== 'recurring') {
-            console.log(`♻️ Réutilisation du paiement existant: ${existingPayment._id}`);
+            logger.log(`♻️ Réutilisation du paiement existant: ${existingPayment._id}`);
             
             // Vérifier si le paiement existant a une URL valide
-            if (existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl) {
-              const paymentUrl = existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl;
-              console.log('✅ URL de paiement existante trouvée, réutilisation directe');
+            if (existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl || existingPayment.geniuspay?.paymentUrl) {
+              const paymentUrl = existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl || existingPayment.geniuspay?.paymentUrl;
+              logger.log('✅ URL de paiement existante trouvée, réutilisation directe');
               
               // Utiliser directement l'URL existante
               Alert.alert(
@@ -344,16 +352,16 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                         navigation.navigate('PaymentVerification', {
                           paymentId: existingPayment._id,
                           donationId: donation._id,
-                          transactionId: existingPayment.moneyfusion?.token || existingPayment.fusionpay?.transactionId,
+                          transactionId: existingPayment.moneyfusion?.token || existingPayment.fusionpay?.transactionId || existingPayment.geniuspay?.reference,
                           paymentUrl: paymentUrl,
                         });
                       } catch (error) {
-                        console.error('Erreur ouverture URL existante:', error);
+                        logger.error('Erreur ouverture URL existante:', error);
                         Alert.alert('Erreur', 'Impossible d\'ouvrir la page de paiement. Création d\'un nouveau paiement...');
                         // Fallback: créer un nouveau paiement
                         const newPaymentData = {
                           donationId: donation._id,
-                          provider: donation.paymentMethod === 'moneyfusion' ? 'moneyfusion' : 'fusionpay',
+                          provider: ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
                           paymentMethod: donation.paymentMethod,
                         };
                         const newPaymentResponse = await donationService.initializePayment(newPaymentData);
@@ -376,37 +384,39 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               );
               return; // Sortir de la fonction
             } else {
-              console.log('🔄 Paiement existant sans URL valide, recréation de l\'URL de paiement');
+              logger.log('🔄 Paiement existant sans URL valide, recréation de l\'URL de paiement');
               // Le paiement existe mais sans URL valide, en recréer une
               const paymentData = {
                 donationId: donation._id,
-                provider: donation.paymentMethod === 'moneyfusion' ? 'moneyfusion' : 'fusionpay',
+                provider: ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
                 paymentMethod: donation.paymentMethod,
                 existingPaymentId: existingPayment._id, // Indiquer qu'il faut mettre à jour ce paiement
               };
               paymentResponse = await donationService.initializePayment(paymentData);
             }
           } else {
-            console.log('🆕 Création d\'un nouveau paiement');
+            logger.log('🆕 Création d\'un nouveau paiement');
             // Créer un nouveau paiement
             const paymentData = {
               donationId: donation._id,
-              provider: donation.paymentMethod === 'moneyfusion' ? 'moneyfusion' : 'fusionpay',
+              provider: ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
               paymentMethod: donation.paymentMethod,
             };
             paymentResponse = await donationService.initializePayment(paymentData);
           }
 
-          console.log('📋 Réponse du service de paiement:', paymentResponse.data);
+          logger.log('📋 Réponse du service de paiement:', paymentResponse.data);
           
           if (paymentResponse.data.success) {
             const paymentInfo = paymentResponse.data.data;
             const paymentUrl = paymentInfo.paymentUrl;
             
-            if (paymentUrl && (donation.paymentMethod === 'moneyfusion' || donation.paymentMethod.includes('paydunya') || donation.paymentMethod.includes('orange-money') || donation.paymentMethod.includes('wave') || donation.paymentMethod.includes('mtn') || donation.paymentMethod.includes('moov') || donation.paymentMethod.includes('expresso') || donation.paymentMethod.includes('wizall') || donation.paymentMethod.includes('t-money'))) {
-              const providerName = donation.paymentMethod === 'moneyfusion' 
-                ? 'MoneyFusion' 
-                : 'PayDunya';
+            if (paymentUrl && (donation.paymentMethod === 'moneyfusion' || donation.paymentMethod === 'geniuspay' || donation.paymentMethod.includes('paydunya') || donation.paymentMethod.includes('orange-money') || donation.paymentMethod.includes('wave') || donation.paymentMethod.includes('mtn') || donation.paymentMethod.includes('moov') || donation.paymentMethod.includes('expresso') || donation.paymentMethod.includes('wizall') || donation.paymentMethod.includes('t-money'))) {
+              const providerName = donation.paymentMethod === 'moneyfusion'
+                ? 'MoneyFusion'
+                : donation.paymentMethod === 'geniuspay'
+                  ? 'GeniusPay'
+                  : 'PayDunya';
               
               Alert.alert(
                 'Paiement initié',
@@ -431,7 +441,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                           paymentUrl: paymentUrl,
                         });
                       } catch (error) {
-                        console.error('Erreur ouverture URL:', error);
+                        logger.error('Erreur ouverture URL:', error);
                         Alert.alert('Erreur', 'Impossible d\'ouvrir la page de paiement. Veuillez réessayer.');
                       }
                     },
@@ -448,11 +458,12 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
             Alert.alert('Erreur', 'Erreur lors de l\'initialisation du paiement');
           }
         } catch (error: any) {
-          console.error('Erreur initialisation paiement:', error);
-          Alert.alert(
-            'Erreur',
-            error.response?.data?.error || error.message || 'Une erreur est survenue lors de l\'initialisation du paiement'
-          );
+          logger.error('Erreur initialisation paiement:', error);
+          showApiError(error, 'initialisation du paiement');
+          // 409 : le don a déjà été payé entre-temps — recharger pour afficher son vrai statut
+          if ((error?.response?.status ?? error?.status) === 409) {
+            await loadDonationDetails();
+          }
         } finally {
           setIsInitiateLoading(false);
         }
@@ -460,7 +471,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
 
       case 'failed':
         // Don échoué - créer un nouveau don avec les mêmes données
-        console.log('Création nouveau don après échec:', donation._id);
+        logger.log('Création nouveau don après échec:', donation._id);
         navigation.navigate('CreateDonation', {
           mode: 'retry_failed', // Mode retry après échec
           previousDonationData: {
@@ -519,15 +530,20 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               // Système de retry avec délais progressifs pour laisser le temps aux webhooks
               const verifyWithRetry = async (maxRetries = 3) => {
                 for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                  console.log(`🔄 Tentative de vérification ${attempt}/${maxRetries}`);
-                  
+                  logger.log(`🔄 Tentative de vérification ${attempt}/${maxRetries}`);
+
                   // Délai progressif : 2s, 4s, 6s
                   if (attempt > 1) {
                     const delay = attempt * 2000;
-                    console.log(`⏳ Attente de ${delay/1000}s pour laisser le temps aux webhooks...`);
+                    logger.log(`⏳ Attente de ${delay/1000}s pour laisser le temps aux webhooks...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                   }
-                  
+
+                  if (!isMountedRef.current) {
+                    logger.log('Écran démonté, arrêt des tentatives de vérification');
+                    return false;
+                  }
+
                   try {
                     // Recharger d'abord les détails de la donation pour avoir les dernières infos
                     await loadDonationDetails();
@@ -537,7 +553,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                     
                     if (allPaymentsResponse.data.success && allPaymentsResponse.data.data.payments) {
                       const allPayments = allPaymentsResponse.data.data.payments;
-                      console.log(`📋 Tentative ${attempt}: ${allPayments.length} paiement(s) trouvé(s)`);
+                      logger.log(`📋 Tentative ${attempt}: ${allPayments.length} paiement(s) trouvé(s)`);
                       
                       if (allPayments.length === 0) {
                         if (attempt === maxRetries) {
@@ -575,11 +591,11 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                         continue;
                       }
                       
-                      console.log(`✅ Paiement sélectionné (tentative ${attempt}): ${paymentToVerify._id} (statut: ${paymentToVerify.status})`);
+                      logger.log(`✅ Paiement sélectionné (tentative ${attempt}): ${paymentToVerify._id} (statut: ${paymentToVerify.status})`);
                       
                       // Vérifier le paiement sélectionné
                       const verifyResponse = await paymentService.verifyPayment(paymentToVerify._id);
-                      console.log('Réponse vérification paiement:', verifyResponse.data);
+                      logger.log('Réponse vérification paiement:', verifyResponse.data);
                       
                       // Gérer la structure de réponse
                       let result, paymentData;
@@ -588,14 +604,14 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                         // Structure MoneyFusion directe
                         result = verifyResponse.data;
                         paymentData = result.data;
-                        console.log('Structure MoneyFusion détectée:', paymentData);
+                        logger.log('Structure MoneyFusion détectée:', paymentData);
                       } else if (verifyResponse.data.success && verifyResponse.data.data) {
                         // Structure API standard avec success: true
                         result = verifyResponse.data.data;
                         paymentData = result.data || result;
-                        console.log('Structure API standard détectée:', paymentData);
+                        logger.log('Structure API standard détectée:', paymentData);
                       } else {
-                        console.warn('Structure de réponse inconnue:', verifyResponse.data);
+                        logger.warn('Structure de réponse inconnue:', verifyResponse.data);
                         if (attempt === maxRetries) {
                           throw new Error('Structure de réponse invalide');
                         }
@@ -609,9 +625,9 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                             donation._id, 
                             paymentData.statut
                           );
-                          console.log('Statut du don mis à jour:', paymentData.statut);
+                          logger.log('Statut du don mis à jour:', paymentData.statut);
                         } catch (error) {
-                          console.warn('Impossible de mettre à jour le statut du don:', error);
+                          logger.warn('Impossible de mettre à jour le statut du don:', error);
                         }
                       }
                       
@@ -655,23 +671,23 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                       return true; // Succès
                       
                     } else {
-                      console.log(`❌ Tentative ${attempt}: Aucun paiement trouvé`);
+                      logger.log(`❌ Tentative ${attempt}: Aucun paiement trouvé`);
                       if (attempt === maxRetries) {
                         // Fallback vers recherche classique en dernier recours
                         try {
-                          console.log('🔄 Dernier recours: recherche classique');
+                          logger.log('🔄 Dernier recours: recherche classique');
                           const classicResponse = await paymentService.getPaymentByDonationId(donation._id);
                           
                           if (classicResponse.data.success && classicResponse.data.data.payment) {
-                            console.log('✅ Fallback réussi, paiement trouvé');
-                            setPayment(classicResponse.data.data.payment);
+                            logger.log('✅ Fallback réussi, paiement trouvé');
+                            if (isMountedRef.current) setPayment(classicResponse.data.data.payment);
                             await loadDonationDetails();
                             // Redéclencher la vérification maintenant qu'on a un paiement
                             setTimeout(() => handleVerifyPayment(), 500);
                             return true;
                           }
                         } catch (fallbackError) {
-                          console.log('❌ Fallback échoué aussi');
+                          logger.log('❌ Fallback échoué aussi');
                         }
                         
                         Alert.alert(
@@ -690,7 +706,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                       }
                     }
                   } catch (attemptError: any) {
-                    console.log(`❌ Erreur tentative ${attempt}:`, attemptError);
+                    logger.log(`❌ Erreur tentative ${attempt}:`, attemptError);
                     if (attempt === maxRetries) {
                       throw attemptError;
                     }
@@ -702,11 +718,11 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               // Si on a déjà un paiement, vérifier directement sinon utiliser le système de retry
               if (payment) {
                 // Cas 1: Payment déjà chargé - vérification directe
-                console.log('Vérification du paiement existant:', payment._id);
+                logger.log('Vérification du paiement existant:', payment._id);
                 const response = await paymentService.verifyPayment(payment._id);
                 
-                console.log('Réponse complète de vérification:', response);
-                console.log('Données de vérification:', response.data);
+                logger.log('Réponse complète de vérification:', response);
+                logger.log('Données de vérification:', response.data);
                 
                 // Gérer la structure MoneyFusion: {statut, message, data}
                 let result, paymentData;
@@ -716,15 +732,15 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                   // Structure MoneyFusion directe
                   result = response.data;
                   paymentData = result.data;
-                  console.log('Structure MoneyFusion détectée:', paymentData);
+                  logger.log('Structure MoneyFusion détectée:', paymentData);
                 } else if (response.data.success && response.data.data) {
                   // Structure API standard avec success: true
                   result = response.data.data;
                   paymentData = result.data || result;
-                  console.log('Structure API standard détectée:', paymentData);
+                  logger.log('Structure API standard détectée:', paymentData);
                 } else {
                   // Structure inconnue
-                  console.warn('Structure de réponse inconnue:', response.data);
+                  logger.warn('Structure de réponse inconnue:', response.data);
                   throw new Error('Structure de réponse invalide');
                 }
                 
@@ -735,9 +751,9 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                       donation._id, 
                       paymentData.statut
                     );
-                    console.log('Statut du don mis à jour:', paymentData.statut);
+                    logger.log('Statut du don mis à jour:', paymentData.statut);
                   } catch (error) {
-                    console.warn('Impossible de mettre à jour le statut du don:', error);
+                    logger.warn('Impossible de mettre à jour le statut du don:', error);
                   }
                 }
                 
@@ -774,27 +790,31 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                   message += `\n🕒 Date: ${new Date(paymentData.createdAt).toLocaleString('fr-FR')}`;
                 }
                 
-                Alert.alert(
-                  'Vérification terminée',
-                  message,
-                  [{ text: 'OK' }]
-                );
+                if (isMountedRef.current) {
+                  Alert.alert(
+                    'Vérification terminée',
+                    message,
+                    [{ text: 'OK' }]
+                  );
+                }
               } else {
                 // Cas 2: Pas de payment chargé - utiliser le système de retry
                 await verifyWithRetry();
               }
             } catch (error: any) {
-              console.error('❌ Erreur verification paiement:', error);
-              Alert.alert(
-                'Erreur de vérification',
-                `Impossible de vérifier le paiement: ${error.message}\n\nLes webhooks de paiement peuvent prendre quelques minutes. Voulez-vous réessayer ?`,
-                [
-                  { text: 'Réessayer', onPress: () => handleVerifyPayment() },
-                  { text: 'Annuler', style: 'cancel' }
-                ]
-              );
+              logger.error('❌ Erreur verification paiement:', error);
+              if (isMountedRef.current) {
+                Alert.alert(
+                  'Erreur de vérification',
+                  `Impossible de vérifier le paiement: ${error.message}\n\nLes webhooks de paiement peuvent prendre quelques minutes. Voulez-vous réessayer ?`,
+                  [
+                    { text: 'Réessayer', onPress: () => handleVerifyPayment() },
+                    { text: 'Annuler', style: 'cancel' }
+                  ]
+                );
+              }
             } finally {
-              setIsVerifyLoading(false);
+              if (isMountedRef.current) setIsVerifyLoading(false);
             }
           },
         },
@@ -912,7 +932,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                   }
                 ]}>
                   {donation.status === 'completed' ? 'Vérifier pour synchroniser les données de paiement' :
-                   donation.status === 'pending' ? `Le paiement via ${donation?.paymentMethod === 'moneyfusion' ? 'MoneyFusion' : donation?.paymentMethod} n'a pas encore été initialisé` :
+                   donation.status === 'pending' ? `Le paiement via ${donation?.paymentMethod === 'moneyfusion' ? 'MoneyFusion' : donation?.paymentMethod === 'geniuspay' ? 'GeniusPay' : donation?.paymentMethod} n'a pas encore été initialisé` :
                    donation.status === 'failed' ? 'Vérifier le statut ou réessayer le paiement' :
                    'Vérifier le statut de ce don'}
                 </Text>
@@ -1225,7 +1245,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                     Méthode prévue
                   </Text>
                   <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {donation?.paymentMethod === 'moneyfusion' ? 'MoneyFusion' : donation?.paymentMethod || 'Non définie'}
+                    {donation?.paymentMethod === 'moneyfusion' ? 'MoneyFusion' : donation?.paymentMethod === 'geniuspay' ? 'GeniusPay' : donation?.paymentMethod || 'Non définie'}
                   </Text>
                 </View>
               </View>

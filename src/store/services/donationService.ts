@@ -10,7 +10,8 @@ interface DonationFilters {
   page?: number;
   limit?: number;
   status?: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
-  category?: 'tithe' | 'offering' | 'building' | 'missions' | 'charity' | 'education' | 'youth' | 'women' | 'men' | 'special' | 'emergency';
+  // Catégories alignées avec le backend
+  category?: 'don_mensuel' | 'don_trimestriel' | 'don_semestriel' | 'don_ponctuel' | 'don_libre' | 'don_concert_femmes' | 'don_ria_2025';
   type?: 'one_time' | 'recurring';
   includeAll?: boolean;
 }
@@ -136,7 +137,8 @@ export interface InitializePaymentData {
   provider: string;
   paymentMethod: string;
   customerPhone?: string;
-  existingPaymentId?: string; // Pour éviter les doublons de paiement
+  existingPaymentId?: string;
+  callbackUrl?: string; // Deep link de retour (adapté à l'environnement)
 }
 
 class DonationService {
@@ -192,8 +194,9 @@ class DonationService {
     return apiClient.post(`/donations/${donationId}/cancel`, { reason });
   }
 
+  // NOTE: processPayment n'existe pas côté backend — utiliser initializePayment() à la place
   async processPayment(donationId: string, paymentData: any) {
-    return apiClient.post(`/donations/${donationId}/process-payment`, paymentData);
+    return apiClient.post('/payments/initialize', paymentData);
   }
 
   // Méthode pour les statistiques basée sur l'API backend
@@ -210,7 +213,6 @@ class DonationService {
     return apiClient.get(url);
   }
 
-  // Méthode pour obtenir les derniers dons (utile pour le dashboard)
   async getRecentDonations(limit: number = 5) {
     return this.getDonations({ 
       limit, 
@@ -219,112 +221,77 @@ class DonationService {
     });
   }
 
-  // Méthode pour obtenir l'historique complet avec pagination
   async getDonationHistory(filters: DonationFilters = {}) {
-    // Par défaut, inclure tous les statuts pour l'historique
-    const historyFilters = {
-      includeAll: true,
-      ...filters
-    };
+    const historyFilters = { includeAll: true, ...filters };
     return this.getDonations(historyFilters);
   }
 
-  // Méthode pour rechercher des dons
   async searchDonations(query: string, filters: DonationFilters = {}) {
-    const searchFilters = {
-      ...filters,
-      search: query
-    };
-    return this.getDonations(searchFilters);
+    return this.getDonations({ ...filters, search: query } as any);
   }
 
-  // Méthodes pour la gestion des dons récurrents
+  // NOTE: pause/resume non implémentés côté backend — cancel est utilisé à la place
   async pauseRecurringDonation(donationId: string, reason?: string) {
-    return apiClient.post(`/donations/${donationId}/pause`, { reason });
+    return apiClient.post(`/donations/${donationId}/cancel`, { reason });
   }
 
   async resumeRecurringDonation(donationId: string) {
-    return apiClient.post(`/donations/${donationId}/resume`);
+    throw new Error('La reprise de don récurrent n\'est pas encore disponible');
   }
 
-  // Méthodes utilitaires
+  // Catégories réelles du backend
   async getDonationCategories() {
     return [
-      { value: 'tithe', label: 'Dîme', icon: 'volunteer-activism' },
-      { value: 'offering', label: 'Offrande', icon: 'favorite' },
-      { value: 'building', label: 'Construction', icon: 'business' },
-      { value: 'missions', label: 'Missions', icon: 'public' },
-      { value: 'charity', label: 'Charité', icon: 'volunteer-activism' },
-      { value: 'education', label: 'Éducation', icon: 'school' },
-      { value: 'youth', label: 'Jeunesse', icon: 'group' },
-      { value: 'women', label: 'Femmes', icon: 'woman' },
-      { value: 'men', label: 'Hommes', icon: 'man' },
-      { value: 'special', label: 'Spécial', icon: 'star' },
-      { value: 'emergency', label: 'Urgence', icon: 'emergency' },
+      { value: 'don_mensuel', label: 'Mensuelle', icon: 'calendar-today' },
+      { value: 'don_trimestriel', label: 'Trimestrielle', icon: 'date-range' },
+      { value: 'don_semestriel', label: 'Semestrielle', icon: 'event-repeat' },
+      { value: 'don_ponctuel', label: 'Ponctuel', icon: 'favorite' },
+      { value: 'don_libre', label: 'Don libre', icon: 'volunteer-activism' },
     ];
   }
 
+  // NOTE: Le reçu est disponible via /documents/donation-receipt/:id
   async getDonationReceipt(donationId: string) {
-    return apiClient.get(`/donations/${donationId}/receipt`, {
+    return apiClient.get(`/documents/donation-receipt/${donationId}`, {
       responseType: 'blob',
     });
   }
 
   async refundDonation(donationId: string, reason: string) {
+    // NOTE: Le remboursement se fait via /payments/:id/refund
     return apiClient.post(`/donations/${donationId}/refund`, { reason });
   }
 
+  // NOTE: export disponible via /documents/donations-report
   async exportDonations(filters: DonationFilters = {}) {
     const queryString = new URLSearchParams();
-    
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         queryString.append(key, value.toString());
       }
     });
-
-    const url = `/donations/export${queryString.toString() ? `?${queryString.toString()}` : ''}`;
-    return apiClient.get(url, {
+    return apiClient.get(`/documents/donations-report?${queryString.toString()}`, {
       responseType: 'blob',
     });
   }
 
-  // Méthodes pour les administrateurs
+  // NOTE: top-donors non implémenté côté backend
   async getTopDonors(params: { limit?: number; period?: string } = {}) {
-    const queryString = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryString.append(key, value.toString());
-      }
-    });
-
-    const url = `/donations/top-donors${queryString.toString() ? `?${queryString.toString()}` : ''}`;
-    return apiClient.get(url);
+    throw new Error('Les top donateurs ne sont pas encore disponibles');
   }
 
   async updateDonationStatus(donationId: string, status: string, note?: string) {
-    return apiClient.patch(`/donations/${donationId}/status`, {
-      status,
-      note,
-    });
+    return apiClient.patch(`/donations/${donationId}/status`, { status, note });
   }
 
+  // NOTE: /donations/admin non implémenté — utilise getDonations()
   async getAllDonationsAdmin(filters: DonationFilters = {}) {
-    const queryString = new URLSearchParams();
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryString.append(key, value.toString());
-      }
-    });
-
-    const url = `/donations/admin${queryString.toString() ? `?${queryString.toString()}` : ''}`;
-    return apiClient.get(url);
+    return this.getDonations(filters);
   }
 
+  // NOTE: /donations/analytics non implémenté — utilise getStats()
   async getDonationAnalytics(period: string = 'month') {
-    return apiClient.get(`/donations/analytics?period=${period}`);
+    return this.getStats({ period: period as any });
   }
 
   // Méthodes utilitaires pour formater les données

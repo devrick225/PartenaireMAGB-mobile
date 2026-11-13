@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -20,6 +21,8 @@ import authService from '../store/services/authService';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
+import { useOtpClipboard } from '../hooks/useOtpClipboard';
+import { showApiError } from '../store/services/apiClient';
 
 interface PhoneVerificationScreenProps {
   navigation: any;
@@ -37,6 +40,14 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
   const [canResend, setCanResend] = useState(false);
   
   const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  // Auto-remplissage depuis le presse-papier (SMS OTP)
+  useOtpClipboard({
+    onCodeDetected: (digits) => {
+      setCode(digits);
+      handleVerifyCode(digits.join(''));
+    },
+  });
 
   useEffect(() => {
     startTimer();
@@ -74,8 +85,8 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
         );
       }
     } catch (error) {
-      console.error('Erreur envoi code initial:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer le code de vérification');
+      logger.error('Erreur envoi code initial:', error);
+      showApiError(error, 'Impossible d\'envoyer le code de vérification');
     } finally {
       setIsSending(false);
     }
@@ -133,10 +144,8 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
         );
       }
     } catch (error: any) {
-      console.error('Erreur vérification code:', error);
-      const message = error.response?.data?.error || 'Code de vérification invalide';
-      Alert.alert('Erreur', message);
-      // Réinitialiser le code en cas d'erreur
+      logger.error('Erreur vérification code:', error);
+      showApiError(error, 'Code de vérification invalide');
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -166,8 +175,8 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
       inputRefs.current[0]?.focus();
       startTimer();
     } catch (error) {
-      console.error('Erreur renvoi code:', error);
-      Alert.alert('Erreur', 'Impossible de renvoyer le code');
+      logger.error('Erreur renvoi code:', error);
+      showApiError(error, 'Impossible de renvoyer le code');
     } finally {
       setIsSending(false);
     }

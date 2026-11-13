@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -118,7 +119,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
   const loadRecurringDonations = async () => {
     try {
       const response = await donationService.getRecurringDonations();
-      console.log('Response dons récurrents:', JSON.stringify(response.data, null, 2));
+      logger.log('Response dons récurrents:', JSON.stringify(response.data, null, 2));
 
       if (response.data.success) {
         const donations = response.data.data.donations || [];

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -99,7 +100,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       
       setPagination(response.data.pagination);
     } catch (error: any) {
-      console.error('Erreur chargement tickets:', error);
+      logger.error('Erreur chargement tickets:', error);
       Alert.alert('Erreur', error.message || 'Impossible de charger les tickets');
     } finally {
       setIsLoading(false);
@@ -114,7 +115,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       const response = await ticketService.getTicketStats();
       setStats(response.data);
     } catch (error: any) {
-      console.error('Erreur chargement statistiques:', error);
+      logger.error('Erreur chargement statistiques:', error);
     }
   }, [permissions.canViewTicketStats]);
 

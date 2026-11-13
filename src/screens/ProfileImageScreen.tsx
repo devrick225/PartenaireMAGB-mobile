@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -18,11 +19,12 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../theme/ThemeProvider';
-import { requestCameraAndMediaPermissions } from '../utils/permissions';
+import { requestCameraPermission } from '../utils/permissions';
 import { COLORS } from '../constants';
 import userService from '../store/services/userService';
 import { RootState } from '../store';
 import { updateUser } from '../store/slices/authSlice';
+import { showApiError } from '../store/services/apiClient';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -41,7 +43,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
   const [imageUri, setImageUri] = useState<string | null>(user?.avatar || null);
 
   const requestPermissions = async () => {
-    return await requestCameraAndMediaPermissions();
+    return await requestCameraPermission();
   };
 
   // Afficher les options pour choisir une image
@@ -114,16 +116,16 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
         await uploadImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Erreur lors de la prise de photo:', error);
+      logger.error('Erreur lors de la prise de photo:', error);
       Alert.alert('Erreur', 'Impossible de prendre la photo');
     }
   };
 
   // Choisir une image depuis la galerie
   const pickImage = async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
+    // No storage permission needed — expo-image-picker uses the Android
+    // system photo picker on Android 13+, and NSPhotoLibraryUsageDescription
+    // covers iOS without a runtime gate here.
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -136,7 +138,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
         await uploadImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Erreur lors de la sélection d\'image:', error);
+      logger.error('Erreur lors de la sélection d\'image:', error);
       Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
     }
   };
@@ -171,11 +173,8 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
         Alert.alert('Succès', 'Photo de profil mise à jour avec succès');
       }
     } catch (error: any) {
-      console.error('Erreur upload avatar:', error);
-      Alert.alert(
-        'Erreur',
-        error.response?.data?.error || 'Impossible de télécharger l\'image'
-      );
+      logger.error('Erreur upload avatar:', error);
+      showApiError(error, 'image');
     } finally {
       setIsUploading(false);
     }
@@ -201,7 +200,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
               
               Alert.alert('Succès', 'Photo de profil supprimée');
             } catch (error: any) {
-              console.error('Erreur suppression avatar:', error);
+              logger.error('Erreur suppression avatar:', error);
               Alert.alert('Erreur', 'Impossible de supprimer la photo');
             } finally {
               setIsUploading(false);
@@ -233,7 +232,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
             }
           ]}
           onError={() => {
-            console.log('Erreur chargement image');
+            logger.log('Erreur chargement image');
             setImageUri(null);
           }}
         />

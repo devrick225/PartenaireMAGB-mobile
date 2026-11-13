@@ -1,3 +1,5 @@
+import useLogout from '../hooks/useLogout';
+import logger from '../utils/logger';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -46,7 +48,8 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({ navigation }) => {
   const { colors, dark } = useTheme();
   const { user } = useAppSelector((state: RootState) => state.auth);
   const dispatch = useAppDispatch();
-  
+  const { logout, handleAuthError } = useLogout();
+
   const [userStats, setUserStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,13 +159,8 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({ navigation }) => {
       const userStatsResponse = await userService.getMyStats();
       setUserStats(userStatsResponse.data.data.stats);
     } catch (error: any) {
-      console.error('Erreur lors du chargement du dashboard:', error);
-      const status = error?.response?.status;
-      if (status === 401 || status === 403) {
-        try { dispatch(logoutUser()); } catch (_) {}
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
+      logger.error('Erreur lors du chargement du dashboard:', error);
+      if (handleAuthError(error?.response?.status)) return;
     } finally {
       setIsLoading(false);
     }
@@ -183,10 +181,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({ navigation }) => {
         {
           text: 'Déconnexion',
           style: 'destructive',
-          onPress: () => {
-            dispatch(logoutUser());
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-          },
+          onPress: () => logout(),
         },
       ]
     );

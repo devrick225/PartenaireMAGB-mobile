@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -199,7 +200,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
         );
       }
     } catch (error) {
-      console.error('Erreur d\'inscription:', error);
+      logger.error('Erreur d\'inscription:', error);
     }
   };
 
@@ -256,7 +257,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
     >
       <Image source={{ uri: item.flag }} style={styles.flagImage} />
       <Text style={[styles.countryName, { color: dark ? COLORS.white : COLORS.black }]}>{item.name}</Text>
-      <Text style={[styles.callingCode, { color: dark ? COLORS.grayTie : COLORS.greyscale400 }]}>{item.callingCode}</Text>
+      <Text style={[styles.callingCode, { color: dark ? COLORS.grayTie : COLORS.grayscale400 }]}>{item.callingCode}</Text>
     </TouchableOpacity>
   );
 
@@ -280,7 +281,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
               <Ionicons name="arrow-back" size={24} color={dark ? COLORS.white : COLORS.black} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>Créer un compte</Text>
-            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.greyscale400 }]}>
+            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.grayscale400 }]}>
               Rejoignez notre communauté de donateurs
             </Text>
           </View>

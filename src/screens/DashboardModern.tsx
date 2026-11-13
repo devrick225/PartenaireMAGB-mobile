@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import logger from '../utils/logger';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,9 +26,11 @@ import userService from '../store/services/userService';
 import donationService from '../store/services/donationService';
 import { RootState } from '../store';
 import { logoutUser, checkAuthStatus, updateUser } from '../store/slices/authSlice';
+import { showApiError } from '../store/services/apiClient';
 import EventModal from '../components/EventModal';
 import { useEventModal } from '../hooks/useEventModal';
 import UserAvatar from '../components/UserAvatar';
+import useLogout from '../hooks/useLogout';
 
 const { width } = Dimensions.get('window');
 
@@ -90,8 +93,9 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
   const { colors, dark } = useTheme();
   const { user } = useAppSelector((state: RootState) => state.auth);
   const dispatch = useAppDispatch();
+  const { logout, handleAuthError } = useLogout();
 
-  // console.log('user', user) — retiré : ne pas logger les données utilisateur en clair
+  // logger.log('user', user) — retiré : ne pas logger les données utilisateur en clair
 
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [donationStats, setDonationStats] = useState<DonationStats | null>(null);
@@ -137,18 +141,10 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
         }
       }
     } catch (error: any) {
-      console.error('Erreur lors du chargement du dashboard:', error);
-      const status = error?.response?.status;
-      if (status === 401 || status === 403) {
-        try { dispatch(logoutUser()); } catch (_) { }
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
-      Alert.alert(
-        'Erreur',
-        "Impossible de charger le tableau de bord. Vérifiez votre connexion et réessayez.",
-        [{ text: 'Réessayer', onPress: () => loadDashboardData() }, { text: 'OK' }]
-      );
+      logger.error('Erreur lors du chargement du dashboard:', error);
+      // 401/403 → forceLogout déclenche RootNavigator qui redirige vers AuthNavigator
+      if (handleAuthError(error?.response?.status)) return;
+      showApiError(error, 'Impossible de charger le tableau de bord. Vérifiez votre connexion.');
     } finally {
       setIsLoading(false);
     }
@@ -183,10 +179,8 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
         {
           text: 'Déconnexion',
           style: 'destructive',
-          onPress: () => {
-            dispatch(logoutUser());
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-          },
+          // forceLogout → RootNavigator bascule automatiquement vers AuthNavigator
+          onPress: () => logout(),
         },
       ]
     );
@@ -270,21 +264,23 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
       {/* Barre de navigation fixe avec bouton rafraîchissement */}
       <View style={[styles.topNavBar, { backgroundColor: colors.primary }]}>
         <Text style={styles.topNavTitle}>Tableau de bord</Text>
-        <TouchableOpacity
-          style={[
-            styles.topNavRefreshBtn,
-            refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
-          ]}
-          onPress={onRefresh}
-          disabled={refreshing}
-          activeOpacity={0.7}
-        >
-          {refreshing ? (
-            <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
-          ) : (
-            <MaterialIcons name="refresh" size={26} color="#FFD61D" />
-          )}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={[
+              styles.topNavRefreshBtn,
+              refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
+            ]}
+            onPress={onRefresh}
+            disabled={refreshing}
+            activeOpacity={0.7}
+          >
+            {refreshing ? (
+              <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
+            ) : (
+              <MaterialIcons name="refresh" size={26} color="#FFD61D" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -904,7 +900,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
               );
             }
           } catch (error) {
-            console.error('Erreur lors de l\'ouverture du lien:', error);
+            logger.error('Erreur lors de l\'ouverture du lien:', error);
             Alert.alert(
               'Erreur',
               'Une erreur s\'est produite lors de l\'ouverture du formulaire.',

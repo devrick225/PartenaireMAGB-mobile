@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,7 +17,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
-import apiClient from '../store/services/apiClient';
+import apiClient, { showApiError } from '../store/services/apiClient';
 import useUserPermissions from '../hooks/useUserPermissions';
 import { requestMediaLibraryPermission } from '../utils/permissions';
 
@@ -212,17 +213,17 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
         priority: formData.priority,
       };
 
-      console.log('🎫 Création du ticket avec:', ticketData);
+      logger.log('🎫 Création du ticket avec:', ticketData);
 
       const response = await apiClient.post('/tickets', ticketData);
 
       if (response.data.success) {
         const ticketId = response.data.data.ticket.id;
-        console.log('✅ Ticket créé avec succès, ID:', ticketId);
+        logger.log('✅ Ticket créé avec succès, ID:', ticketId);
 
         // Upload des fichiers si présents
         if (attachments.length > 0) {
-          console.log('📎 Upload de', attachments.length, 'fichiers...');
+          logger.log('📎 Upload de', attachments.length, 'fichiers...');
           
           for (const file of attachments) {
             try {
@@ -238,9 +239,9 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
                   'Content-Type': 'multipart/form-data',
                 },
               });
-              console.log('✅ Fichier uploadé:', file.name);
+              logger.log('✅ Fichier uploadé:', file.name);
             } catch (fileError) {
-              console.error('❌ Erreur upload fichier:', file.name, fileError);
+              logger.error('❌ Erreur upload fichier:', file.name, fileError);
               // Continuer même si un fichier échoue
             }
           }
@@ -258,18 +259,8 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
         );
       }
     } catch (error: any) {
-      console.error('❌ Erreur création ticket:', error);
-      let errorMessage = 'Impossible de créer votre demande. Veuillez réessayer.';
-      
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response?.data?.details) {
-        // Erreurs de validation
-        const validationErrors = error.response.data.details.map((detail: any) => detail.msg).join('\n');
-        errorMessage = `Erreurs de validation:\n${validationErrors}`;
-      }
-      
-      Alert.alert('Erreur', errorMessage);
+      logger.error('❌ Erreur création ticket:', error);
+      showApiError(error, 'Impossible de créer votre demande. Veuillez réessayer.');
     } finally {
       setIsLoading(false);
     }
@@ -309,7 +300,7 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
         setAttachments(prev => [...prev, newAttachment]);
       }
     } catch (error) {
-      console.error('Erreur sélection fichier:', error);
+      logger.error('Erreur sélection fichier:', error);
       Alert.alert('Erreur', 'Impossible de sélectionner le fichier.');
     }
   };

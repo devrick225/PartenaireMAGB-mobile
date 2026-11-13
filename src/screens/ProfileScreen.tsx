@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
+import useLogout from '../hooks/useLogout';
 import { MaterialIcons, Ionicons, Octicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,7 +24,7 @@ import { updateUser, logoutUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
 import PartnerIdDisplay from '../components/PartnerIdDisplay';
 import RefreshableHeader from '../components/RefreshableHeader';
-import { requestMediaLibraryPermission } from '../utils/permissions';
+import { showApiError } from '../store/services/apiClient';
 
 interface UserProfile {
   user: {
@@ -57,6 +59,7 @@ interface ProfileScreenProps {
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { colors, dark } = useTheme();
   const dispatch = useDispatch();
+  const { logout } = useLogout();
   const { user } = useSelector((state: RootState) => state.auth);
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -79,11 +82,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         throw new Error('Données de profil invalides');
       }
     } catch (error: any) {
-      console.error('Erreur lors du chargement du profil:', error);
-      Alert.alert(
-        'Erreur', 
-        error.response?.data?.error || 'Impossible de charger le profil. Veuillez réessayer.'
-      );
+      logger.error('Erreur lors du chargement du profil:', error);
+      showApiError(error, 'Impossible de charger le profil. Veuillez réessayer.');
     } finally {
       setIsLoading(false);
     }
@@ -94,11 +94,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       setIsRefreshing(true);
       await loadProfile();
     } catch (error: any) {
-      console.error('Erreur lors du refresh du profil:', error);
-      Alert.alert(
-        'Erreur', 
-        error.response?.data?.error || 'Impossible d\'actualiser le profil. Veuillez réessayer.'
-      );
+      logger.error('Erreur lors du refresh du profil:', error);
+      showApiError(error, 'Impossible d\'actualiser le profil. Veuillez réessayer.');
     } finally {
       setIsRefreshing(false);
     }
@@ -106,9 +103,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const handleImagePicker = async () => {
     try {
-      const granted = await requestMediaLibraryPermission();
-      if (!granted) return;
-
+      // No storage permission needed — expo-image-picker uses the Android
+      // system photo picker on Android 13+, and NSPhotoLibraryUsageDescription
+      // covers iOS without a runtime gate here.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -120,7 +117,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         await uploadAvatar(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Erreur sélection image:', error);
+      logger.error('Erreur sélection image:', error);
       Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
     }
   };
@@ -152,11 +149,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         throw new Error('Réponse invalide du serveur');
       }
     } catch (error: any) {
-      console.error('Erreur upload avatar:', error);
-      Alert.alert(
-        'Erreur', 
-        error.response?.data?.error || 'Impossible de mettre à jour la photo de profil. Veuillez réessayer.'
-      );
+      logger.error('Erreur upload avatar:', error);
+      showApiError(error, 'Impossible de mettre à jour la photo de profil. Veuillez réessayer.');
     } finally {
       setIsUploading(false);
     }
@@ -170,21 +164,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         { text: 'Annuler', style: 'cancel' },
         { 
           text: 'Déconnexion', 
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              await dispatch(logoutUser() as any);
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-            } catch (error) {
-              console.error('Erreur lors de la déconnexion:', error);
-              Alert.alert('Erreur', 'Impossible de se déconnecter. Veuillez réessayer.');
-            } finally {
-              setIsLoading(false);
-            }
-          }
+          // forceLogout → RootNavigator bascule automatiquement vers AuthNavigator
+          onPress: () => logout(),
         },
       ]
     );

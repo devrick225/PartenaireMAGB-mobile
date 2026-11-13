@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -20,6 +21,7 @@ import useUserPermissions, { getUserRoleLabel, getUserRoleColor, UserRole } from
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import RefreshableHeader from '../components/RefreshableHeader';
+import { showApiError } from '../store/services/apiClient';
 
 interface TicketDetailScreenProps {
   navigation: any;
@@ -74,8 +76,8 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       setTicket(ticketResponse.data.ticket);
       setComments(commentsResponse.data.comments);
     } catch (error: any) {
-      console.error('Erreur chargement détails ticket:', error);
-      Alert.alert('Erreur', error.message || 'Impossible de charger les détails du ticket');
+      logger.error('Erreur chargement détails ticket:', error);
+      showApiError(error, 'Impossible de charger les détails du ticket');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -92,7 +94,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       setIsAddingComment(true);
       
       await ticketService.addComment(ticketId, {
-        content: newComment.trim(),
+        comment: newComment.trim(),
         isInternal: false
       });
 
@@ -105,8 +107,8 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       
       Alert.alert('Succès', 'Commentaire ajouté avec succès');
     } catch (error: any) {
-      console.error('Erreur ajout commentaire:', error);
-      Alert.alert('Erreur', error.message || 'Impossible d\'ajouter le commentaire');
+      logger.error('Erreur ajout commentaire:', error);
+      showApiError(error, 'Impossible d\'ajouter le commentaire');
     } finally {
       setIsAddingComment(false);
     }
@@ -125,7 +127,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       Alert.alert('Succès', 'Ticket assigné avec succès');
       loadTicketDetails();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'assigner le ticket');
+      showApiError(error, 'Impossible d\'assigner le ticket');
     }
   };
 
@@ -143,7 +145,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       Alert.alert('Succès', 'Ticket escaladé avec succès');
       loadTicketDetails();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'escalader le ticket');
+      showApiError(error, 'Impossible d\'escalader le ticket');
     }
   };
 
@@ -167,7 +169,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               Alert.alert('Succès', isReopen ? 'Ticket rouvert avec succès' : 'Statut modifié avec succès');
               loadTicketDetails();
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Impossible de changer le statut');
+              showApiError(error, 'Impossible de changer le statut');
             }
           }
         }
@@ -187,7 +189,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       Alert.alert('Succès', 'Ticket fermé avec succès');
       loadTicketDetails();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de fermer le ticket');
+      showApiError(error, 'Impossible de fermer le ticket');
     }
   };
 
@@ -203,7 +205,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       Alert.alert('Merci !', 'Votre évaluation a été enregistrée');
       loadTicketDetails();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'enregistrer l\'évaluation');
+      showApiError(error, 'Impossible d\'enregistrer l\'évaluation');
     }
   };
 

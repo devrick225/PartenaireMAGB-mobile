@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -111,7 +112,7 @@ const Dashboard: React.FC = () => {
         await handleUploadAvatar(result.base64);
       }
     } catch (error) {
-      console.error('Erreur sélection image:', error);
+      logger.error('Erreur sélection image:', error);
       dispatch(showError({
         title: 'Erreur',
         message: 'Impossible de sélectionner l\'image'
@@ -128,7 +129,7 @@ const Dashboard: React.FC = () => {
         message: 'Photo de profil mise à jour avec succès'
       }));
     } catch (error) {
-      console.error('Erreur upload avatar:', error);
+      logger.error('Erreur upload avatar:', error);
       dispatch(showError({
         title: 'Erreur',
         message: 'Impossible de mettre à jour la photo de profil'
@@ -259,22 +260,22 @@ const Dashboard: React.FC = () => {
         <View style={styles.actionsGrid}>
           <QuickActionButton
             title="Nouvelle Donation"
-            onPress={() => console.log('Nouvelle donation')}
+            onPress={() => logger.log('Nouvelle donation')}
             color="#4CAF50"
           />
           <QuickActionButton
             title="Créer Événement"
-            onPress={() => console.log('Créer événement')}
+            onPress={() => logger.log('Créer événement')}
             color="#FF9800"
           />
           <QuickActionButton
             title="Voir Profil"
-            onPress={() => console.log('Voir profil')}
+            onPress={() => logger.log('Voir profil')}
             color="#2196F3"
           />
           <QuickActionButton
             title="Rapports"
-            onPress={() => console.log('Rapports')}
+            onPress={() => logger.log('Rapports')}
             color="#9C27B0"
           />
         </View>

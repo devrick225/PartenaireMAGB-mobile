@@ -10,7 +10,7 @@ interface DeepLinkData {
 
 interface PaymentDeepLinkData {
   transactionId: string;
-  status: 'success' | 'failed' | 'cancelled' | 'completed';
+  status: 'success' | 'failed' | 'cancelled' | 'completed' | 'pending';
   donationId?: string;
   paymentId?: string;
 }
@@ -41,7 +41,11 @@ export const useDeepLinking = (navigation?: any) => {
     
     try {
       const parsedUrl = new URL(url);
-      const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+      
+      // Expo Go préfixe les paths avec "--" : exp://host/--/payment/return?...
+      // On normalise en retirant ce préfixe
+      const rawPath = parsedUrl.pathname.replace(/^\/--\//, '/');
+      const pathSegments = rawPath.split('/').filter(Boolean);
       
       let type: 'payment' | 'donation' | 'other' = 'other';
       const params: { [key: string]: string } = {};
@@ -83,8 +87,6 @@ export const useDeepLinking = (navigation?: any) => {
       
     } catch (error) {
       logger.error('Error parsing deep link:', error);
-      
-      // Fallback pour les liens mal formés
       setLastDeepLink({
         url,
         type: 'other',
@@ -99,22 +101,22 @@ export const useDeepLinking = (navigation?: any) => {
     const { params } = deepLink;
     
     // Validation des statuts possibles
-    const VALID_STATUSES = ['success', 'failed', 'cancelled', 'completed'] as const;
+    const VALID_STATUSES = ['success', 'failed', 'cancelled', 'completed', 'pending'] as const;
     
-    if (!params.transactionId || !params.status) {
-      logger.warn('Missing required payment deep link parameters:', params);
-      return null;
-    }
-    
-    const status = params.status as PaymentDeepLinkData['status'];
-    
-    if (!VALID_STATUSES.includes(status)) {
-      logger.warn('Invalid payment status:', status, '- Valid statuses:', VALID_STATUSES);
+    // transactionId OU donationId suffisent pour identifier le paiement
+    if (!params.transactionId && !params.donationId) {
+      logger.warn('Missing payment deep link parameters (need transactionId or donationId):', params);
       return null;
     }
 
+    // Status par défaut 'pending' si absent (paiement en cours de traitement)
+    const rawStatus = params.status || 'pending';
+    const status = VALID_STATUSES.includes(rawStatus as any)
+      ? (rawStatus as PaymentDeepLinkData['status'])
+      : 'pending';
+
     return {
-      transactionId: params.transactionId,
+      transactionId: params.transactionId || params.donationId || '',
       status,
       donationId: params.donationId,
       paymentId: params.paymentId,

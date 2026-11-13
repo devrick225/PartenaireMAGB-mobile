@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { COLORS } from '../constants';
 import { useDeepLinking } from '../hooks/useDeepLinking';
 import donationService from '../store/services/donationService';
 import paymentService from '../store/services/paymentService';
+import { showApiError } from '../store/services/apiClient';
 
 interface PaymentVerificationScreenProps {
   navigation: any;
@@ -50,6 +51,21 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
     details?: any;
   } | null>(null);
 
+  // La vérification retry peut prendre jusqu'à ~9s ; si l'utilisateur quitte
+  // l'écran avant la fin, on évite un setState sur un composant démonté.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  const setVerificationResultSafe = useCallback((result: typeof verificationResult) => {
+    if (isMountedRef.current) setVerificationResult(result);
+  }, []);
+  const setIsLoadingSafe = useCallback((loading: boolean) => {
+    if (isMountedRef.current) setIsLoading(loading);
+  }, []);
+
   const getPaymentParams = useCallback(() => {
     if (route?.params) {
       return {
@@ -73,7 +89,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
       return;
     }
 
-    setIsLoading(true);
+    setIsLoadingSafe(true);
     
     try {
       let response;
@@ -83,6 +99,23 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
       
         if (response.data.success) {
           const donation = response.data.data.donation;
+
+          // Si la donation est déjà complétée, afficher le résultat directement
+          // sans chercher de paiement (cas où le webhook a traité sans créer de Payment)
+          if (donation.status === 'completed') {
+            setVerificationResultSafe({
+              success: true,
+              message: '✅ Don confirmé avec succès',
+              details: {
+                amount: donation.amount,
+                currency: donation.currency,
+                status: 'completed',
+                transactionId: donation.receipt?.number,
+                provider: donation.paymentMethod,
+              },
+            });
+            return;
+          }
 
           // Retry progressif pour laisser le temps aux webhooks (1s, 3s, 5s)
           const verifyWithRetry = async (maxRetries = 3) => {
@@ -123,7 +156,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                             message = `❌ Paiement échoué chez MoneyFusion\n\nStatut: ${getStatusInFrench(realStatus)}`;
                           }
                           
-                          setVerificationResult({
+                          setVerificationResultSafe({
                             success: isSuccess,
                             message,
                             details: {
@@ -176,7 +209,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                       message = `❌ Paiement échoué\n\nStatut: ${getStatusInFrench(payment.status)}`;
                     }
                     
-                    setVerificationResult({
+                    setVerificationResultSafe({
                       success: isSuccess,
                       message,
                       details: {
@@ -185,7 +218,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                         status: payment.status,
                         transactionId: payment.transaction?.externalId || payment.transactionId,
                         provider: payment.provider,
-                        paymentUrl: payment.moneyfusion?.paymentUrl || payment.fusionpay?.paymentUrl || null,
+                        paymentUrl: payment.moneyfusion?.paymentUrl || payment.fusionpay?.paymentUrl || payment.geniuspay?.paymentUrl || null,
                       },
                     });
                     return true;
@@ -216,7 +249,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                               message = `❌ Paiement échoué chez MoneyFusion\n\nStatut: ${getStatusInFrench(realStatus)}`;
                             }
                             
-                            setVerificationResult({
+                            setVerificationResultSafe({
                               success: isSuccess,
                               message,
                               details: {
@@ -250,7 +283,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                         message = `❌ Paiement échoué\n\nStatut: ${getStatusInFrench(payment.status)}`;
                       }
                       
-                      setVerificationResult({
+                      setVerificationResultSafe({
                         success: isSuccess,
                         message,
                         details: {
@@ -259,7 +292,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                           status: payment.status,
                           transactionId: payment.transaction?.externalId || payment.transactionId,
                           provider: payment.provider,
-                          paymentUrl: payment.moneyfusion?.paymentUrl || payment.fusionpay?.paymentUrl || null,
+                          paymentUrl: payment.moneyfusion?.paymentUrl || payment.fusionpay?.paymentUrl || payment.geniuspay?.paymentUrl || null,
                         },
                       });
                       return true; // Succès
@@ -273,7 +306,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
                 
                 if (attempt === maxRetries) {
                   // Dernière tentative échouée
-                  setVerificationResult({
+                  setVerificationResultSafe({
                     success: false,
                     message: `Aucun paiement trouvé pour cette donation après ${maxRetries} tentatives.\n\nLes webhooks de paiement peuvent prendre jusqu'à quelques minutes pour se traiter.`,
                   });
@@ -283,7 +316,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
               } catch (attemptError: any) {
                 console.log(`❌ Erreur tentative ${attempt}:`, attemptError);
                 if (attempt === maxRetries) {
-            setVerificationResult({
+            setVerificationResultSafe({
               success: false,
               message: 'Aucun paiement trouvé pour cette donation',
             });
@@ -296,7 +329,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
           
           await verifyWithRetry();
         } else {
-          setVerificationResult({
+          setVerificationResultSafe({
             success: false,
             message: 'Donation non trouvée',
           });
@@ -307,25 +340,34 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
         
         if (response.data.success) {
           const stats = response.data.data;
-          setVerificationResult({
+          setVerificationResultSafe({
             success: true,
             message: `Vérification terminée: ${stats.completed} paiements complétés`,
             details: stats,
           });
         } else {
-          setVerificationResult({
+          setVerificationResultSafe({
             success: false,
             message: response.data.errors || 'Échec de la vérification',
           });
         }
       }
     } catch (error: any) {
-      setVerificationResult({
+      // Network Error = backend en veille ou problème réseau — ne pas afficher comme un échec de paiement
+      const isNetworkError = !error.response && (
+        error.message === 'Network Error' ||
+        error.message?.includes('network') ||
+        error.code === 'ECONNABORTED'
+      );
+
+      setVerificationResultSafe({
         success: false,
-        message: error.response?.data?.error || 'Erreur lors de la vérification',
+        message: isNetworkError
+          ? '⚠️ Impossible de contacter le serveur.\n\nLe serveur est peut-être en train de démarrer (jusqu\'à 60s). Appuie sur "Vérifier à nouveau".'
+          : (error?.appError?.message || error.response?.data?.error || 'Erreur lors de la vérification'),
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingSafe(false);
     }
   }, [getPaymentParams, lastDeepLink, clearLastDeepLink]);
 
@@ -338,7 +380,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
   }, []);
 
   const handleRetry = useCallback(() => {
-    setVerificationResult(null);
+    setVerificationResultSafe(null);
     verifyPayment();
   }, [verifyPayment]);
 

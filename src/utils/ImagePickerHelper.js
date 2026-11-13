@@ -1,15 +1,25 @@
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { requestMediaLibraryPermission, requestCameraPermission } from './permissions';
 
 /**
- * Lancer le sélecteur d'images avec options d'édition
+ * Lancer le sélecteur d'images avec options d'édition.
+ *
+ * Android 13+ : expo-image-picker utilise le sélecteur système (Android Photo
+ * Picker) qui ne nécessite aucune permission de stockage — on n'appelle donc
+ * pas requestMediaLibraryPermission sur Android.
+ * iOS : NSPhotoLibraryUsageDescription est déclarée dans app.json ; la
+ * permission est demandée via requestMediaLibraryPermission.
  */
 export const launchImagePicker = async (options = {}) => {
   try {
-    const granted = await requestMediaLibraryPermission();
-    if (!granted) return null;
+    // Only request the media library permission on iOS — the Android system
+    // photo picker handles its own access without needing READ_MEDIA_IMAGES.
+    if (Platform.OS === 'ios') {
+      const granted = await requestMediaLibraryPermission();
+      if (!granted) return null;
+    }
 
     const defaultOptions = {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -135,6 +145,46 @@ export const optimizeImage = async (uri, maxWidth = 400, maxHeight = 400) => {
     console.error('Erreur lors de l\'optimisation:', error);
     // Retourner l'image originale si l'optimisation échoue
     return { uri };
+  }
+};
+
+/**
+ * Sélectionner et optimiser une image depuis la galerie ou la caméra.
+ * Utilisé par Dashboard.tsx.
+ * @param {object} options
+ * @param {'camera'|'gallery'} options.source
+ * @param {number} [options.quality]
+ * @param {number} [options.maxWidth]
+ * @param {number} [options.maxHeight]
+ * @param {string} [options.format]
+ */
+export const pickImageWithOptimization = async ({
+  source = 'gallery',
+  quality = 0.8,
+  maxWidth = 400,
+  maxHeight = 400,
+} = {}) => {
+  try {
+    let result = null;
+
+    if (source === 'camera') {
+      result = await launchCamera({ quality });
+    } else {
+      result = await launchImagePicker({ quality });
+    }
+
+    if (!result) return null;
+
+    // optimizeImage already ran inside launchImagePicker / launchCamera,
+    // but re-run with the caller's dimensions if they differ from defaults.
+    if (result.uri && (maxWidth !== 400 || maxHeight !== 400)) {
+      return await optimizeImage(result.uri, maxWidth, maxHeight);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Erreur lors de la sélection avec optimisation:', error);
+    throw error;
   }
 };
 

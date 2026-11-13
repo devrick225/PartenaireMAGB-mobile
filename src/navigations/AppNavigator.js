@@ -61,6 +61,8 @@ import CreateDonationScreenModern from "../screens/CreateDonationScreenModern";
 import DashboardVisual from "../screens/DashboardVisual";
 import DashboardScreen from "../screens/DashboardScreen";
 import DashboardSelector from "../screens/DashboardSelector";
+import TestAPIScreen from "../screens/TestAPIScreen";
+import PaymentWebViewScreen from "../screens/PaymentWebViewScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -129,6 +131,18 @@ const AppNavigator = () => {
 
         {/* Documents */}
         <Stack.Screen name="Documents" component={DocumentsScreen} />
+
+        {/* Paiement WebView — page de paiement intégrée */}
+        <Stack.Screen
+          name="PaymentWebView"
+          component={PaymentWebViewScreen}
+          options={{ gestureEnabled: false }} // Empêcher le swipe back pendant le paiement
+        />
+
+        {/* Test API — visible uniquement en développement */}
+        {__DEV__ && (
+          <Stack.Screen name="TestAPI" component={TestAPIScreen} />
+        )}
       </Stack.Navigator>
     </>
   );

@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import logger from '../../utils/logger';
 
 // Types TypeScript pour les tickets - correspondance exacte avec le modèle backend
 export interface TicketUser {
@@ -171,7 +172,7 @@ export interface CreateTicketData {
 }
 
 export interface AddCommentData {
-  content: string;
+  comment: string;   // Correspond au champ attendu par le backend
   isInternal?: boolean;
 }
 
@@ -237,8 +238,6 @@ class TicketService {
   // Récupérer la liste des tickets de l'utilisateur
   async getTickets(params: TicketListParams = {}): Promise<TicketListResponse> {
     try {
-      console.log('🎫 Récupération des tickets avec params:', params);
-      
       const queryParams = new URLSearchParams();
       if (params.page) queryParams.append('page', params.page.toString());
       if (params.limit) queryParams.append('limit', params.limit.toString());
@@ -249,11 +248,9 @@ class TicketService {
       if (params.user) queryParams.append('user', params.user);
 
       const response = await apiClient.get(`/tickets?${queryParams.toString()}`);
-      
-      console.log('✅ Tickets récupérés:', response.data.data.tickets.length);
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur récupération tickets:', error);
+      logger.error('Erreur récupération tickets:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la récupération des tickets');
     }
   }
@@ -261,14 +258,10 @@ class TicketService {
   // Récupérer les détails d'un ticket
   async getTicketById(ticketId: string): Promise<{ success: boolean; data: { ticket: Ticket } }> {
     try {
-      console.log('🎫 Récupération détails ticket:', ticketId);
-      
       const response = await apiClient.get(`/tickets/${ticketId}`);
-      
-      console.log('✅ Détails ticket récupérés');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur récupération détails ticket:', error);
+      logger.error('Erreur récupération détails ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la récupération du ticket');
     }
   }
@@ -276,14 +269,10 @@ class TicketService {
   // Créer un nouveau ticket
   async createTicket(ticketData: CreateTicketData): Promise<{ success: boolean; data: { ticket: Ticket } }> {
     try {
-      console.log('🎫 Création ticket:', ticketData);
-      
       const response = await apiClient.post('/tickets', ticketData);
-      
-      console.log('✅ Ticket créé:', response.data.data.ticket.ticketNumber);
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur création ticket:', error);
+      logger.error('Erreur création ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la création du ticket');
     }
   }
@@ -291,42 +280,29 @@ class TicketService {
   // Mettre à jour un ticket
   async updateTicket(ticketId: string, updateData: UpdateTicketData): Promise<{ success: boolean; data: { ticket: Ticket } }> {
     try {
-      console.log('🎫 Mise à jour ticket:', ticketId, updateData);
-      
       const response = await apiClient.put(`/tickets/${ticketId}`, updateData);
-      
-      console.log('✅ Ticket mis à jour');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur mise à jour ticket:', error);
+      logger.error('Erreur mise à jour ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la mise à jour du ticket');
     }
   }
 
-  // Ajouter un commentaire à un ticket (les commentaires sont maintenant dans le ticket)
+  // Ajouter un commentaire à un ticket
   async addComment(ticketId: string, commentData: AddCommentData): Promise<{ success: boolean; data: { ticket: Ticket } }> {
     try {
-      console.log('💬 Ajout commentaire au ticket:', ticketId, commentData);
-      
       const response = await apiClient.post(`/tickets/${ticketId}/comments`, commentData);
-      
-      console.log('✅ Commentaire ajouté');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur ajout commentaire:', error);
+      logger.error('Erreur ajout commentaire:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de l\'ajout du commentaire');
     }
   }
 
-  // Récupérer les commentaires d'un ticket (maintenant inclus dans le ticket)
+  // Récupérer les commentaires d'un ticket (inclus dans le ticket)
   async getTicketComments(ticketId: string): Promise<{ success: boolean; data: { comments: TicketComment[] } }> {
     try {
-      console.log('💬 Récupération commentaires ticket:', ticketId);
-      
-      // Les commentaires sont maintenant dans le ticket, on récupère le ticket complet
       const ticketResponse = await this.getTicketById(ticketId);
-      
-      console.log('✅ Commentaires récupérés:', ticketResponse.data.ticket.comments.length);
       return {
         success: true,
         data: {
@@ -334,12 +310,12 @@ class TicketService {
         }
       };
     } catch (error: any) {
-      console.error('❌ Erreur récupération commentaires:', error);
+      logger.error('Erreur récupération commentaires:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la récupération des commentaires');
     }
   }
 
-  // Changer le statut d'un ticket (pour fermer par exemple)
+  // Changer le statut d'un ticket
   async changeTicketStatus(
     ticketId: string, 
     status: string, 
@@ -347,18 +323,14 @@ class TicketService {
     resolution?: string
   ): Promise<any> {
     try {
-      console.log('🔄 Changement statut ticket:', ticketId, 'vers', status);
-      
       const data: any = { status };
       if (reason) data.reason = reason;
       if (resolution) data.resolution = resolution;
 
       const response = await apiClient.post(`/tickets/${ticketId}/status`, data);
-      
-      console.log('✅ Statut ticket changé');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur changement statut:', error);
+      logger.error('Erreur changement statut ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors du changement de statut');
     }
   }
@@ -366,18 +338,14 @@ class TicketService {
   // Fermer un ticket
   async closeTicket(ticketId: string, reason?: string, resolution?: string): Promise<any> {
     try {
-      console.log('🔒 Fermeture ticket:', ticketId);
-      
       const data: any = {};
       if (reason) data.reason = reason;
       if (resolution) data.resolution = resolution;
 
       const response = await apiClient.post(`/tickets/${ticketId}/close`, data);
-      
-      console.log('✅ Ticket fermé');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur fermeture ticket:', error);
+      logger.error('Erreur fermeture ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la fermeture du ticket');
     }
   }
@@ -385,14 +353,10 @@ class TicketService {
   // Évaluer le support reçu
   async rateTicket(ticketId: string, ratingData: RateTicketData): Promise<any> {
     try {
-      console.log('⭐ Évaluation ticket:', ticketId, ratingData);
-      
       const response = await apiClient.post(`/tickets/${ticketId}/rating`, ratingData);
-      
-      console.log('✅ Évaluation enregistrée');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur évaluation:', error);
+      logger.error('Erreur évaluation ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de l\'évaluation');
     }
   }
@@ -400,8 +364,6 @@ class TicketService {
   // Upload d'un fichier pour un ticket
   async uploadAttachment(ticketId: string, file: any): Promise<{ success: boolean; data: any }> {
     try {
-      console.log('📎 Upload fichier pour ticket:', ticketId);
-      
       const formData = new FormData();
       formData.append('attachment', file);
 
@@ -410,30 +372,22 @@ class TicketService {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
-      console.log('✅ Fichier uploadé');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur upload fichier:', error);
+      logger.error('Erreur upload fichier ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de l\'upload du fichier');
     }
   }
 
-  // Actions pour les rôles administratifs (support_agent, moderator, admin)
-  
   // Assigner un ticket à un agent
   async assignTicket(ticketId: string, assignedTo: string): Promise<any> {
     try {
-      console.log('👤 Assignation ticket:', ticketId, 'à', assignedTo);
-      
       const response = await apiClient.post(`/tickets/${ticketId}/assign`, {
         assignedTo
       });
-      
-      console.log('✅ Ticket assigné');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur assignation:', error);
+      logger.error('Erreur assignation ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de l\'assignation');
     }
   }
@@ -441,17 +395,13 @@ class TicketService {
   // Escalader un ticket
   async escalateTicket(ticketId: string, escalatedTo: string, reason: string): Promise<any> {
     try {
-      console.log('⬆️ Escalade ticket:', ticketId);
-      
       const response = await apiClient.post(`/tickets/${ticketId}/escalate`, {
         escalatedTo,
         reason
       });
-      
-      console.log('✅ Ticket escaladé');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Erreur escalade:', error);
+      logger.error('Erreur escalade ticket:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de l\'escalade');
     }
   }
@@ -459,17 +409,9 @@ class TicketService {
   // Obtenir les statistiques des tickets
   async getTicketStats(period: 'week' | 'month' | 'year' = 'month'): Promise<TicketStatsResponse> {
     try {
-      console.log('📊 Récupération statistiques tickets:', period);
-      
       const response = await apiClient.get(`/tickets/stats?period=${period}`);
       
-      console.log('✅ Statistiques récupérées');
-      
-      // Transformer les données du backend en format attendu
       const backendData = response.data.data;
-      
-      // Le backend peut retourner une structure d'agrégation complexe
-      // On va normaliser les données pour l'interface
       const processedStats = this.processTicketStats(backendData);
       
       return {
@@ -477,7 +419,7 @@ class TicketService {
         data: processedStats
       };
     } catch (error: any) {
-      console.error('❌ Erreur récupération statistiques:', error);
+      logger.error('Erreur récupération statistiques tickets:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la récupération des statistiques');
     }
   }

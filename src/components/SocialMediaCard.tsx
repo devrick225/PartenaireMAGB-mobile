@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React from 'react';
 import {
   View,
@@ -35,7 +36,7 @@ const SocialMediaCard: React.FC<SocialMediaCardProps> = ({
     }
 
     try {
-      console.log(`🔗 Ouverture de ${platform.name}: ${platform.url}`);
+      logger.log(`🔗 Ouverture de ${platform.name}: ${platform.url}`);
       
       const canOpen = await Linking.canOpenURL(platform.url);
       
@@ -49,7 +50,7 @@ const SocialMediaCard: React.FC<SocialMediaCardProps> = ({
         );
       }
     } catch (error) {
-      console.error(`❌ Erreur ouverture ${platform.name}:`, error);
+      logger.error(`❌ Erreur ouverture ${platform.name}:`, error);
       Alert.alert(
         'Erreur',
         ERROR_MESSAGES.networkError,

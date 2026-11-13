@@ -158,8 +158,8 @@ class AuthService {
   }
 
   async resendVerificationEmail(email: string) {
-    const response = await apiClient.post('/auth/resend-verification', { email });
-    return response.data;
+    // NOTE: /auth/resend-verification n'existe pas — utiliser send-email-verification-code
+    return apiClient.post('/auth/send-email-verification-code');
   }
 
   async deleteAccount(password: string) {

@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -102,7 +103,7 @@ const DashboardSelector: React.FC<DashboardSelectorProps> = ({ navigation }) => 
 
       navigation.navigate(dashboardRoutes[dashboardType]);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde de la préférence:', error);
+      logger.error('Erreur lors de la sauvegarde de la préférence:', error);
       Alert.alert('Erreur', 'Impossible de sauvegarder votre préférence');
     }
   };

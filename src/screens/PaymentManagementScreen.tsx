@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,6 +17,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import paymentService, { Payment } from '../store/services/paymentService';
 import donationService from '../store/services/donationService';
+import { showApiError } from '../store/services/apiClient';
 
 interface PaymentManagementScreenProps {
   navigation: any;
@@ -48,7 +50,7 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
         setPendingPayments(response.data.data.payments);
       }
     } catch (error) {
-      console.error('Erreur chargement paiements en attente:', error);
+      logger.error('Erreur chargement paiements en attente:', error);
       Alert.alert('Erreur', 'Impossible de charger les paiements en attente');
     } finally {
       setIsLoading(false);
@@ -86,8 +88,8 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
                 );
               }
             } catch (error: any) {
-              console.error('Erreur vérification:', error);
-              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la vérification');
+              logger.error('Erreur vérification:', error);
+              showApiError(error, 'Erreur lors de la vérification du paiement');
             } finally {
               setIsVerifying(false);
             }
@@ -119,14 +121,14 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
                   );
                 }
               } catch (error: any) {
-                Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la vérification');
+                showApiError(error, 'Erreur lors de la vérification du paiement');
               }
             },
           },
         ]
       );
     } catch (error) {
-      console.error('Erreur vérification individuelle:', error);
+      logger.error('Erreur vérification individuelle:', error);
     }
   };
 

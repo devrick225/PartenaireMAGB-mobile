@@ -92,6 +92,21 @@ export interface Payment {
     };
     metadata: any;
   };
+  geniuspay?: {
+    reference: string;
+    paymentUrl: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded' | 'expired';
+    customerInfo: {
+      name: string;
+      phone: string;
+      email: string;
+      country: string;
+    };
+    fees: any;
+    netAmount?: number;
+    completedAt?: string;
+    metadata: any;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -100,7 +115,7 @@ export interface PaymentFilters {
   page?: number;
   limit?: number;
   status?: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded';
-  provider?: 'cinetpay' | 'stripe' | 'paypal' | 'fusionpay' | 'moneyfusion' | 'paydunya' | 'orange_money' | 'mtn_mobile_money' | 'moov_money';
+  provider?: 'cinetpay' | 'stripe' | 'paypal' | 'fusionpay' | 'moneyfusion' | 'paydunya' | 'geniuspay' | 'orange_money' | 'mtn_mobile_money' | 'moov_money';
 }
 
 export interface PaymentResponse {
@@ -188,66 +203,61 @@ class PaymentService {
   }
 
   // Vérifier un paiement (interroge directement le fournisseur)
-  async verifyPayment(paymentId: string, timeout: number = 30000) {
+  async verifyPayment(paymentId: string, timeout: number = 60000) {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
       logger.moneyfusion('Service verifyPayment - ID paiement:', paymentId);
-      
-      // Créer un AbortController pour gérer le timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        logger.warn('Timeout de vérification du paiement après', timeout, 'ms');
-      }, timeout);
-      
-      const response = await apiClient.post(`/payments/${paymentId}/verify`, {}, {
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      logger.success('Service verifyPayment - Réponse reçue:', response.data);
+
+      // Utiliser le timeout natif d'Axios plutôt qu'AbortController
+      // AbortController + Axios dans React Native génère CanceledError sans response
+      const response = await apiClient.post(
+        `/payments/${paymentId}/verify`,
+        {},
+        { timeout } // Axios gère le timeout nativement
+      );
+
+      logger.success('Service verifyPayment - Réponse reçue');
       return response;
     } catch (error: any) {
-      // Gestion du timeout
-      if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
-        logger.failure('Service verifyPayment - Timeout dépassé');
+      // Axios timeout → code ECONNABORTED ou ERR_CANCELED
+      const isTimeout =
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ERR_CANCELED' ||
+        error.name === 'CanceledError' ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('canceled');
+
+      if (isTimeout) {
+        logger.failure(`Service verifyPayment - Timeout dépassé (${timeout}ms)`);
         throw new Error(`Timeout de vérification du paiement (${timeout}ms)`);
       }
-      
-      logger.error('Service verifyPayment - Erreur:', error);
-      logger.debug('Service verifyPayment - Détails erreur:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message
-      });
-      
+
+      logger.error('Service verifyPayment - Erreur:', error.message);
+
       // Vérifier si l'erreur contient des informations MoneyFusion valides
       const errorData = error.response?.data;
-      
+
       if (errorData?.statut !== undefined) {
-        // Structure MoneyFusion directe: {statut: boolean, message: string, data: {...}}
-        logger.success('Service - Erreur contient structure MoneyFusion directe, traitement comme réponse valide');
-        logger.debug('Service - Données MoneyFusion:', errorData);
+        logger.success('Service - Structure MoneyFusion directe détectée');
         return error.response;
       } else if (errorData?.data?.statut !== undefined) {
-        // Structure MoneyFusion imbriquée
-        logger.success('Service - Erreur contient structure MoneyFusion imbriquée, traitement comme réponse valide');
-        logger.debug('Service - Données MoneyFusion imbriquées:', errorData.data);
+        logger.success('Service - Structure MoneyFusion imbriquée détectée');
         return error.response;
       }
-      
-      // Vraie erreur réseau/serveur
-      logger.failure('Service - Vraie erreur, pas de données MoneyFusion trouvées');
+
+      logger.failure('Service - Vraie erreur réseau/serveur');
       throw error;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
-
   // Vérifier un paiement avec retry automatique
   async verifyPaymentWithRetry(
     paymentId: string, 
     maxRetries: number = 5, 
     retryDelay: number = 5000,
-    timeout: number = 45000
+    timeout: number = 60000
   ) {
     let lastError: any = null;
     

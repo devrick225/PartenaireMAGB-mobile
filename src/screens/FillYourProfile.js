@@ -9,7 +9,7 @@ import { MaterialCommunityIcons, Feather, Ionicons } from "@expo/vector-icons";
 import { launchImagePicker } from '../utils/ImagePickerHelper';
 import Input from '../components/Input';
 import { getFormatedDate } from "react-native-modern-datepicker";
-import DatePickerModal from '../components/DatePickerModal';
+import BirthDatePicker from '../components/BirthDatePicker';
 import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -253,12 +253,14 @@ const FillYourProfile = ({ navigation }) => {
           </View>
         </ScrollView>
       </View>
-      <DatePickerModal
-        open={openStartDatePicker}
-        startDate={startDate}
-        selectedDate={startedDate}
-        onClose={() => setOpenStartDatePicker(false)}
-        onChangeStartDate={(date) => setStartedDate(date)}
+      <BirthDatePicker
+        visible={openStartDatePicker}
+        value={startedDate !== "Date de naissance" ? startedDate : undefined}
+        onConfirm={(date) => {
+          setStartedDate(date);
+          setOpenStartDatePicker(false);
+        }}
+        onCancel={() => setOpenStartDatePicker(false)}
       />
       {RenderAreasCodesModal()}
       <View style={styles.bottomContainer}>

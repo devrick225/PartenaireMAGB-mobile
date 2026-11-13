@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import apiClient from './apiClient';
 
 // Types correspondant au modèle backend
@@ -124,7 +125,7 @@ class ProfileService {
       
       return null;
     } catch (error: any) {
-      console.error('Erreur lors de la récupération du profil:', error);
+      logger.error('Erreur lors de la récupération du profil:', error);
       if (error.response?.status === 404) {
         return null; // Profil n'existe pas encore
       }
@@ -148,7 +149,7 @@ class ProfileService {
       
       throw new Error('Réponse inattendue du serveur');
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      logger.error('Error updating profile:', error);
       throw new Error(error.response?.data?.error || 'Erreur lors de la mise à jour du profil');
     }
   }
@@ -163,7 +164,7 @@ class ProfileService {
     try {
       await apiClient.post(`/users/${userId}/profile/sections/${section}/complete`);
     } catch (error: any) {
-      console.error('Error marking section complete:', error);
+      logger.error('Error marking section complete:', error);
       throw new Error(error.response?.data?.message || 'Erreur lors de la validation de la section');
     }
   }
@@ -176,7 +177,7 @@ class ProfileService {
         isPrivate
       });
     } catch (error: any) {
-      console.error('Error adding note:', error);
+      logger.error('Error adding note:', error);
       throw new Error(error.response?.data?.message || 'Erreur lors de l\'ajout de la note');
     }
   }

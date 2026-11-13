@@ -20,6 +20,8 @@ import authService from '../store/services/authService';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
+import { useOtpClipboard } from '../hooks/useOtpClipboard';
+import { showApiError } from '../store/services/apiClient';
 
 interface EmailVerificationScreenProps {
   navigation: any;
@@ -37,6 +39,15 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
   const [canResend, setCanResend] = useState(false);
   
   const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  // Auto-remplissage depuis le presse-papier (SMS/email OTP)
+  useOtpClipboard({
+    onCodeDetected: (digits) => {
+      setCode(digits);
+      // Vérification automatique après distribution
+      handleVerifyCode(digits.join(''));
+    },
+  });
 
   useEffect(() => {
     startTimer();
@@ -66,7 +77,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
       await authService.sendEmailVerificationCode();
     } catch (error) {
       console.error('Erreur envoi code initial:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer le code de vérification');
+      showApiError(error, 'Impossible d\'envoyer le code de vérification');
     } finally {
       setIsSending(false);
     }
@@ -125,9 +136,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
       }
     } catch (error: any) {
       console.error('Erreur vérification code:', error);
-      const message = error.response?.data?.error || 'Code de vérification invalide';
-      Alert.alert('Erreur', message);
-      // Réinitialiser le code en cas d'erreur
+      showApiError(error, 'Code de vérification invalide');
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -147,7 +156,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
       startTimer();
     } catch (error) {
       console.error('Erreur renvoi code:', error);
-      Alert.alert('Erreur', 'Impossible de renvoyer le code');
+      showApiError(error, 'Impossible de renvoyer le code');
     } finally {
       setIsSending(false);
     }

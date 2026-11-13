@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,11 +15,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
+import useLogout from '../hooks/useLogout';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import userService from '../store/services/userService';
 import donationService from '../store/services/donationService';
+import { showApiError } from '../store/services/apiClient';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor } from '../hooks/useUserPermissions';
 import { logoutUser, updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
@@ -42,6 +45,7 @@ interface SettingsScreenProps {
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { colors, dark } = useTheme();
   const dispatch = useDispatch();
+  const { logout } = useLogout();
   const user = useSelector((state: RootState) => state.auth.user);
   const permissions = useUserPermissions();
 
@@ -87,7 +91,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         setPreferences(userPrefs);
       }
     } catch (error) {
-      console.error('Erreur chargement préférences:', error);
+      logger.error('Erreur chargement préférences:', error);
       // Garder les valeurs par défaut en cas d'erreur
     } finally {
       setIsLoading(false);
@@ -152,8 +156,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         // Dispatch pour mettre à jour le store
         dispatch(updateUser(updatedUser) as any);
       }
-      
-      console.error('Erreur mise à jour préférences:', error);
+    } catch (error: any) {
+      logger.error('Erreur mise à jour préférences:', error);
       Alert.alert('Erreur', 'Impossible de mettre à jour les préférences');
       
       // En cas d'erreur, on remet l'état précédent pour les toggles
@@ -189,10 +193,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         {
           text: 'Déconnexion',
           style: 'destructive',
-          onPress: () => {
-            dispatch(logoutUser() as any);
-            navigation.navigate('Login');
-          },
+          onPress: () => logout(),
         },
       ]
     );
@@ -258,8 +259,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 );
               }
             } catch (error: any) {
-              console.error('Erreur vérification globale:', error);
-              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la vérification');
+              logger.error('Erreur vérification globale:', error);
+              showApiError(error, 'Erreur lors de la vérification');
             } finally {
               setIsLoading(false);
             }
@@ -534,14 +535,24 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     };
   };
 
+  // Section développement — supprimée
+  const getDevSection = () => null;
+
   // Créer la liste finale des sections
   const finalSections = () => {
+    const sections = [...settingSections];
     const adminSection = getAdminSection();
+    const devSection = getDevSection();
+
+    // Insérer admin avant "Compte"
     if (adminSection && adminSection.items.length > 0) {
-      // Insérer la section admin avant la section Compte
-      return [...settingSections.slice(0, -1), adminSection, settingSections[settingSections.length - 1]];
+      sections.splice(sections.length - 1, 0, adminSection);
     }
-    return settingSections;
+    // Insérer dev en dernier (avant "Compte")
+    if (devSection) {
+      sections.splice(sections.length - 1, 0, devSection);
+    }
+    return sections;
   };
 
   const renderSettingItem = (item: SettingItem, sectionIndex: number, itemIndex: number) => {

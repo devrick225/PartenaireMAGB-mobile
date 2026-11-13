@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -71,9 +72,9 @@ const DashboardScreen = ({ navigation }) => {
       // Ici, vous chargeriez vos vraies données depuis l'API
       // await dispatch(fetchUserDashboard());
       // await dispatch(fetchRecentDonations());
-      console.log('Dashboard data loaded');
+      logger.log('Dashboard data loaded');
     } catch (error) {
-      console.error('Error loading dashboard:', error);
+      logger.error('Error loading dashboard:', error);
       Alert.alert('Erreur', 'Impossible de charger les données du dashboard');
     }
   };

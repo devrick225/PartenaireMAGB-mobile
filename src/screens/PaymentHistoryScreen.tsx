@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -64,6 +65,7 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation 
   const providerOptions = [
     { value: '', label: 'Tous les fournisseurs' },
     { value: 'moneyfusion', label: 'MoneyFusion' },
+    { value: 'geniuspay', label: 'GeniusPay' },
     /*{ value: 'cinetpay', label: 'CinetPay' },
     { value: 'stripe', label: 'Stripe' },
     { value: 'paypal', label: 'PayPal' },
@@ -113,7 +115,7 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation 
 
       setPagination(response.data.data.pagination);
     } catch (error: any) {
-      console.error('Erreur chargement paiements:', error);
+      logger.error('Erreur chargement paiements:', error);
       Alert.alert('Erreur', 'Impossible de charger l\'historique des paiements');
     } finally {
       setIsLoading(false);

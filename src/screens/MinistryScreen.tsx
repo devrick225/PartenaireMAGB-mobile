@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -67,7 +68,7 @@ const MinistryScreen: React.FC = () => {
           : dispatch(fetchMinistriesByCategory(selectedCategory)).unwrap()
       ]);
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
+      logger.error('Erreur lors du chargement des données:', error);
     }
   };
 
