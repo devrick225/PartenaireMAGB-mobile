@@ -702,7 +702,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 </Text>
                 {user?.isEmailVerified && (
                   <View style={styles.verifiedContainer}>
-                    <MaterialIcons name="verified" size={14} color={COLORS.primary} />
+                    <MaterialIcons name="verified" size={16} color="#4CAF50" />
                   </View>
                 )}
               </View>
@@ -714,7 +714,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                   </Text>
                   {user?.isPhoneVerified && (
                     <View style={styles.verifiedContainer}>
-                      <MaterialIcons name="verified" size={14} color={COLORS.primary} />
+                      <MaterialIcons name="verified" size={16} color="#4CAF50" />
                     </View>
                   )}
                 </View>

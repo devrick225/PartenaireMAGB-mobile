@@ -106,6 +106,8 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
   };
 
   const handleVerifyCode = async (verificationCode?: string) => {
+    // Saisie auto du 6e chiffre + appui sur le bouton : éviter deux vérifications simultanées
+    if (isLoading) return;
     const codeToVerify = verificationCode || code.join('');
     
     if (codeToVerify.length !== 6) {

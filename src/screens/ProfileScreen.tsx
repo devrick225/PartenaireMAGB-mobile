@@ -196,7 +196,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     });
   };
 
-  const renderInfoItem = (icon: string, label: string, value: string | undefined, verified?: boolean) => (
+  const renderInfoItem = (
+    icon: string,
+    label: string,
+    value: string | undefined,
+    verified?: boolean,
+    onVerify?: () => void
+  ) => (
     <View style={styles.infoItem}>
       <MaterialIcons name={icon as any} size={20} color={colors.primary} />
       <View style={styles.infoContent}>
@@ -205,12 +211,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {value || 'Non renseigné'}
         </Text>
       </View>
-      {verified !== undefined && (
-        <MaterialIcons
-          name={verified ? 'verified' : 'cancel'}
-          size={20}
-          color={verified ? '#4CAF50' : '#FF5722'}
-        />
+      {/* Pas d'icône si le champ est vide (ex: pas de téléphone) */}
+      {verified !== undefined && !!value && (
+        verified ? (
+          <MaterialIcons name="verified" size={20} color="#4CAF50" accessibilityLabel={`${label} vérifié`} />
+        ) : (
+          <TouchableOpacity
+            onPress={onVerify}
+            disabled={!onVerify}
+            style={styles.verifyChip}
+            accessibilityRole="button"
+            accessibilityLabel={`Vérifier ${label.toLowerCase()}`}
+          >
+            <MaterialIcons name="error-outline" size={16} color="#FF5722" />
+            <Text style={styles.verifyChipText}>Vérifier</Text>
+          </TouchableOpacity>
+        )
       )}
     </View>
   );
@@ -346,8 +362,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             Informations personnelles
           </Text>
           
-          {renderInfoItem('email', 'Email', profile?.user?.email, profile?.user?.isEmailVerified)}
-          {renderInfoItem('phone', 'Téléphone', profile?.user?.phone, profile?.user?.isPhoneVerified)}
+          {/* Statut lu dans Redux en priorité : mis à jour dès la vérification, sans recharger le profil */}
+          {renderInfoItem(
+            'email', 'Email',
+            profile?.user?.email ?? user?.email,
+            user?.isEmailVerified ?? profile?.user?.isEmailVerified,
+            () => navigation.navigate('EmailVerification')
+          )}
+          {renderInfoItem(
+            'phone', 'Téléphone',
+            profile?.user?.phone ?? user?.phone,
+            user?.isPhoneVerified ?? profile?.user?.isPhoneVerified,
+            () => navigation.navigate('PhoneVerification')
+          )}
           {renderInfoItem('location-city', 'Ville', profile?.user?.city)}
           {renderInfoItem('public', 'Pays', profile?.user?.country)}
           {renderInfoItem('work', 'Profession', profile?.occupation)}
@@ -427,6 +454,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  verifyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF5722',
+    backgroundColor: '#FF572212',
+  },
+  verifyChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF5722',
+  },
   container: {
     flex: 1,
   },

@@ -188,6 +188,10 @@ const authSlice = createSlice({
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
       }
+      // Le drapeau global doit suivre user.isEmailVerified (ex: après EmailVerificationScreen)
+      if (typeof action.payload.isEmailVerified === 'boolean') {
+        state.isEmailVerified = action.payload.isEmailVerified;
+      }
     },
     updateTokens: (state, action: PayloadAction<{ token: string; refreshToken: string }>) => {
       state.token = action.payload.token;

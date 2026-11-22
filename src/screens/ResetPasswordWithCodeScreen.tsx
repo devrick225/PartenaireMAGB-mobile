@@ -9,12 +9,16 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient from '../store/services/apiClient';
+import * as SecureStore from 'expo-secure-store';
+import { getSavedCredentials, REMEMBER_PASSWORD_KEY } from '../utils/biometricAuth';
 
 interface ResetPasswordWithCodeScreenProps {
   navigation: any;
@@ -35,12 +39,25 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
   const codeInputRefs = useRef<TextInput[]>([]);
 
   const handleCodeChange = (text: string, index: number) => {
+    const digits = text.replace(/\D/g, '');
+
+    // Code collé ou rempli automatiquement par iOS (SMS / email) : répartir les 6 chiffres
+    if (digits.length > 1) {
+      const newCode = [...code];
+      digits.slice(0, 6 - index).split('').forEach((d, i) => { newCode[index + i] = d; });
+      setCode(newCode);
+      const next = Math.min(index + digits.length, 5);
+      codeInputRefs.current[next]?.focus();
+      if (newCode.every(Boolean)) codeInputRefs.current[next]?.blur();
+      return;
+    }
+
     const newCode = [...code];
-    newCode[index] = text;
+    newCode[index] = digits;
     setCode(newCode);
 
     // Auto-focus next input
-    if (text && index < 5) {
+    if (digits && index < 5) {
       codeInputRefs.current[index + 1]?.focus();
     }
   };
@@ -60,7 +77,21 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
     return minLength && hasUpperCase && hasLowerCase && hasNumbers;
   };
 
+
+  // Met à jour le mot de passe mémorisé (Se souvenir de moi / Face ID) s'il s'agit du même compte
+  const syncSavedPassword = async () => {
+    try {
+      const saved = await getSavedCredentials();
+      if (saved && saved.email === email.toLowerCase().trim()) {
+        await SecureStore.setItemAsync(REMEMBER_PASSWORD_KEY, newPassword);
+      }
+    } catch (e) {
+      // noop
+    }
+  };
+
   const handleResetPassword = async () => {
+    if (isLoading) return;
     const enteredCode = code.join('');
     
     if (enteredCode.length !== 6) {
@@ -96,21 +127,10 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
       });
 
       if (response.data.success) {
-        Alert.alert(
-          'Succès',
-          'Votre mot de passe a été réinitialisé avec succès',
-          [
-            {
-              text: 'Se connecter',
-              onPress: () => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
-              }
-            }
-          ]
-        );
+        await syncSavedPassword();
+        // Retour direct à la connexion (l'alerte seule bloquait le parcours si on la fermait sans le bouton)
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        Alert.alert('Mot de passe réinitialisé', 'Connectez-vous avec votre nouveau mot de passe.');
       }
     } catch (error: any) {
       console.error('Erreur reset password:', error);
@@ -134,6 +154,7 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
   };
 
   const handleRequestNewCode = async () => {
+    if (isLoading) return;
     try {
       setIsLoading(true);
       const response = await apiClient.post('/auth/request-password-reset-code', {
@@ -154,10 +175,14 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
 
   return (
     <SafeAreaView style={[styles.area, { backgroundColor: colors.background }]}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Header avec bouton retour */}
           <View style={styles.header}>
@@ -218,8 +243,12 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
                       handleBackspace(index);
                     }
                   }}
-                  keyboardType="numeric"
-                  maxLength={1}
+                  keyboardType="number-pad"
+                  // Le 1er champ accepte 6 chiffres : permet le collage et le remplissage auto iOS
+                  maxLength={index === 0 ? 6 : 1}
+                  textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                  selectTextOnFocus
                   textAlign="center"
                   editable={!isLoading}
                 />
@@ -359,7 +388,7 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

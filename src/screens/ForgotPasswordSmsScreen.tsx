@@ -34,9 +34,13 @@ const ForgotPasswordSmsScreen: React.FC<ForgotPasswordSmsScreenProps> = ({ navig
     // Supprimer tous les espaces et caractères spéciaux
     let formatted = phone.replace(/\D/g, '');
     
-    // Si le numéro commence par 0, remplacer par le code pays
-    if (formatted.startsWith('0')) {
-      formatted = '225' + formatted.substring(1); // Code pays Côte d'Ivoire
+    // Côte d'Ivoire : depuis 2021 les numéros ont 10 chiffres et le 0 initial en fait partie
+    // (+225 07 79 03 80 69 est enregistré "+2250779038069" à l'inscription).
+    // On ajoute donc l'indicatif SANS retirer le 0, sinon le numéro ne correspond à aucun compte.
+    if (formatted.startsWith('00')) {
+      formatted = formatted.substring(2); // 00225... -> 225...
+    } else if (formatted.startsWith('0')) {
+      formatted = '225' + formatted;
     }
     
     // Ajouter le + si pas présent
@@ -68,17 +72,11 @@ const ForgotPasswordSmsScreen: React.FC<ForgotPasswordSmsScreenProps> = ({ navig
       });
 
       if (response.data.success) {
+        // Navigation directe (avec l'alerte, fermer en touchant à côté sur Android bloquait le parcours)
+        navigation.navigate('ResetPasswordWithSmsCodeScreen', { phone: formattedPhone });
         Alert.alert(
           'Code envoyé',
-          'Un code de réinitialisation a été envoyé par SMS à votre téléphone',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                navigation.navigate('ResetPasswordWithSmsCodeScreen', { phone: formattedPhone });
-              }
-            }
-          ]
+          'Si ce numéro est associé à un compte, vous allez recevoir un code par SMS (valable 10 minutes).'
         );
       }
     } catch (error: any) {

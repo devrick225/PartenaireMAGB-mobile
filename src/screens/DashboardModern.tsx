@@ -167,10 +167,33 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
     setShowDonationTypeModal(true);
   };
 
+  const [isRefreshingVerification, setIsRefreshingVerification] = useState(false);
+
   const handleRefreshVerification = async () => {
+    if (isRefreshingVerification) return;
     try {
-      await dispatch(checkAuthStatus() as any);
-    } catch (_) { }
+      setIsRefreshingVerification(true);
+      const result: any = await (dispatch(checkAuthStatus() as any) as any).unwrap();
+      const freshUser = result?.data?.user;
+      const emailOk = !!freshUser?.isEmailVerified;
+      const phoneOk = !freshUser?.phone || !!freshUser?.isPhoneVerified;
+      if (emailOk && phoneOk) {
+        // Tout est vérifié : on ferme et on enchaîne sur le don
+        setShowVerificationModal(false);
+        setShowDonationTypeModal(true);
+      } else {
+        Alert.alert(
+          'Vérification incomplète',
+          !emailOk && !phoneOk
+            ? 'Votre email et votre téléphone ne sont pas encore vérifiés.'
+            : !emailOk ? 'Votre email n\'est pas encore vérifié.' : 'Votre téléphone n\'est pas encore vérifié.'
+        );
+      }
+    } catch (_) {
+      Alert.alert('Erreur', 'Impossible d\'actualiser. Vérifiez votre connexion.');
+    } finally {
+      setIsRefreshingVerification(false);
+    }
   };
 
   const handleLogout = () => {
@@ -789,10 +812,13 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
 
               <View style={{ marginTop: 16, gap: 10 }}>
                 <TouchableOpacity
-                  style={[styles.verifyPrimaryButton, { backgroundColor: colors.primary }]}
+                  style={[styles.verifyPrimaryButton, { backgroundColor: colors.primary, opacity: isRefreshingVerification ? 0.7 : 1 }]}
                   onPress={handleRefreshVerification}
+                  disabled={isRefreshingVerification}
                 >
-                  <Text style={styles.verifyPrimaryText}>J'ai vérifié, actualiser</Text>
+                  {isRefreshingVerification
+                    ? <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text style={styles.verifyPrimaryText}>J'ai vérifié, actualiser</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.verifySecondaryButton, { borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
