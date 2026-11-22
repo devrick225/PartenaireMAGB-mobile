@@ -5,17 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   RefreshControl,
   FlatList,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import paymentService, { Payment } from '../store/services/paymentService';
-import donationService from '../store/services/donationService';
 
 interface PaymentManagementScreenProps {
   navigation: any;
@@ -25,18 +24,21 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
   const { dark, colors } = useTheme();
   
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
+  const [totalPending, setTotalPending] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadPendingPayments();
   }, []);
 
-  const loadPendingPayments = async () => {
+  const loadPendingPayments = async (showSpinner = true) => {
     try {
-      setIsLoading(true);
-      
+      if (showSpinner) setIsLoading(true);
+      setLoadError(false);
+
       // Charger les paiements en attente
       const response = await paymentService.getPayments({
         status: 'pending',
@@ -45,11 +47,14 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
       });
 
       if (response.data.success) {
-        setPendingPayments(response.data.data.payments);
+        const list = response.data.data.payments || [];
+        setPendingPayments(list);
+        // Nombre réel côté serveur (la liste est limitée à 50)
+        setTotalPending(response.data.data.pagination?.totalDocs ?? list.length);
       }
     } catch (error) {
       console.error('Erreur chargement paiements en attente:', error);
-      Alert.alert('Erreur', 'Impossible de charger les paiements en attente');
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -57,77 +62,41 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadPendingPayments();
+    await loadPendingPayments(false); // pas d'écran de chargement plein pendant le tirer-pour-rafraîchir
     setRefreshing(false);
   };
 
-  const verifyAllPendingPayments = async () => {
+  // Vérification ciblée d'un paiement (ex: un fidèle signale un paiement non pris en compte)
+  const verifyIndividualPayment = (payment: Payment) => {
+    if (verifyingId) return;
     Alert.alert(
-      'Vérifier tous les paiements',
-      `Lancer la vérification de ${pendingPayments.length} paiements en attente ?`,
+      'Vérifier ce paiement',
+      `Interroger ${paymentService.formatProvider(payment.provider)} pour le paiement de ${paymentService.formatAmount(payment.amount, payment.currency)} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Vérifier',
           onPress: async () => {
             try {
-              setIsVerifying(true);
-
-              // Appeler l'API de vérification manuelle
-              const response = await donationService.verifyAllPayments();
-              
+              setVerifyingId(payment._id);
+              const response = await paymentService.verifyPayment(payment._id);
               if (response.data.success) {
-                const stats = response.data.data;
-                
+                const result = response.data.data;
                 Alert.alert(
                   'Vérification terminée',
-                  `✅ ${stats.completed} paiements complétés\n❌ ${stats.failed} paiements échoués\n🔍 ${stats.checked} paiements vérifiés\n⚠️ ${stats.errors} erreurs`,
-                  [{ text: 'OK', onPress: () => loadPendingPayments() }]
+                  `Statut : ${paymentService.formatStatus(result.status)}${result.message ? `\n${result.message}` : ''}`
                 );
+                await loadPendingPayments(false);
               }
             } catch (error: any) {
-              console.error('Erreur vérification:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la vérification');
             } finally {
-              setIsVerifying(false);
+              setVerifyingId(null);
             }
           },
         },
       ]
     );
-  };
-
-  const verifyIndividualPayment = async (payment: Payment) => {
-    try {
-      Alert.alert(
-        'Vérifier ce paiement',
-        `Vérifier le paiement de ${paymentService.formatAmount(payment.amount, payment.currency)} ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Vérifier',
-            onPress: async () => {
-              try {
-                const response = await paymentService.verifyPayment(payment._id);
-                
-                if (response.data.success) {
-                  const result = response.data.data;
-                  Alert.alert(
-                    'Vérification terminée',
-                    `Statut: ${paymentService.formatStatus(result.status)}\n${result.message || ''}`,
-                    [{ text: 'OK', onPress: () => loadPendingPayments() }]
-                  );
-                }
-              } catch (error: any) {
-                Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la vérification');
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Erreur vérification individuelle:', error);
-    }
   };
 
   const formatDate = (dateString: string) => {
@@ -144,6 +113,9 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
     <TouchableOpacity
       style={[styles.paymentCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
       onPress={() => verifyIndividualPayment(item)}
+      disabled={!!verifyingId}
+      accessibilityRole="button"
+      accessibilityLabel={`Vérifier le paiement de ${paymentService.formatAmount(item.amount, item.currency)}`}
     >
       <View style={styles.paymentHeader}>
         <View style={styles.paymentInfo}>
@@ -155,7 +127,7 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
           >
             {paymentService.formatAmount(item.amount, item.currency)}
           </Text>
-          <Text style={[styles.paymentProvider, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.paymentProvider, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
             {paymentService.formatProvider(item.provider)}
           </Text>
         </View>
@@ -166,15 +138,21 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
               {paymentService.formatStatus(item.status)}
             </Text>
           </View>
-          <MaterialIcons name="refresh" size={20} color={colors.primary} />
+          {verifyingId === item._id ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <MaterialIcons name="refresh" size={20} color={colors.primary} />
+          )}
         </View>
       </View>
 
       <View style={styles.paymentDetails}>
         <View style={styles.detailRow}>
           <MaterialIcons name="receipt" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.detailText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Don: {item.donation.category} - {item.donation.type === 'recurring' ? 'Récurrent' : 'Unique'}
+          <Text style={[styles.detailText, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
+            {item.donation
+              ? `Don : ${paymentService.formatCategory(item.donation.category)} · ${item.donation.type === 'recurring' ? 'Récurrent' : 'Unique'}`
+              : 'Don introuvable'}
           </Text>
         </View>
         
@@ -187,8 +165,8 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
 
         <View style={styles.detailRow}>
           <MaterialIcons name="person" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.detailText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            {item.user.firstName} {item.user.lastName}
+          <Text style={[styles.detailText, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
+            {item.user ? `${item.user.firstName ?? ''} ${item.user.lastName ?? ''}`.trim() : 'Utilisateur supprimé'}
           </Text>
         </View>
       </View>
@@ -216,7 +194,7 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
         >
           <MaterialIcons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
           Gestion des paiements
         </Text>
         <View style={styles.headerSpacer} />
@@ -224,7 +202,8 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
 
       <ScrollView 
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         {/* Statistiques */}
         <View style={[styles.statsCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
@@ -234,8 +213,8 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
           
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>
-                {pendingPayments.length}
+              <Text style={[styles.statValue, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                {totalPending}
               </Text>
               <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
                 En attente
@@ -243,7 +222,7 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
             </View>
             
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#FF9800' }]}>
+              <Text style={[styles.statValue, { color: '#FF9800' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                 {pendingPayments.filter(p => p.provider === 'moneyfusion').length}
               </Text>
               <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
@@ -252,8 +231,12 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
             </View>
             
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#2196F3' }]}>
-                {pendingPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+              <Text style={[styles.statValue, { color: '#2196F3' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {/* Somme des seuls paiements en XOF (ne pas additionner des devises différentes) */}
+                {pendingPayments
+                  .filter(p => !p.currency || p.currency === 'XOF')
+                  .reduce((sum, p) => sum + (p.amount || 0), 0)
+                  .toLocaleString('fr-FR')}
               </Text>
               <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
                 Total XOF
@@ -262,33 +245,33 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
           </View>
         </View>
 
-        {/* Actions */}
-        <View style={[styles.actionsCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <TouchableOpacity
-            style={[styles.verifyAllButton, { backgroundColor: colors.primary }]}
-            onPress={verifyAllPendingPayments}
-            disabled={isVerifying || pendingPayments.length === 0}
-          >
-            {isVerifying ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <MaterialIcons name="sync" size={20} color="#FFFFFF" />
-            )}
-            <Text style={styles.verifyAllButtonText}>
-              {isVerifying ? 'Vérification...' : `Vérifier tous (${pendingPayments.length})`}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={[styles.helpText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            La vérification interroge directement MoneyFusion et met à jour automatiquement les statuts et statistiques.
+        {/* Information : la vérification est automatique */}
+        <View style={[styles.actionsCard, styles.infoRow, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+          <MaterialIcons name="autorenew" size={20} color={colors.primary} />
+          <Text style={[styles.helpText, styles.infoText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            Les paiements en attente sont vérifiés automatiquement toutes les 30 minutes. Touchez un paiement pour le vérifier immédiatement.
           </Text>
         </View>
+
+        {loadError && (
+          <TouchableOpacity
+            style={[styles.actionsCard, styles.infoRow, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
+            onPress={() => loadPendingPayments()}
+          >
+            <MaterialIcons name="error-outline" size={20} color={COLORS.error} />
+            <Text style={[styles.helpText, styles.infoText, { color: COLORS.error }]}>
+              Impossible de charger les paiements. Touchez pour réessayer.
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Liste des paiements */}
         {pendingPayments.length > 0 ? (
           <View style={styles.paymentsSection}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Paiements en attente ({pendingPayments.length})
+              {totalPending > pendingPayments.length
+                ? `Paiements en attente (${pendingPayments.length} sur ${totalPending})`
+                : `Paiements en attente (${pendingPayments.length})`}
             </Text>
             
             <FlatList
@@ -299,7 +282,7 @@ const PaymentManagementScreen: React.FC<PaymentManagementScreenProps> = ({ navig
               ItemSeparatorComponent={() => <View style={styles.separator} />}
             />
           </View>
-        ) : (
+        ) : !loadError && (
           <View style={styles.emptyState}>
             <MaterialIcons name="check-circle" size={64} color={COLORS.success} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
@@ -347,11 +330,27 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 8,
     fontSize: 18,
     fontWeight: 'bold',
   },
   headerSpacer: {
     width: 40,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: 10,
+    marginTop: 0,
+    textAlign: 'left',
   },
   scrollView: {
     flex: 1,
@@ -378,6 +377,8 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 4,
   },
   statValue: {
     fontSize: 24,
@@ -398,20 +399,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  verifyAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 12,
-  },
-  verifyAllButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   helpText: {
     fontSize: 12,

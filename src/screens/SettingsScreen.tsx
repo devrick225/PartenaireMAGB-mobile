@@ -19,7 +19,6 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import userService from '../store/services/userService';
-import donationService from '../store/services/donationService';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor } from '../hooks/useUserPermissions';
 import { logoutUser, updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
@@ -288,40 +287,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     );
   };
 
-  const handleVerifyAllPayments = () => {
-    Alert.alert(
-      'Vérification des paiements',
-      'Lancer la vérification de tous les paiements en attente ? Cette opération peut prendre quelques secondes.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Vérifier',
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              const response = await donationService.verifyAllPayments();
-              
-              if (response.data.success) {
-                const stats = response.data.data;
-                Alert.alert(
-                  'Vérification terminée',
-                  `✅ ${stats.completed} paiements complétés\n❌ ${stats.failed} paiements échoués\n🔍 ${stats.checked} paiements vérifiés\n⚠️ ${stats.errors} erreurs`,
-                  [{ text: 'OK' }]
-                );
-              }
-            } catch (error: any) {
-              console.error('Erreur vérification globale:', error);
-              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la vérification');
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-
   const settingSections = [
     {
       title: 'Notifications',
@@ -450,8 +415,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'navigation' as const,
           onPress: () => navigation.navigate('HelpCenter'),
         },
-        // Afficher "Mes tickets" uniquement pour les admins
-        ...(permissions.canAccessAdminFeatures ? [
+        // « Mes tickets » pour qui ne voit pas déjà « Tous les tickets » (utilisateurs, trésorier)
+        ...(!permissions.canViewAllTickets ? [
           {
             id: 'my_tickets',
             title: 'Mes tickets de support',
@@ -508,13 +473,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'navigation' as const,
           onPress: () => navigation.navigate('PaymentManagement'),
         }] : []),
-        ...(permissions.canViewPaymentStats ? [{
-          id: 'verify_all_payments',
-          title: 'Vérification rapide',
-          icon: 'sync',
-          type: 'action' as const,
-          onPress: handleVerifyAllPayments,
-        }] : []),
+        // « Vérification rapide » masquée : la tâche cron backend vérifie les paiements en attente toutes les 30 min
         ...(permissions.canViewAllTickets ? [{
           id: 'all_tickets',
           title: 'Tous les tickets',
