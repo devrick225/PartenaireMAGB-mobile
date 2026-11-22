@@ -57,9 +57,9 @@ src/
 
 ### 📚 Documentation ajoutée
 
-- `PAYMENT_SERVICE_IMPROVEMENTS.md` - Guide complet des améliorations
-- `MONEYFUSION_MOBILE_AUDIT.md` - Audit de l'intégration mobile
-- `CHANGELOG_MONEYFUSION.md` - Ce fichier
+- `../paiements/service-de-paiement.md` - Guide complet des améliorations
+- `../paiements/audit-moneyfusion.md` - Audit de l'intégration mobile
+- `../paiements/changelog-moneyfusion.md` - Ce fichier
 
 ### 🔄 Migration
 
@@ -138,8 +138,8 @@ Aucun breaking change. Toutes les modifications sont rétrocompatibles.
 ### 📞 Support
 
 Pour toute question sur ces changements:
-- Consulter: `PAYMENT_SERVICE_IMPROVEMENTS.md`
-- Consulter: `MONEYFUSION_MOBILE_AUDIT.md`
+- Consulter: `../paiements/service-de-paiement.md`
+- Consulter: `../paiements/audit-moneyfusion.md`
 - Consulter: `../MONEYFUSION_INTEGRATION_SUMMARY.md`
 
 ---
