@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   TouchableOpacity,
   Image,
   Modal,
@@ -21,6 +20,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES } from '../constants';
 import Button from '../components/Button';
 import { registerUser, clearError } from '../store/slices/authSlice';
+import { showError, showSuccess } from '../store/slices/notificationSlice';
 import { RootState, AppDispatch } from '../store';
 
 interface Country {
@@ -68,7 +68,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Erreur d\'inscription', error);
+      dispatch(showError({ title: 'Erreur d\'inscription', message: error }));
       dispatch(clearError());
     }
   }, [error, dispatch]);
@@ -115,7 +115,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
     }
   };
 
-  const validateForm = (): boolean => {
+  const validateForm = (): { [key: string]: string } => {
     const newErrors: { [key: string]: string } = {};
 
     if (!formData.firstName.trim()) {
@@ -163,11 +163,16 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
+    if (isLoading) return;
+    const validationErrors = validateForm();
+    const messages = Object.values(validationErrors);
+    if (messages.length > 0) {
+      // Le champ en erreur peut être hors de l'écran : on affiche aussi une notification
+      dispatch(showError({ title: 'Formulaire incomplet', message: messages[0] }));
       return;
     }
 
@@ -187,16 +192,12 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
       const result = await dispatch(registerUser(registrationData));
 
       if (registerUser.fulfilled.match(result)) {
-        Alert.alert(
-          'Inscription réussie !',
-          'Votre compte a été créé avec succès. Veuillez vérifier votre email.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Dashboard'),
-            },
-          ]
-        );
+        // Pas de navigation.navigate('Dashboard') : cet écran n'existe pas dans AuthNavigator.
+        // RootNavigator affiche automatiquement l'app dès que isAuthenticated passe à true.
+        dispatch(showSuccess({
+          title: 'Inscription réussie !',
+          message: 'Votre compte a été créé. Pensez à vérifier votre email.'
+        }));
       }
     } catch (error) {
       console.error('Erreur d\'inscription:', error);
@@ -211,7 +212,8 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
     secureTextEntry?: boolean,
     keyboardType?: any,
     icon?: string,
-    rightIcon?: React.ReactNode
+    rightIcon?: React.ReactNode,
+    inputProps?: React.ComponentProps<typeof TextInput>
   ) => (
     <View style={styles.inputContainer}>
       <View style={[styles.inputWrapper, {
@@ -229,7 +231,6 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
         <TextInput
           style={[styles.textInput, {
             color: dark ? COLORS.white : COLORS.black,
-            flex: rightIcon ? 0.9 : 1
           }]}
           placeholder={placeholder}
           placeholderTextColor={dark ? COLORS.grayTie : COLORS.grayscale400}
@@ -238,6 +239,8 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize="none"
+          autoCorrect={false}
+          {...inputProps}
         />
         {rightIcon}
       </View>
@@ -247,7 +250,10 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
   const renderCountryItem = ({ item }: { item: Country }) => (
     <TouchableOpacity
-      style={[styles.countryItem, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
+      style={[styles.countryItem, {
+        backgroundColor: dark ? COLORS.dark2 : COLORS.white,
+        borderBottomColor: dark ? COLORS.dark3 : '#F5F5F5'
+      }]}
       onPress={() => {
         setSelectedCountry(item);
         handleInputChange('country', item.code);
@@ -256,20 +262,22 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
     >
       <Image source={{ uri: item.flag }} style={styles.flagImage} />
       <Text style={[styles.countryName, { color: dark ? COLORS.white : COLORS.black }]}>{item.name}</Text>
-      <Text style={[styles.callingCode, { color: dark ? COLORS.grayTie : COLORS.greyscale400 }]}>{item.callingCode}</Text>
+      <Text style={[styles.callingCode, { color: dark ? COLORS.grayTie : COLORS.gray }]}>{item.callingCode}</Text>
     </TouchableOpacity>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
           {/* Header */}
           <View style={styles.header}>
@@ -280,7 +288,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
               <Ionicons name="arrow-back" size={24} color={dark ? COLORS.white : COLORS.black} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>Créer un compte</Text>
-            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.greyscale400 }]}>
+            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
               Rejoignez notre communauté de donateurs
             </Text>
           </View>
@@ -297,7 +305,9 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 errors.lastName,
                 false,
                 'default',
-                'person-outline'
+                'person-outline',
+                undefined,
+                { autoCapitalize: 'words', textContentType: 'familyName', autoComplete: 'name-family' }
               )}
             </View>
             <View style={styles.inputGroup}>
@@ -309,7 +319,9 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 errors.firstName,
                 false,
                 'default',
-                'person-outline'
+                'person-outline',
+                undefined,
+                { autoCapitalize: 'words', textContentType: 'givenName', autoComplete: 'name-given' }
               )}
             </View>
 
@@ -323,7 +335,9 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 errors.email,
                 false,
                 'email-address',
-                'mail-outline'
+                'mail-outline',
+                undefined,
+                { textContentType: 'emailAddress', autoComplete: 'email' }
               )}
             </View>
 
@@ -337,13 +351,17 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 }]}
                 onPress={() => setShowCountryModal(true)}
               >
-                {selectedCountry && (
+                {selectedCountry ? (
                   <>
                     <Image source={{ uri: selectedCountry.flag }} style={styles.selectedFlag} />
-                    <Text style={[styles.selectedCountryText, { color: dark ? COLORS.white : COLORS.black }]}>
+                    <Text style={[styles.selectedCountryText, { color: dark ? COLORS.white : COLORS.black }]} numberOfLines={1}>
                       {selectedCountry.name}
                     </Text>
                   </>
+                ) : (
+                  <Text style={[styles.selectedCountryText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                    Chargement des pays...
+                  </Text>
                 )}
                 <Ionicons name="chevron-down" size={20} color={dark ? COLORS.grayTie : COLORS.grayscale400} />
               </TouchableOpacity>
@@ -359,7 +377,9 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 errors.city,
                 false,
                 'default',
-                'location-outline'
+                'location-outline',
+                undefined,
+                { autoCapitalize: 'words', textContentType: 'addressCity' }
               )}
             </View>
 
@@ -371,13 +391,15 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                   backgroundColor: dark ? COLORS.dark2 : COLORS.white,
                   borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
                 }]}>
-                  {selectedCountry && (
+                  {selectedCountry ? (
                     <>
                       <Image source={{ uri: selectedCountry.flag }} style={styles.phoneFlagImage} />
                       <Text style={[styles.phonePrefixText, { color: dark ? COLORS.white : COLORS.black }]}>
                         {selectedCountry.callingCode}
                       </Text>
                     </>
+                  ) : (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
                   )}
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
@@ -387,7 +409,10 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                     (text) => handleInputChange('phone', text),
                     errors.phone,
                     false,
-                    'phone-pad'
+                    'phone-pad',
+                    'call-outline',
+                    undefined,
+                    { textContentType: 'telephoneNumber', autoComplete: 'tel' }
                   )}
                 </View>
               </View>
@@ -404,13 +429,14 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 !showPassword,
                 'default',
                 'lock-closed-outline',
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10} style={styles.eyeButton}>
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
                     color={dark ? COLORS.grayTie : COLORS.grayscale400}
                   />
-                </TouchableOpacity>
+                </TouchableOpacity>,
+                { textContentType: 'newPassword', autoComplete: 'new-password' }
               )}
             </View>
 
@@ -425,13 +451,14 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                 !showConfirmPassword,
                 'default',
                 'lock-closed-outline',
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} hitSlop={10} style={styles.eyeButton}>
                   <Ionicons
                     name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
                     color={dark ? COLORS.grayTie : COLORS.grayscale400}
                   />
-                </TouchableOpacity>
+                </TouchableOpacity>,
+                { textContentType: 'newPassword', autoComplete: 'new-password' }
               )}
             </View>
 
@@ -439,8 +466,10 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
             <TouchableOpacity
               style={styles.termsContainer}
               onPress={() => setTermsAccepted(!termsAccepted)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: termsAccepted }}
             >
-              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, errors.terms && { borderColor: COLORS.error }]}>
                 {termsAccepted && <Ionicons name="checkmark" size={16} color={COLORS.white} />}
               </View>
               <Text style={[styles.termsText, { color: dark ? COLORS.white : COLORS.black }]}>
@@ -461,10 +490,11 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Bouton d'inscription */}
             <Button
-              title={isLoading ? 'Inscription en cours...' : 'S\'inscrire'}
+              title="S'inscrire"
               onPress={handleSubmit}
               filled
-              style={[styles.submitButton, { opacity: isLoading ? 0.7 : 1 }]}
+              isLoading={isLoading}
+              style={{ ...styles.submitButton, opacity: isLoading ? 0.7 : 1 }}
             />
 
             {/* Lien de connexion */}
@@ -506,8 +536,8 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
             </View>
           </View>
         </Modal>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -517,11 +547,15 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 48, // espace sous "Se connecter" (barre d'accueil iPhone)
   },
   header: {
     alignItems: 'center',
     marginBottom: 30,
+    paddingTop: 52, // place pour le bouton retour : le titre ne passe plus dessous
     position: 'relative',
   },
   backButton: {
@@ -586,8 +620,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   textInput: {
+    flex: 1,
     fontSize: 16,
     paddingVertical: 0,
+    height: '100%',
+  },
+  eyeButton: {
+    marginLeft: 8,
   },
   errorText: {
     color: COLORS.error,
@@ -599,7 +638,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 8,
-    padding: 16,
+    paddingHorizontal: 16,
     justifyContent: 'space-between',
     height: 50,
   },
@@ -621,9 +660,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 8,
-    padding: 16,
-    minWidth: 100,
+    paddingHorizontal: 12,
+    minWidth: 96,
     height: 50,
+    justifyContent: 'center',
   },
   phoneFlagImage: {
     width: 20,
@@ -638,6 +678,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 10,
+    paddingVertical: 4,
   },
   checkbox: {
     width: 20,
@@ -663,8 +704,10 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
-    marginBottom: 24,
+    marginBottom: 14,
     borderRadius: 30,
+    height: 56,
+    justifyContent: 'center',
   },
   loginLinkContainer: {
     marginTop: 10,

@@ -141,7 +141,6 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
       const status = error?.response?.status;
       if (status === 401 || status === 403) {
         try { dispatch(logoutUser()); } catch (_) { }
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         return;
       }
       Alert.alert(
@@ -185,7 +184,6 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
           style: 'destructive',
           onPress: () => {
             dispatch(logoutUser());
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
           },
         },
       ]

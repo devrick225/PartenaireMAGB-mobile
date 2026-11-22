@@ -340,6 +340,15 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isEmailVerified = false;
         state.error = null;
+      })
+      // Même si l'appel serveur échoue (token expiré, réseau...), on déconnecte localement
+      .addCase(logoutUser.rejected, (state) => {
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        state.isEmailVerified = false;
+        state.error = null;
       });
   },
 });

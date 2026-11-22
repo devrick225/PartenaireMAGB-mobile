@@ -46,7 +46,10 @@
               "scheme": "partenaireMagb"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -68,6 +71,13 @@
         "expo-document-picker",
         {
           "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "PartenaireMAGB utilise Face ID pour vous connecter rapidement et en toute sécurité."
         }
       ]
     ],

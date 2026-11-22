@@ -1,5 +1,14 @@
 import { View, Text, StyleSheet, ScrollView, Image, Alert, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  REMEMBER_KEY,
+  getBiometricSupport,
+  isBiometricEnabled,
+  getSavedCredentials,
+  saveCredentialsAfterLogin,
+  authenticateBiometric,
+} from '../utils/biometricAuth';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SIZES, icons, images } from '../constants';
@@ -25,24 +34,34 @@ const Login = ({ navigation }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
-  const REMEMBER_KEY = 'auth_remember_me';
-  const REMEMBER_EMAIL_KEY = 'auth_remember_email';
+  // Connexion biométrique (Face ID / Touch ID / empreinte)
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState('Face ID');
 
   // Clean errors when component mounts
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
 
-  // Pré-remplir email si "se souvenir de moi"
+  // Pré-remplir email + mot de passe si "se souvenir de moi", et proposer Face ID si activé
   useEffect(() => {
     (async () => {
       try {
-        const remember = await AsyncStorage.getItem(REMEMBER_KEY);
-        const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
-        const shouldRemember = remember === 'true';
+        const shouldRemember = (await AsyncStorage.getItem(REMEMBER_KEY)) === 'true';
         setChecked(shouldRemember);
-        if (shouldRemember && savedEmail) {
-          setFormData(prev => ({ ...prev, email: savedEmail }));
+        const saved = await getSavedCredentials();
+
+        if (shouldRemember && saved) {
+          setFormData(prev => ({ ...prev, email: saved.email, password: saved.password }));
+        }
+
+        // Bouton Face ID : activé dans les paramètres + identifiants enregistrés + biométrie configurée
+        if (saved && (await isBiometricEnabled())) {
+          const support = await getBiometricSupport();
+          if (support.available && support.enrolled) {
+            setBiometricLabel(support.label);
+            setBiometricAvailable(true);
+          }
         }
       } catch (e) {
         // noop
@@ -89,7 +108,8 @@ const Login = ({ navigation }) => {
     }
 
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    // Retourne les erreurs directement : l'état fieldErrors n'est pas encore à jour à ce moment-là
+    return errors;
   };
 
   const handleLogin = async () => {
@@ -98,10 +118,11 @@ const Login = ({ navigation }) => {
       hasPassword: !!formData.password
     });
 
-    if (!validateForm()) {
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
       // Show validation errors
-      const errorMessages = Object.values(fieldErrors);
-      console.log('❌ Erreurs de validation:', fieldErrors);
+      const errorMessages = Object.values(errors);
+      console.log('❌ Erreurs de validation:', errors);
       if (errorMessages.length > 0) {
         dispatch(showError({
           title: 'Erreur de validation',
@@ -112,31 +133,59 @@ const Login = ({ navigation }) => {
     }
 
     console.log('✅ Validation réussie, appel API...');
+    await performLogin(formData.email, formData.password, isChecked);
+  };
 
+  // Appel API de connexion + gestion de "se souvenir de moi"
+  const performLogin = async (rawEmail, password, remember) => {
+    const email = rawEmail.toLowerCase().trim();
     try {
-      const result = await dispatch(loginUser({
-        email: formData.email.toLowerCase().trim(),
-        password: formData.password,
-      })).unwrap();
-      
-      // Gérer "se souvenir de moi"
-      try {
-        if (isChecked) {
-          await AsyncStorage.setItem(REMEMBER_KEY, 'true');
-          await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, formData.email.toLowerCase().trim());
-        } else {
-          await AsyncStorage.setItem(REMEMBER_KEY, 'false');
-          await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
-        }
-      } catch (e) {
-        // noop
-      }
+      const result = await dispatch(loginUser({ email, password })).unwrap();
 
-      console.log('✅ Connexion réussie:', result);
+      // Gérer "se souvenir de moi" / Face ID
+      await saveCredentialsAfterLogin(email, password, remember);
+
+      // Ne jamais logger le résultat complet : il contient les tokens JWT et les données perso
+      if (__DEV__) console.log('✅ Connexion réussie pour l\'utilisateur', result?.data?.user?.id);
       // Success is handled in the useEffect above
     } catch (err) {
       console.error('❌ Erreur de connexion complète:', err);
       // Error is automatically handled by Redux and displayed in useEffect
+    }
+  };
+
+  // Connexion avec Face ID / Touch ID / empreinte en utilisant les identifiants enregistrés
+  const handleBiometricLogin = async () => {
+    try {
+      const auth = await authenticateBiometric();
+      if (!auth.success) {
+        // Annulation volontaire : pas de message d'erreur
+        if (!auth.cancelled) {
+          dispatch(showError({
+            title: 'Authentification échouée',
+            message: 'Impossible de vérifier votre identité. Connectez-vous avec votre mot de passe.'
+          }));
+        }
+        return;
+      }
+
+      const saved = await getSavedCredentials();
+      if (!saved) {
+        setBiometricAvailable(false);
+        dispatch(showError({
+          title: 'Identifiants introuvables',
+          message: 'Connectez-vous une fois avec votre mot de passe pour réactiver ' + biometricLabel + '.'
+        }));
+        return;
+      }
+
+      await performLogin(saved.email, saved.password, isChecked);
+    } catch (e) {
+      console.error('❌ Erreur biométrie:', e);
+      dispatch(showError({
+        title: 'Erreur',
+        message: 'La connexion biométrique a échoué. Utilisez votre mot de passe.'
+      }));
     }
   };
 
@@ -231,6 +280,21 @@ const Login = ({ navigation }) => {
             style={[styles.button, isLoading && styles.buttonDisabled]}
             isLoading={isLoading}
           />
+          {biometricAvailable && (
+            <TouchableOpacity
+              style={[styles.biometricButton, isLoading && styles.buttonDisabled]}
+              onPress={handleBiometricLogin}
+              disabled={isLoading}
+              accessibilityRole="button"
+              accessibilityLabel={`Se connecter avec ${biometricLabel}`}>
+              <Ionicons
+                name={biometricLabel.includes('empreinte') || biometricLabel === 'Touch ID' ? 'finger-print' : 'scan'}
+                size={22}
+                color="#26335F"
+              />
+              <Text style={styles.biometricButtonText}>Se connecter avec {biometricLabel}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => navigation.navigate("ForgotPasswordMethods")}
             disabled={isLoading}>
@@ -259,6 +323,22 @@ const Login = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 30,
+    borderWidth: 1.5,
+    borderColor: '#26335F',
+  },
+  biometricButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontFamily: 'semiBold',
+    color: '#26335F',
+  },
   area: {
     flex: 1,
     backgroundColor: COLORS.white

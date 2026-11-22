@@ -173,11 +173,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           onPress: async () => {
             try {
               setIsLoading(true);
+              // RootNavigator bascule automatiquement vers l'écran de connexion
+              // dès que isAuthenticated passe à false : pas de navigation.reset ici
               await dispatch(logoutUser() as any);
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
               Alert.alert('Erreur', 'Impossible de se déconnecter. Veuillez réessayer.');

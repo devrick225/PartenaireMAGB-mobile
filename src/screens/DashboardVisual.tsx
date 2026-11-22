@@ -166,7 +166,6 @@ const DashboardVisual: React.FC<DashboardVisualProps> = ({ navigation }) => {
       const status = error?.response?.status;
       if (status === 401 || status === 403) {
         try { dispatch(logoutUser()); } catch (_) {}
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         return;
       }
     } finally {
@@ -191,7 +190,6 @@ const DashboardVisual: React.FC<DashboardVisualProps> = ({ navigation }) => {
           style: 'destructive',
           onPress: () => {
             dispatch(logoutUser());
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
           },
         },
       ]
