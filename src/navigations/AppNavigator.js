@@ -10,7 +10,6 @@ import DeepLinkHandler from "../components/DeepLinkHandler";
 
 // Profile & Settings
 import ProfileScreen from "../screens/ProfileScreen";
-import ProfileWizardScreen from "../screens/ProfileWizardScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ChangePasswordScreen from "../screens/ChangePasswordScreen";
 
@@ -55,12 +54,6 @@ import MissionsScreen from "../screens/MissionsScreen";
 
 // Contact Ministere
 import ContactMinistere from "../screens/ContactMinistereSimple";
-import DashboardGrid from "../screens/DashboardGrid";
-import DashboardGridModern from "../screens/DashboardGridModern";
-import CreateDonationScreenModern from "../screens/CreateDonationScreenModern";
-import DashboardVisual from "../screens/DashboardVisual";
-import DashboardScreen from "../screens/DashboardScreen";
-import DashboardSelector from "../screens/DashboardSelector";
 
 const Stack = createNativeStackNavigator();
 
@@ -78,11 +71,9 @@ const AppNavigator = () => {
       >
         {/* Main Dashboard */}
         <Stack.Screen name="Dashboard" component={DashboardModern} />
-        <Stack.Screen name="DashboardOld" component={DashboardVisual} />
 
         {/* Profile & Settings */}
         <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="ProfileWizard" component={ProfileWizardScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
 

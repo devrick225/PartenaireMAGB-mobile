@@ -452,7 +452,7 @@ async verifyPaymentWithRetry(
 ## 📞 Support
 
 Pour toute question sur ces améliorations:
-- Consulter: `MONEYFUSION_MOBILE_AUDIT.md`
+- Consulter: `../paiements/audit-moneyfusion.md`
 - Consulter: `MONEYFUSION_INTEGRATION_SUMMARY.md`
 - Tester avec: `scripts/test-moneyfusion.js` (backend)
 

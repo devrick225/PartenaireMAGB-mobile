@@ -355,8 +355,8 @@ Après avoir exécuté tous les tests:
 
 Si un test échoue:
 1. Vérifier les logs détaillés
-2. Consulter `PAYMENT_SERVICE_IMPROVEMENTS.md`
-3. Consulter `MONEYFUSION_MOBILE_AUDIT.md`
+2. Consulter `../paiements/service-de-paiement.md`
+3. Consulter `../paiements/audit-moneyfusion.md`
 4. Vérifier la configuration backend
 
 ---
