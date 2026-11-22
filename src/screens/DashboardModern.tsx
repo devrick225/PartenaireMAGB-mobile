@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -115,9 +116,18 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  // Au retour sur le tableau de bord (après un don, un paiement…), rafraîchir sans écran de chargement
+  const hasLoadedOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (hasLoadedOnceRef.current) loadDashboardData(true);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
+
+  const loadDashboardData = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const [userStatsResponse, donationStatsResponse, recentDonationsResponse, profileResponse] = await Promise.all([
         userService.getMyStats(),
         donationService.getStats(),
@@ -128,6 +138,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
       setUserStats(userStatsResponse.data.data.stats);
       setDonationStats(donationStatsResponse.data.data.stats);
       setRecentDonations(recentDonationsResponse.data.data.donations || []);
+      hasLoadedOnceRef.current = true;
 
       // Mettre à jour les données utilisateur dans le store Redux si nécessaire
       if (profileResponse.data?.data?.profile?.user) {
@@ -137,12 +148,13 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
         }
       }
     } catch (error: any) {
-      console.error('Erreur lors du chargement du dashboard:', error);
+      console.error('Erreur lors du chargement du dashboard:', error?.message);
       const status = error?.response?.status;
       if (status === 401 || status === 403) {
         try { dispatch(logoutUser()); } catch (_) { }
         return;
       }
+      if (silent) return; // rafraîchissement en arrière-plan : pas d'alerte
       Alert.alert(
         'Erreur',
         "Impossible de charger le tableau de bord. Vérifiez votre connexion et réessayez.",
@@ -155,7 +167,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
+    await loadDashboardData(true);
     setRefreshing(false);
   };
 

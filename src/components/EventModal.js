@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  ImageBackground,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, images } from '../constants';
@@ -38,11 +37,8 @@ const EventModal = ({ visible, onClose, onJoinEvent, eventData }) => {
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* Header avec image */}
-          <ImageBackground
-            source={event.image}
-            style={styles.headerImage}
-            imageStyle={styles.headerImageStyle}
-          >
+          <View style={[styles.headerImage, styles.headerImageStyle, { overflow: 'hidden' }]}>
+            <Image source={event.image} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
             <View style={styles.headerOverlay}>
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <MaterialIcons name="close" size={24} color={COLORS.white} />
@@ -52,7 +48,7 @@ const EventModal = ({ visible, onClose, onJoinEvent, eventData }) => {
                 <Text style={styles.eventSubtitle}>{event.subtitle}</Text>
               </View>
             </View>
-          </ImageBackground>
+          </View>
 
           {/* Contenu */}
           <View style={styles.content}>

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
   Alert,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
@@ -118,10 +118,9 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
   const loadRecurringDonations = async () => {
     try {
       const response = await donationService.getRecurringDonations();
-      console.log('Response dons récurrents:', JSON.stringify(response.data, null, 2));
-
       if (response.data.success) {
-        const donations = response.data.data.donations || [];
+        // Ignorer les entrées sans configuration de récurrence (évite les plantages sur donation.recurring.xxx)
+        const donations = (response.data.data.donations || []).filter((d: any) => d && d.recurring);
 
         // Formater les montants si pas déjà fait
         const formattedDonations = donations.map((donation: any) => ({
@@ -151,8 +150,10 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
       if (!donation.recurring.isActive) return;
 
       const { frequency, interval, dayOfWeek, dayOfMonth, startDate, endDate, maxOccurrences, totalExecutions } = donation.recurring;
+      if (!donation.recurring.nextPaymentDate) return;
       let currentDate = new Date(donation.recurring.nextPaymentDate);
-      let occurrence = totalExecutions + 1;
+      if (isNaN(currentDate.getTime())) return;
+      let occurrence = (totalExecutions || 0) + 1;
 
       // Générer les 10 prochaines occurrences ou jusqu'à 3 mois
       for (let i = 0; i < 10 && currentDate <= threeMonthsFromNow; i++) {
@@ -183,7 +184,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
         });
 
         // Calculer la prochaine date
-        currentDate = calculateNextDate(currentDate, frequency, interval, dayOfWeek, dayOfMonth);
+        currentDate = calculateNextDate(currentDate, frequency, interval || 1, dayOfWeek, dayOfMonth);
         occurrence++;
       }
     });
@@ -193,7 +194,17 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
     setUpcomingOccurrences(occurrences);
   };
 
+  const addMonthsClamped = (date: Date, months: number, day?: number) => {
+    const target = new Date(date.getFullYear(), date.getMonth() + months, 1, date.getHours(), date.getMinutes());
+    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(day || date.getDate(), lastDay));
+    return target;
+  };
+
   const calculateNextDate = (current: Date, frequency: string, interval: number, dayOfWeek?: number, dayOfMonth?: number): Date => {
+    if (frequency === 'monthly') return addMonthsClamped(current, interval, dayOfMonth);
+    if (frequency === 'quarterly') return addMonthsClamped(current, interval * 3, dayOfMonth);
+    if (frequency === 'yearly') return addMonthsClamped(current, interval * 12, dayOfMonth);
     const next = new Date(current);
 
     switch (frequency) {
@@ -226,28 +237,32 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
     return next;
   };
 
+  // Le backend crée lui-même un don « échéance » (recurringParent + occurrenceNumber) à chaque date
+  // prévue et prévient le donateur. On paie CE don : en créer un nouveau ici provoquait un double paiement.
   const handlePayOccurrence = async (occurrence: OccurrenceItem) => {
-    Alert.alert(
-      'Payer cette occurrence',
-      `Voulez-vous payer le don de ${formatAmount(occurrence.amount, occurrence.currency)} pour ${formatCategory(occurrence.category)} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Payer',
-          onPress: () => {
-            // Naviguer vers l'écran de création de don en mode paiement d'occurrence
-            navigation.navigate('CreateDonation', {
-              mode: 'pay_occurrence',
-              donationId: occurrence.donationId,
-              occurrence: occurrence.occurrence,
-              amount: occurrence.amount,
-              currency: occurrence.currency,
-              category: occurrence.category,
-            });
-          }
-        }
-      ]
-    );
+    try {
+      setIsRefreshing(true);
+      const response = await donationService.getDonationHistory({ status: 'pending', limit: 50 } as any);
+      const pending: any[] = response.data?.data?.donations || [];
+      const parentId = (d: any) => (typeof d.recurringParent === 'object' ? d.recurringParent?._id : d.recurringParent);
+      const candidates = pending.filter(d => parentId(d) === occurrence.donationId);
+      const match =
+        candidates.find(d => d.occurrenceNumber === occurrence.occurrence) ||
+        candidates.sort((x, y) => new Date(x.createdAt).getTime() - new Date(y.createdAt).getTime())[0];
+
+      if (match) {
+        navigation.navigate('DonationDetail', { donationId: match._id });
+      } else {
+        Alert.alert(
+          'Échéance en préparation',
+          'Cette échéance est générée automatiquement le jour prévu. Vous recevrez une notification et la retrouverez dans « Mes dons » pour la payer.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de récupérer cette échéance. Réessayez dans quelques instants.');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleStopRecurring = async (donation: RecurringDonation) => {
@@ -262,7 +277,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
           onPress: async () => {
             try {
               await donationService.cancelRecurringDonation(donation._id, 'Arrêté par l\'utilisateur');
-              Alert.alert('Succès', 'Le don récurrent a été arrêté');
+              Alert.alert('Don récurrent arrêté', 'Aucune nouvelle échéance ne sera générée.');
               loadRecurringDonations();
             } catch (error) {
               Alert.alert('Erreur', 'Impossible d\'arrêter le don récurrent');
@@ -470,7 +485,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
             Exécutions
           </Text>
           <Text style={[styles.progressValue, { color: colors.text }]}>
-            {item.recurring.totalExecutions}
+            {item.recurring.totalExecutions || 0}
             {item.recurring.maxOccurrences ? `/${item.recurring.maxOccurrences}` : ''}
           </Text>
         </View>
@@ -480,7 +495,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
             Prochain paiement
           </Text>
           <Text style={[styles.progressValue, { color: colors.primary }]}>
-            {new Date(item.recurring.nextPaymentDate).toLocaleDateString('fr-FR')}
+            {item.recurring.nextPaymentDate ? new Date(item.recurring.nextPaymentDate).toLocaleDateString('fr-FR') : '—'}
           </Text>
         </View>
       </View>

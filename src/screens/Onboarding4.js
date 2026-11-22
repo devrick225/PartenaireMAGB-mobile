@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ImageBackground } from 'react-native';
+import { View, Text, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PageContainer from '../components/PageContainer';
 import DotsView from '../components/DotsView';
@@ -15,11 +15,11 @@ const Onboarding4 = ({ navigation }) => {
       backgroundColor: colors.background }]}>
       <PageContainer>
         <View style={Onboarding1Styles.contentContainer}>
-        <ImageBackground
+        <Image
             source={images.onboarding4}
             style={Onboarding1Styles.backgroundImage}
             resizeMode="cover"
-          ></ImageBackground>
+            />
           <View style={[Onboarding1Styles.buttonContainer, {
             backgroundColor: colors.background
           }]}>

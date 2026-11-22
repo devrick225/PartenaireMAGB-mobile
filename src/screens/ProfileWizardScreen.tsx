@@ -17,6 +17,7 @@ import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAppDispatch } from '../store/hooks';
 import { showSuccess, showError } from '../store/slices/notificationSlice';
+import userService from '../store/services/userService';
 
 const ProfileWizardScreen = ({ navigation }) => {
   const { colors, dark } = useTheme();
@@ -493,20 +494,30 @@ const ProfileWizardScreen = ({ navigation }) => {
   };
 
   const handleSaveProfile = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      console.log('Saving complete profile:', formData);
-      
+      // Avant : rien n'était envoyé au serveur malgré le message de succès.
+      // Seules les sections acceptées par PUT /users/profile sont transmises.
+      await userService.updateProfile({
+        gender: formData.gender,
+        maritalStatus: formData.maritalStatus,
+        occupation: formData.occupation,
+        address: formData.address,
+        churchMembership: formData.churchMembership,
+        emergencyContact: formData.emergencyContact,
+        donationPreferences: formData.donationPreferences,
+      } as any);
       dispatch(showSuccess({
         title: 'Profil complet sauvegardé',
         message: 'Toutes vos informations ont été mises à jour avec succès'
       }));
       
       navigation.goBack();
-    } catch (error) {
+    } catch (error: any) {
       dispatch(showError({
         title: 'Erreur',
-        message: 'Impossible de sauvegarder le profil complet'
+        message: error?.response?.data?.details?.[0]?.msg || error?.response?.data?.error || 'Impossible de sauvegarder le profil complet'
       }));
     } finally {
       setIsLoading(false);

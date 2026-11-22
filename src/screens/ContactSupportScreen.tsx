@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -197,6 +199,7 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
   };
 
   const handleSubmit = async () => {
+    if (isLoading) return;
     if (!validateForm()) {
       return;
     }
@@ -206,22 +209,22 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
 
       // Créer le ticket d'abord avec les données de base
       const ticketData = {
-        subject: formData.subject,
-        description: formData.description,
+        subject: formData.subject.trim(),
+        description: formData.description.trim(),
         category: formData.category,
         priority: formData.priority,
       };
 
-      console.log('🎫 Création du ticket avec:', ticketData);
-
       const response = await apiClient.post('/tickets', ticketData);
 
       if (response.data.success) {
-        const ticketId = response.data.data.ticket.id;
-        console.log('✅ Ticket créé avec succès, ID:', ticketId);
+        const createdTicket = response.data.data.ticket || {};
+        // Selon la sérialisation, l'identifiant est « _id » ou « id »
+        const ticketId = createdTicket._id || createdTicket.id;
+        let failedUploads = 0;
 
         // Upload des fichiers si présents
-        if (attachments.length > 0) {
+        if (attachments.length > 0 && ticketId) {
           console.log('📎 Upload de', attachments.length, 'fichiers...');
           
           for (const file of attachments) {
@@ -238,27 +241,25 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
                   'Content-Type': 'multipart/form-data',
                 },
               });
-              console.log('✅ Fichier uploadé:', file.name);
-            } catch (fileError) {
-              console.error('❌ Erreur upload fichier:', file.name, fileError);
-              // Continuer même si un fichier échoue
+            } catch (fileError: any) {
+              console.error('❌ Erreur upload fichier:', file.name, fileError?.message);
+              failedUploads++; // continuer, mais prévenir l'utilisateur
             }
           }
         }
 
+        // Quitter tout de suite le formulaire (évite un second envoi si l'alerte est fermée autrement)
+        navigation.goBack();
         Alert.alert(
           'Demande envoyée !',
-          `Votre ticket a été créé avec succès.\nNuméro: ${response.data.data.ticket.ticketNumber}\n\nNotre équipe vous répondra dans les plus brefs délais.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
+          `Votre ticket${createdTicket.ticketNumber ? ` n°${createdTicket.ticketNumber}` : ''} a été créé.\n\nNotre équipe vous répondra dans les plus brefs délais.` +
+            (failedUploads > 0
+              ? `\n\n⚠️ ${failedUploads} pièce(s) jointe(s) n'ont pas pu être envoyées. Vous pourrez les ajouter depuis le ticket.`
+              : '')
         );
       }
     } catch (error: any) {
-      console.error('❌ Erreur création ticket:', error);
+      console.error('❌ Erreur création ticket:', error?.message);
       let errorMessage = 'Impossible de créer votre demande. Veuillez réessayer.';
       
       if (error.response?.data?.error) {
@@ -473,7 +474,13 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {/* Information */}
         <View style={[styles.infoCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
           <View style={styles.infoHeader}>
@@ -673,6 +680,7 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
           )}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
 
       {renderCategoryModal()}
       {renderPriorityModal()}

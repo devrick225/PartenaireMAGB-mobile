@@ -26,6 +26,15 @@ import { PaymentOperator } from '../constants/paymentMethods';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { checkAuthStatus } from '../store/slices/authSlice';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+// Date locale au format AAAA-MM-JJ (sans décalage UTC)
+const toYMD = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fromYMD = (s: string) => {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
 
 interface CreateDonationScreenProps {
   navigation: any;
@@ -129,10 +138,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         if (donationData) {
           return {
             amount: donationData.amount || 0,
-            currency: donationData.currency || 'XOF',
+            currency: 'XOF',
             category: donationData.category || '',
             type: donationData.type || 'one_time',
-            paymentMethod: donationData.paymentMethod || '',
+            paymentMethod: donationData.paymentMethod || 'moneyfusion',
             message: donationData.message || '',
             isAnonymous: donationData.isAnonymous || false,
           };
@@ -144,10 +153,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         if (previousDonationData) {
           return {
             amount: previousDonationData.amount || 0,
-            currency: previousDonationData.currency || 'XOF',
+            currency: 'XOF',
             category: previousDonationData.category || '',
             type: previousDonationData.type || 'one_time',
-            paymentMethod: previousDonationData.paymentMethod || '',
+            paymentMethod: previousDonationData.paymentMethod || 'moneyfusion',
             message: previousDonationData.message || '',
             isAnonymous: previousDonationData.isAnonymous || false,
           };
@@ -159,10 +168,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         if (occurrenceData.amount) {
           return {
             amount: occurrenceData.amount,
-            currency: occurrenceData.currency || 'XOF',
-            category: occurrenceData.category || '',
+            currency: 'XOF',
+            category: occurrenceData.category || 'don_ponctuel',
             type: 'one_time', // Les paiements d'occurrence sont toujours uniques
-            paymentMethod: '',
+            paymentMethod: 'moneyfusion', // seul moyen actif côté mobile
             message: `Paiement occurrence #${occurrenceData.occurrence}`,
             isAnonymous: false,
           };
@@ -174,9 +183,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         return {
           amount: 0,
           currency: 'XOF',
-          category: 'don_mensuel',
+          // Don unique -> « Ponctuel » ; don récurrent -> « Mensuelle » par défaut
+          category: initialType === 'recurring' ? 'don_mensuel' : 'don_ponctuel',
           type: initialType || 'one_time',
-          paymentMethod: '',
+          paymentMethod: 'moneyfusion', // seul moyen actif côté mobile
           message: '',
           isAnonymous: false,
         };
@@ -186,9 +196,9 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
     return {
       amount: 0,
       currency: 'XOF',
-      category: 'don_mensuel',
+      category: initialType === 'recurring' ? 'don_mensuel' : 'don_ponctuel',
       type: initialType || 'one_time',
-      paymentMethod: '',
+      paymentMethod: 'moneyfusion', // seul moyen actif côté mobile
       message: '',
       isAnonymous: false, // Par défaut, pas anonyme
     };
@@ -215,10 +225,16 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
   const [recurringInterval, setRecurringInterval] = useState(1);
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState(1); // 1=Lundi par défaut
   const [recurringDayOfMonth, setRecurringDayOfMonth] = useState(new Date().getDate());
-  const [recurringStartDate, setRecurringStartDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [recurringStartDate, setRecurringStartDate] = useState(() => toYMD(new Date()));
+  // Sélecteurs de date (Alert.prompt n'existe que sur iOS : rien ne s'ouvrait sur Android)
+  const [datePickerTarget, setDatePickerTarget] = useState<'start' | 'end' | null>(null);
+  // Don déjà créé si l'initialisation du paiement a échoué : on le réutilise au lieu d'en recréer un
+  const createdDonationRef = useRef<any>(null);
+  // Toute modification du formulaire après un échec de paiement = un nouveau don à créer
+  useEffect(() => {
+    createdDonationRef.current = null;
+  }, [formData, recurringFrequency, recurringInterval, recurringStartDate, recurringEndDate,
+      recurringMaxOccurrences, isUnlimited, hasDedication, dedicationName, dedicationMessage]);
   const [recurringEndDate, setRecurringEndDate] = useState('');
   const [recurringMaxOccurrences, setRecurringMaxOccurrences] = useState<number | undefined>(undefined);
   const [isUnlimited, setIsUnlimited] = useState(true);
@@ -285,10 +301,47 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
     { value: 'celebration', label: 'Pour célébrer', description: 'Marquer un événement' },
   ];
 
+  // Catégories proposées pour un don récurrent (« Ponctuel » est réservé au don unique)
+  const recurringCategories = categories.filter(c => c.value !== 'don_ponctuel');
+
+  const selectDonationType = (type: 'one_time' | 'recurring') => {
+    setFormData(prev => ({
+      ...prev,
+      type,
+      category: type === 'one_time'
+        ? 'don_ponctuel'
+        : (prev.category && prev.category !== 'don_ponctuel' ? prev.category : 'don_mensuel'),
+    }));
+    if (type === 'recurring' && formData.category === 'don_ponctuel') {
+      setRecurringFrequency('monthly');
+      setRecurringInterval(1);
+    }
+  };
+
+  // Choisir une catégorie récurrente règle aussi la fréquence correspondante
+  const selectRecurringCategory = (category: string) => {
+    setFormData(prev => ({ ...prev, category }));
+    if (category === 'don_mensuel') { setRecurringFrequency('monthly'); setRecurringInterval(1); }
+    if (category === 'don_trimestriel') { setRecurringFrequency('quarterly'); setRecurringInterval(1); }
+    if (category === 'don_semestriel') { setRecurringFrequency('monthly'); setRecurringInterval(6); }
+  };
+
+  // Et inversement : la fréquence met à jour la catégorie quand la correspondance est évidente
+  const syncCategoryWithFrequency = (frequency: string, interval: number) => {
+    let category: string | null = null;
+    if (frequency === 'monthly' && interval === 1) category = 'don_mensuel';
+    if ((frequency === 'monthly' && interval === 3) || (frequency === 'quarterly' && interval === 1)) category = 'don_trimestriel';
+    if ((frequency === 'monthly' && interval === 6) || (frequency === 'quarterly' && interval === 2)) category = 'don_semestriel';
+    if (category) setFormData(prev => ({ ...prev, category: category as string }));
+  };
+
   const handleAmountChange = (text: string) => {
-    const numericValue = parseFloat(text.replace(/[^0-9.]/g, '')) || 0;
+    // FCFA : entiers uniquement (les espaces / points / virgules collés sont ignorés)
+    const numericValue = parseInt(text.replace(/\D/g, ''), 10) || 0;
     if (numericValue <= 2000000) {
       setFormData(prev => ({ ...prev, amount: numericValue }));
+      // Un nouveau montant = un nouveau don
+      createdDonationRef.current = null;
     }
   };
 
@@ -300,16 +353,30 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
     }).format(amount) + ' ' + (currency?.symbol || '');
   };
 
+  // Unité en français : « jour(s) », « semaine(s) », « mois », « trimestre(s) », « an(s) »
+  const frequencyUnit = (frequency: string, n: number) => {
+    const units: Record<string, [string, string]> = {
+      daily: ['jour', 'jours'],
+      weekly: ['semaine', 'semaines'],
+      monthly: ['mois', 'mois'],
+      quarterly: ['trimestre', 'trimestres'],
+      yearly: ['an', 'ans'],
+    };
+    const [one, many] = units[frequency] || ['', ''];
+    return n > 1 ? many : one;
+  };
+
   const formatRecurrenceDescription = () => {
     if (formData.type !== 'recurring') return '';
-    
+
     let description = '';
-    const frequencyLabel = frequencies.find(f => f.value === recurringFrequency)?.label.toLowerCase();
-    
     if (recurringInterval === 1) {
-      description = `Tous les ${frequencyLabel}s`;
+      // « Chaque jour », « Chaque semaine », « Chaque mois »...
+      description = `Chaque ${frequencyUnit(recurringFrequency, 1)}`;
     } else {
-      description = `Tous les ${recurringInterval} ${frequencyLabel}s`;
+      // « Tous les 2 mois », « Toutes les 2 semaines »
+      const feminine = recurringFrequency === 'weekly';
+      description = `${feminine ? 'Toutes' : 'Tous'} les ${recurringInterval} ${frequencyUnit(recurringFrequency, recurringInterval)}`;
     }
 
     // Ajouter le jour spécifique
@@ -326,7 +393,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
     }
 
     if (recurringEndDate) {
-      description += ` - jusqu'au ${new Date(recurringEndDate).toLocaleDateString('fr-FR')}`;
+      description += ` - jusqu'au ${fromYMD(recurringEndDate).toLocaleDateString('fr-FR')}`;
     }
 
     return description;
@@ -334,11 +401,11 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
 
   const validateForm = () => {
     if (formData.amount < 200) {
-      Alert.alert('Erreur', 'Le montant minimum est de 200');
+      Alert.alert('Montant trop faible', 'Le montant minimum est de 200 FCFA');
       return false;
     }
     if (formData.amount > 2000000) {
-      Alert.alert('Erreur', 'Le montant maximum est de 2 000 000 XOF');
+      Alert.alert('Montant trop élevé', 'Le montant maximum est de 2 000 000 FCFA');
       return false;
     }
     // Catégorie automatiquement définie à "soutien", pas besoin de vérification
@@ -364,7 +431,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         Alert.alert('Erreur', 'Veuillez sélectionner une date de début pour le don récurrent');
         return false;
       }
-      if (recurringEndDate && new Date(recurringEndDate) <= new Date(recurringStartDate)) {
+      if (recurringEndDate && fromYMD(recurringEndDate) <= fromYMD(recurringStartDate)) {
         Alert.alert('Erreur', 'La date de fin doit être postérieure à la date de début');
         return false;
       }
@@ -377,6 +444,19 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
   };
 
   const handleSubmit = async () => {
+    if (isLoading) return;
+    if (needsEmailVerification || needsPhoneVerification) {
+      Alert.alert(
+        'Vérification requise',
+        'Vérifiez votre email et votre téléphone avant de faire un don.',
+        [
+          ...(needsEmailVerification ? [{ text: 'Vérifier email', onPress: () => navigation.navigate('EmailVerification') }] : []),
+          ...(needsPhoneVerification ? [{ text: 'Vérifier téléphone', onPress: () => navigation.navigate('PhoneVerification') }] : []),
+          { text: 'Annuler', style: 'cancel' as const },
+        ]
+      );
+      return;
+    }
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -416,6 +496,9 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
           Alert.alert('Erreur', 'Erreur lors de la création du don d\'occurrence');
           return;
         }
+      } else if (createdDonationRef.current) {
+        // Le don a déjà été créé lors d'une tentative précédente (paiement échoué) : le réutiliser
+        donation = createdDonationRef.current;
       } else {
         // Mode nouveau don ou retry - créer un nouveau don
         const newDonationData: CreateDonationData = {
@@ -459,7 +542,8 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         
         if (response.data.success) {
           donation = response.data.data.donation;
-          console.log('Don créé avec succès:', donation);
+          createdDonationRef.current = donation;
+          console.log('Don créé avec succès:', donation?.id);
         } else {
           Alert.alert('Erreur', 'Erreur lors de la création du don');
           return;
@@ -500,11 +584,10 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
         }
       }
 
-      console.log('📝 Données finales pour initialisation paiement:', paymentData);
       const paymentResponse = await donationService.initializePayment(paymentData);
-      console.log('Réponse paiement:', paymentResponse.data);
       
       if (paymentResponse.data.success) {
+        createdDonationRef.current = null; // paiement lancé : la prochaine soumission est un nouveau don
         const paymentInfo = paymentResponse.data.data;
         
         // Récupérer l'URL de paiement - elle est directement dans la réponse
@@ -529,7 +612,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
               {
                 text: 'Annuler',
                 style: 'cancel',
-                onPress: () => navigation.navigate('DashboardModern'),
+                onPress: () => navigation.navigate('Dashboard'),
               },
               {
                 text: 'Continuer le paiement',
@@ -548,7 +631,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                   } catch (error) {
                     console.error('Erreur ouverture URL:', error);
                     Alert.alert('Erreur', 'Impossible d\'ouvrir la page de paiement. Veuillez réessayer.');
-                    navigation.navigate('DashboardModern');
+                    navigation.navigate('Dashboard');
                   }
                 },
               },
@@ -567,13 +650,13 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
             [
               {
                 text: 'OK',
-                onPress: () => navigation.navigate('DashboardModern'),
+                onPress: () => navigation.navigate('Dashboard'),
               },
             ]
           );
         }
       } else {
-        Alert.alert('Erreur', 'Erreur lors de l\'initialisation du paiement');
+        Alert.alert('Paiement non initialisé', 'Votre don est enregistré. Appuyez à nouveau sur le bouton pour relancer le paiement.');
       }
     } catch (error: any) {
       console.error('Erreur création don:', error);
@@ -613,7 +696,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
             </TouchableOpacity>
           </View>
           <FlatList
-            data={categories}
+            data={recurringCategories}
             keyExtractor={(item) => item.value}
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -624,7 +707,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                   },
                 ]}
                 onPress={() => {
-                  setFormData(prev => ({ ...prev, category: item.value }));
+                  selectRecurringCategory(item.value);
                   setShowCategoryModal(false);
                 }}
               >
@@ -791,17 +874,14 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                 placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
                 value={formData.amount > 0 ? formData.amount.toString() : ''}
                 onChangeText={handleAmountChange}
-                keyboardType="numeric"
+                keyboardType="number-pad"
+                maxLength={7}
+                returnKeyType="done"
               />
-              <TouchableOpacity
-                style={styles.currencyButton}
-                onPress={() => setShowCurrencyModal(true)}
-              >
-                <Text style={[styles.currencyText, { color: colors.primary }]}>
-                  {currencies.find(c => c.value === formData.currency)?.symbol}
-                </Text>
-                <MaterialIcons name="keyboard-arrow-down" size={20} color={colors.primary} />
-              </TouchableOpacity>
+              {/* Devise fixe : FCFA (seule devise acceptée par MoneyFusion) */}
+              <View style={styles.currencyButton}>
+                <Text style={[styles.currencyText, { color: colors.primary }]}>FCFA</Text>
+              </View>
             </TouchableOpacity>
             {formData.amount > 0 && (
               <Text
@@ -830,7 +910,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                   formData.type === 'one_time' && { backgroundColor: colors.primary },
                   { borderColor: colors.primary }
                 ]}
-                onPress={() => setFormData(prev => ({ ...prev, type: 'one_time' }))}
+                onPress={() => selectDonationType('one_time')}
               >
                 <Text style={[
                   styles.typeButtonText,
@@ -845,7 +925,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                   formData.type === 'recurring' && { backgroundColor: colors.primary },
                   { borderColor: colors.primary }
                 ]}
-                onPress={() => setFormData(prev => ({ ...prev, type: 'recurring' }))}
+                onPress={() => selectDonationType('recurring')}
               >
                 <Text style={[
                   styles.typeButtonText,
@@ -901,14 +981,16 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                     }]}
                     value={recurringInterval.toString()}
                     onChangeText={(text) => {
-                      const num = parseInt(text) || 1;
-                      setRecurringInterval(Math.max(1, num));
+                      const num = Math.max(1, parseInt(text.replace(/\D/g, ''), 10) || 1);
+                      setRecurringInterval(num);
+                      syncCategoryWithFrequency(recurringFrequency, num);
                     }}
-                    keyboardType="numeric"
+                    keyboardType="number-pad"
+                    maxLength={2}
                     placeholder="1"
                   />
                   <Text style={[styles.intervalLabel, { color: colors.text }]}>
-                    {frequencies.find(f => f.value === recurringFrequency)?.label.toLowerCase()}(s)
+                    {frequencyUnit(recurringFrequency, recurringInterval)}
                   </Text>
                 </View>
               </View>
@@ -956,34 +1038,11 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                 </Text>
                 <TouchableOpacity
                   style={[styles.selectButton, { borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-                  onPress={() => {
-                    Alert.prompt(
-                      'Date de début',
-                      'Entrez la date de début (AAAA-MM-JJ) :',
-                      [
-                        {
-                          text: 'Annuler',
-                          style: 'cancel',
-                        },
-                        {
-                          text: 'OK',
-                          onPress: (date) => {
-                            if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                              setRecurringStartDate(date);
-                            } else {
-                              Alert.alert('Erreur', 'Format de date invalide. Utilisez AAAA-MM-JJ');
-                            }
-                          },
-                        },
-                      ],
-                      'plain-text',
-                      recurringStartDate
-                    );
-                  }}
+                  onPress={() => setDatePickerTarget('start')}
                 >
                   <Text style={[styles.selectButtonText, { color: colors.text }]}>
                     {recurringStartDate ? 
-                      new Date(recurringStartDate).toLocaleDateString('fr-FR') : 
+                      fromYMD(recurringStartDate).toLocaleDateString('fr-FR') : 
                       'Sélectionner la date de début'
                     }
                   </Text>
@@ -1049,34 +1108,11 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                       </Text>
                       <TouchableOpacity
                         style={[styles.selectButton, { borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-                        onPress={() => {
-                          Alert.prompt(
-                            'Date de fin',
-                            'Entrez la date de fin (AAAA-MM-JJ) :',
-                            [
-                              {
-                                text: 'Annuler',
-                                style: 'cancel',
-                              },
-                              {
-                                text: 'OK',
-                                onPress: (date) => {
-                                  if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                                    setRecurringEndDate(date);
-                                  } else {
-                                    Alert.alert('Erreur', 'Format de date invalide. Utilisez AAAA-MM-JJ');
-                                  }
-                                },
-                              },
-                            ],
-                            'plain-text',
-                            recurringEndDate
-                          );
-                        }}
+                        onPress={() => setDatePickerTarget('end')}
                       >
                         <Text style={[styles.selectButtonText, { color: colors.text }]}>
                           {recurringEndDate ? 
-                            new Date(recurringEndDate).toLocaleDateString('fr-FR') : 
+                            fromYMD(recurringEndDate).toLocaleDateString('fr-FR') : 
                             'Sélectionner la date de fin'
                           }
                         </Text>
@@ -1089,7 +1125,8 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
             </View>
           )}
 
-          {/* Catégorie */}
+          {/* Catégorie : un don unique est toujours « Ponctuel », le choix n'a de sens qu'en récurrent */}
+          {formData.type === 'recurring' && (
           <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Catégorie
@@ -1114,6 +1151,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
               <MaterialIcons name="keyboard-arrow-down" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
+          )}
 
           {/* Méthode de paiement */}
           <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
@@ -1474,6 +1512,7 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                     ]}
                     onPress={() => {
                       setRecurringFrequency(item.value);
+                      syncCategoryWithFrequency(item.value, recurringInterval);
                       setShowFrequencyModal(false);
                     }}
                   >
@@ -1548,12 +1587,101 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
             </View>
           </View>
         </Modal>
+
+        {/* Sélecteur de date (Android : boîte de dialogue native ; iOS : calendrier dans une fenêtre) */}
+        {datePickerTarget && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={datePickerTarget === 'start'
+              ? fromYMD(recurringStartDate)
+              : (recurringEndDate ? fromYMD(recurringEndDate) : new Date(fromYMD(recurringStartDate).getTime() + 86400000))}
+            mode="date"
+            minimumDate={datePickerTarget === 'start' ? new Date() : new Date(fromYMD(recurringStartDate).getTime() + 86400000)}
+            onChange={(event, date) => {
+              const target = datePickerTarget;
+              setDatePickerTarget(null);
+              if (event.type === 'set' && date) {
+                if (target === 'start') setRecurringStartDate(toYMD(date));
+                else setRecurringEndDate(toYMD(date));
+              }
+            }}
+          />
+        )}
+        {Platform.OS === 'ios' && (
+          <Modal
+            visible={!!datePickerTarget}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setDatePickerTarget(null)}
+          >
+            <TouchableOpacity style={styles.datePickerOverlay} activeOpacity={1} onPress={() => setDatePickerTarget(null)}>
+              <TouchableOpacity activeOpacity={1} style={[styles.datePickerSheet, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+                <View style={styles.datePickerHeader}>
+                  <Text style={[styles.datePickerTitle, { color: colors.text }]}>
+                    {datePickerTarget === 'start' ? 'Date de début' : 'Date de fin'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setDatePickerTarget(null)}>
+                    <Text style={[styles.datePickerDone, { color: colors.primary }]}>OK</Text>
+                  </TouchableOpacity>
+                </View>
+                {datePickerTarget && (
+                  <DateTimePicker
+                    value={datePickerTarget === 'start'
+                      ? fromYMD(recurringStartDate)
+                      : (recurringEndDate ? fromYMD(recurringEndDate) : new Date(fromYMD(recurringStartDate).getTime() + 86400000))}
+                    mode="date"
+                    display="inline"
+                    locale="fr-FR"
+                    themeVariant={dark ? 'dark' : 'light'}
+                    accentColor={colors.primary}
+                    minimumDate={datePickerTarget === 'start' ? new Date() : new Date(fromYMD(recurringStartDate).getTime() + 86400000)}
+                    onChange={(_, date) => {
+                      if (!date) return;
+                      if (datePickerTarget === 'start') {
+                        setRecurringStartDate(toYMD(date));
+                        // Date de fin devenue invalide : on l'efface
+                        if (recurringEndDate && fromYMD(recurringEndDate) <= date) setRecurringEndDate('');
+                      } else {
+                        setRecurringEndDate(toYMD(date));
+                      }
+                    }}
+                  />
+                )}
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  datePickerSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    paddingHorizontal: 12,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 14,
+  },
+  datePickerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  datePickerDone: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
   },

@@ -23,6 +23,7 @@ import { showSuccess, showError } from '../store/slices/notificationSlice';
 import InputModern from '../components/InputModern';
 import apiService from '../services/apiService';
 import RefreshableHeader from '../components/RefreshableHeader';
+import openLink from '../utils/openLink';
 const { width, height } = Dimensions.get('window');
 
 // Coordonnées du Ministère de l'Agriculture et de l'Équipement Rural du Sénégal
@@ -92,7 +93,7 @@ const ContactMinistereSimple = ({ navigation }) => {
         { text: 'Annuler', style: 'cancel' },
         { 
           text: 'Appeler', 
-          onPress: () => Linking.openURL(`tel:${phoneNumber}`)
+          onPress: () => { openLink(`tel:${phoneNumber}`); }
         }
       ]
     );
@@ -101,11 +102,11 @@ const ContactMinistereSimple = ({ navigation }) => {
   const handleEmail = () => {
     const subject = encodeURIComponent('Contact depuis l\'application PartenaireMAGB');
     const body = encodeURIComponent('Bonjour,\n\nJe vous contacte depuis l\'application mobile PartenaireMAGB.\n\n');
-    Linking.openURL(`mailto:${CONTACT_INFO.email}?subject=${subject}&body=${body}`);
+    openLink(`mailto:${CONTACT_INFO.email}?subject=${subject}&body=${body}`);
   };
 
   const handleWebsite = () => {
-    Linking.openURL(CONTACT_INFO.website);
+    openLink(CONTACT_INFO.website);
   };
 
   const handleOpenMap = () => {
@@ -120,14 +121,14 @@ const ContactMinistereSimple = ({ navigation }) => {
           text: 'Google Maps',
           onPress: () => {
             const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-            Linking.openURL(googleMapsUrl);
+            openLink(googleMapsUrl);
           }
         },
         {
           text: 'Apple Plans',
           onPress: () => {
             const appleMapsUrl = `http://maps.apple.com/?q=${latitude},${longitude}`;
-            Linking.openURL(appleMapsUrl);
+            openLink(appleMapsUrl);
           }
         }
       ]
@@ -142,14 +143,10 @@ const ContactMinistereSimple = ({ navigation }) => {
       android: `geo:0,0?q=${latitude},${longitude}(Ministère d'Adoration Geneviève Brou)`
     });
     
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
+    Linking.openURL(url).catch(() => {
         // Fallback vers Google Maps web
         const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-        Linking.openURL(googleMapsUrl);
-      }
+        openLink(googleMapsUrl);
     });
   };
 

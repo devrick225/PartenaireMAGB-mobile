@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ImageBackground } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PageContainer from '../components/PageContainer';
 import DotsView from '../components/DotsView';
@@ -17,11 +17,12 @@ const Onboarding = ({ navigation }) => {
       backgroundColor: colors.background }]}>
       <PageContainer>
         <View style={Onboarding1Styles.contentContainer}>
-          <ImageBackground
-            source={images.onboarding1}
-            style={Onboarding1Styles.backgroundImage}
-            resizeMode="cover"
-          >
+          <View style={Onboarding1Styles.backgroundImage}>
+            <Image
+              source={images.onboarding1}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
             {/* Overlay pour améliorer la lisibilité */}
             
             {/* Section Contenu Fixe */}
@@ -55,7 +56,7 @@ const Onboarding = ({ navigation }) => {
               style={Onboarding1Styles.skipButton}
             />
             </View>
-          </ImageBackground>
+          </View>
         </View>
       </PageContainer>
     </SafeAreaView>

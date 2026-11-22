@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Linking,
   Alert,
   Share,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
@@ -25,6 +25,7 @@ import {
 } from '../constants/socialMedia';
 import SocialMediaCard from '../components/SocialMediaCard';
 import RefreshableHeader from '../components/RefreshableHeader';
+import openLink from '../utils/openLink';
 
 interface SocialMediaScreenProps {
   navigation: any;
@@ -198,30 +199,9 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
   });
 
   const handlePlatformPress = async (platform: SocialMediaPlatform) => {
-    try {
-      console.log(`🔗 Ouverture de ${platform.name}: ${platform.url}`);
-      
-      // Vérifier si l'URL peut être ouverte
-      const canOpen = await Linking.canOpenURL(platform.url);
-      
-      if (canOpen) {
-        await Linking.openURL(platform.url);
-      } else {
-        Alert.alert(
-          'Lien non disponible',
-          ERROR_MESSAGES.linkNotAvailable,
-          [{ text: 'OK', style: 'default' }]
-        );
-      }
-    } catch (error) {
-      console.error(`❌ Erreur ouverture ${platform.name}:`, error);
-      Alert.alert(
-        'Erreur',
-        ERROR_MESSAGES.networkError,
-        [{ text: 'OK', style: 'default' }]
-      );
-    }
+    await openLink(platform.url, ERROR_MESSAGES.linkNotAvailable);
   };
+
 
   const handleSharePress = async () => {
     try {

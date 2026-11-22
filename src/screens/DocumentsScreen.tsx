@@ -90,7 +90,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
     if (!previewFilePath) return;
     try {
       // En Expo Go, les modules natifs custom ne sont pas disponibles
-      if (Constants.appOwnership === 'expo') {
+      if (Constants.executionEnvironment === 'storeClient') { // Expo Go : pas de module natif file-viewer
         if (previewType) {
           await documentsService.shareFile(previewFilePath, previewType);
         }
