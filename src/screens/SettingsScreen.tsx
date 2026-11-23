@@ -2,23 +2,29 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Pressable,
   Switch,
   Alert,
-  Modal,
-  FlatList,
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { useSelector, useDispatch } from 'react-redux';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  Card,
+  Section,
+  Row,
+  Badge,
+  Sheet,
+  IconName,
+} from '../design/components';
+import { spacing } from '../design/tokens';
 import userService from '../store/services/userService';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor } from '../hooks/useUserPermissions';
 import { logoutUser, updateUser } from '../store/slices/authSlice';
@@ -51,7 +57,7 @@ interface SettingsScreenProps {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c } = useDS();
   const dispatch = useDispatch();
   const { logout } = useLogout();
   const user = useSelector((state: RootState) => state.auth.user);
@@ -498,604 +504,169 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
   const sections = finalSections();
 
-  const renderSettingItem = (item: SettingItem, sectionIndex: number, itemIndex: number) => {
-    const isLastInSection = itemIndex === sections[sectionIndex].items.length - 1;
-    const isToggle = item.type === 'toggle';
 
-    return (
-      <TouchableOpacity
-        key={item.id}
-        style={[
-          styles.settingItem,
-          { borderBottomColor: dark ? COLORS.dark3 : COLORS.greyscale300 },
-          isLastInSection && { borderBottomWidth: 0 },
-        ]}
-        // Toute la ligne est cliquable, y compris pour les interrupteurs
-        onPress={isToggle ? () => item.onToggle?.(!item.value) : item.onPress}
-        disabled={isLoading || (isToggle && isSaving)}
-        accessibilityRole={isToggle ? 'switch' : 'button'}
-        accessibilityState={isToggle ? { checked: !!item.value } : undefined}
-      >
-        <View style={styles.settingItemLeft}>
-          <MaterialIcons
-            name={item.icon as any}
-            size={24}
-            color={item.destructive ? '#FF5722' : colors.primary}
-          />
-          <View style={styles.settingItemText}>
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.settingItemTitle,
-                {
-                  color: item.destructive
-                    ? '#FF5722'
-                    : colors.text,
-                },
-              ]}
-            >
-              {item.title}
-            </Text>
-            {item.type === 'selection' && (
-              <Text style={[styles.settingItemValue, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                {item.value as string}
-              </Text>
-            )}
-          </View>
-        </View>
-        
-        <View style={styles.settingItemRight}>
-          {isToggle && (
+  // Icônes MaterialIcons des données → équivalents Ionicons du design system
+  const ICONS: Record<string, IconName> = {
+    'account-circle': 'person-circle-outline',
+    'admin-panel-settings': 'shield-outline',
+    article: 'newspaper-outline',
+    assignment: 'clipboard-outline',
+    'contact-support': 'chatbox-ellipses-outline',
+    'delete-forever': 'trash-outline',
+    download: 'download-outline',
+    email: 'mail-outline',
+    help: 'help-circle-outline',
+    'help-outline': 'help-circle-outline',
+    lock: 'lock-closed-outline',
+    logout: 'log-out-outline',
+    notifications: 'notifications-outline',
+    payment: 'card-outline',
+    'privacy-tip': 'document-lock-outline',
+    schedule: 'time-outline',
+    security: 'shield-checkmark-outline',
+    sms: 'chatbubble-outline',
+    'support-agent': 'headset-outline',
+    'verified-user': 'checkmark-done-outline',
+    face: 'scan-outline',
+    fingerprint: 'finger-print-outline',
+  };
+
+  const renderSettingItem = (item: SettingItem, sectionIndex: number, itemIndex: number) => {
+    const last = itemIndex === sections[sectionIndex].items.length - 1;
+    const icon = ICONS[item.icon] ?? 'ellipse-outline';
+    if (item.type === 'toggle') {
+      return (
+        <Row
+          key={item.id}
+          icon={icon}
+          label={item.title}
+          last={last}
+          onPress={isLoading || isSaving ? undefined : () => item.onToggle?.(!item.value)}
+          accessibilityLabel={`${item.title} : ${item.value ? 'activé' : 'désactivé'}`}
+          right={
             <Switch
               value={!!item.value}
               onValueChange={(v) => item.onToggle?.(v)}
               disabled={isSaving}
-              trackColor={{ false: dark ? COLORS.dark3 : COLORS.greyscale300, true: colors.primary }}
-              thumbColor={COLORS.white}
-              ios_backgroundColor={dark ? COLORS.dark3 : COLORS.greyscale300}
+              trackColor={{ false: c.input, true: c.primary }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor={c.input}
             />
-          )}
-          {(item.type === 'navigation' || item.type === 'selection') && (
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={dark ? COLORS.grayTie : COLORS.gray}
-            />
-          )}
-        </View>
-      </TouchableOpacity>
+          }
+        />
+      );
+    }
+    return (
+      <Row
+        key={item.id}
+        icon={icon}
+        label={item.title}
+        value={item.type === 'selection' ? String(item.value ?? '') : undefined}
+        destructive={item.destructive}
+        onPress={isLoading ? undefined : item.onPress}
+        chevron={item.type === 'navigation' || item.type === 'selection'}
+        last={last}
+      />
     );
   };
 
-  const renderSelectionModal = () => (
-    <Modal
-      visible={modalVisible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: dark ? COLORS.dark3 : 'rgba(0,0,0,0.1)' }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {currentSelection?.title}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <FlatList
-            data={currentSelection?.options}
-            keyExtractor={(item) => item.value}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.modalOption,
-                  {
-                    backgroundColor:
-                      item.value === currentSelection?.current
-                        ? colors.primary + '20'
-                        : 'transparent',
-                  },
-                ]}
-                onPress={() => currentSelection?.onSelect(item.value)}
-              >
-                <Text
-                  style={[
-                    styles.modalOptionText,
-                    {
-                      color:
-                        item.value === currentSelection?.current
-                          ? colors.primary
-                          : colors.text,
-                      fontWeight:
-                        item.value === currentSelection?.current
-                          ? '600'
-                          : 'normal',
-                    },
-                  ]}
-                >
-                  {item.label}
-                </Text>
-                {item.value === currentSelection?.current && (
-                  <MaterialIcons
-                    name="check"
-                    size={20}
-                    color={colors.primary}
-                  />
-                )}
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </View>
-    </Modal>
+  const hero = (
+    <HeroHeader
+      eyebrow="Mon compte"
+      eyebrowIcon="settings-outline"
+      title="Paramètres"
+      onBack={() => navigation.goBack()}
+    />
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Paramètres</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Informations utilisateur */}
-        <View style={[styles.userSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <View style={styles.userInfo}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ProfileImage')}
-              accessibilityRole="button"
-              accessibilityLabel="Modifier la photo de profil"
-            >
-              {user?.avatar ? (
-                <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
+    <Screen hero={hero}>
+      {/* Carte utilisateur */}
+      <Card style={styles.userCard}>
+        <Pressable onPress={() => navigation.navigate('ProfileImage')} accessibilityRole="button" accessibilityLabel="Modifier la photo de profil">
+          {user?.avatar ? (
+            <Image source={{ uri: user.avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: c.primarySoft }]}>
+              <AppText variant="subtitle" color={c.primary}>{user?.firstName?.[0]}{user?.lastName?.[0]}</AppText>
+            </View>
+          )}
+        </Pressable>
+        <View style={styles.flex}>
+          <AppText variant="subtitle" numberOfLines={2}>{user?.firstName} {user?.lastName}</AppText>
+          <AppText variant="small" color={c.mutedForeground} numberOfLines={1} ellipsizeMode="middle">{user?.email}</AppText>
+          {user?.phone ? <AppText variant="small" color={c.mutedForeground}>{user.phone}</AppText> : null}
+          <View style={styles.badges}>
+            {user?.isEmailVerified ? (
+              <Badge label="Email vérifié" tone="success" icon="checkmark-circle" />
+            ) : (
+              <Pressable onPress={() => navigation.navigate('EmailVerification')} accessibilityRole="button">
+                <Badge label="Vérifier l'email" tone="warning" icon="mail-outline" />
+              </Pressable>
+            )}
+            {user?.phone ? (
+              user?.isPhoneVerified ? (
+                <Badge label="Téléphone vérifié" tone="success" icon="checkmark-circle" />
               ) : (
-                <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.userAvatarText}>
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <View style={styles.userDetails}>
-              <Text style={[styles.userName, { color: colors.text }]} numberOfLines={2}>
-                {user?.firstName} {user?.lastName}
-              </Text>
-
-              {/* CTA inline à côté du nom pour vérifications */}
-              <View style={styles.inlineCtas}>
-                {!user?.isEmailVerified && (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('EmailVerification')}
-                    style={[styles.ctaBadge, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
-                  >
-                    <MaterialIcons name="email" size={14} color={colors.primary} />
-                    <Text style={[styles.ctaBadgeText, { color: colors.primary }]}>Vérifier email</Text>
-                  </TouchableOpacity>
-                )}
-
-                {user?.phone && !user?.isPhoneVerified && (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('PhoneVerification')}
-                    style={[styles.ctaBadge, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
-                  >
-                    <MaterialIcons name="phone-iphone" size={14} color={colors.primary} />
-                    <Text style={[styles.ctaBadgeText, { color: colors.primary }]}>Vérifier téléphone</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={styles.emailContainer}>
-                <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1} ellipsizeMode="middle">
-                  {user?.email}
-                </Text>
-                {user?.isEmailVerified && (
-                  <View style={styles.verifiedContainer}>
-                    <MaterialIcons name="verified" size={16} color="#4CAF50" />
-                  </View>
-                )}
-              </View>
-
-              {user?.phone && (
-                <View style={styles.phoneContainer}>
-                  <Text style={[styles.userPhone, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    {user.phone}
-                  </Text>
-                  {user?.isPhoneVerified && (
-                    <View style={styles.verifiedContainer}>
-                      <MaterialIcons name="verified" size={16} color="#4CAF50" />
-                    </View>
-                  )}
-                </View>
-              )}
-              
-              <View style={styles.userLevel}>
-                {user?.role && permissions.canAccessAdminFeatures && (
-                  <View style={[styles.roleBadge, { backgroundColor: getUserRoleColor(user.role as any) + '20' }]}>
-                    <MaterialIcons name="admin-panel-settings" size={14} color={getUserRoleColor(user.role as any)} />
-                    <Text style={[styles.roleBadgeText, { color: getUserRoleColor(user.role as any) }]}>
-                      {getUserRoleLabel(user.role as any)}
-                    </Text>
-                  </View>
-                )}
-                {(user as any)?.level && (
-                  <View style={styles.levelBadge}>
-                    <MaterialIcons name="star" size={14} color={colors.primary} />
-                    <Text style={[styles.userLevelText, { color: colors.primary }]}>
-                      Niveau {(user as any)?.level || 1}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
+                <Pressable onPress={() => navigation.navigate('PhoneVerification')} accessibilityRole="button">
+                  <Badge label="Vérifier le téléphone" tone="warning" icon="call-outline" />
+                </Pressable>
+              )
+            ) : null}
+            {user?.role && permissions.canAccessAdminFeatures ? (
+              <Badge label={getUserRoleLabel(user.role as any)} tone="primary" icon="shield-outline" />
+            ) : null}
           </View>
         </View>
+      </Card>
 
-        {/* Sections de paramètres */}
-        {sections.map((section, sectionIndex) => (
-          <View
-            key={section.title}
-            style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-          >
-            <View style={styles.sectionHeader}>
-              <MaterialIcons
-                name={section.icon as any}
-                size={20}
-                color={colors.primary}
+      {sections.map((section, sectionIndex) => (
+        <Section key={section.title} title={section.title}>
+          {section.items.map((item, itemIndex) => renderSettingItem(item, sectionIndex, itemIndex))}
+        </Section>
+      ))}
+
+      <AppText variant="caption" color={c.mutedForeground} center>
+        Partenaire MAGB · version {Constants.expoConfig?.version ?? '1.0.0'}
+      </AppText>
+
+      <Sheet visible={modalVisible} title={currentSelection?.title ?? ''} onClose={() => setModalVisible(false)}>
+        <Card padded={false}>
+          {(currentSelection?.options ?? []).map((o, i, arr) => {
+            const active = o.value === currentSelection?.current;
+            return (
+              <Row
+                key={o.value}
+                label={o.label}
+                onPress={() => currentSelection?.onSelect(o.value)}
+                right={active ? <Ionicons name="checkmark" size={20} color={c.primary} /> : undefined}
+                last={i === arr.length - 1}
               />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {section.title}
-              </Text>
-            </View>
-            
-            <View style={styles.sectionContent}>
-              {section.items.map((item, itemIndex) =>
-                renderSettingItem(item, sectionIndex, itemIndex)
-              )}
-            </View>
-          </View>
-        ))}
+            );
+          })}
+        </Card>
+      </Sheet>
 
-        {/* Version de l'app */}
-        <View style={styles.versionSection}>
-          <Text style={[styles.versionText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Version {Constants.expoConfig?.version ?? '1.0.0'}
-          </Text>
+      {isLoading ? (
+        <View style={[styles.loadingOverlay, { backgroundColor: c.overlay }]} pointerEvents="auto">
+          <Card style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={c.primary} />
+            <AppText variant="body">Traitement en cours…</AppText>
+          </Card>
         </View>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-
-      {renderSelectionModal()}
-
-      {isLoading && (
-        <View style={styles.loadingOverlay} pointerEvents="auto">
-          <View style={[styles.loadingBox, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.text }]}>Traitement en cours...</Text>
-          </View>
-        </View>
-      )}
-    </SafeAreaView>
+      ) : null}
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  userSection: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  userAvatarImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 16,
-    resizeMode: 'cover',
-  },
-  userAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  userAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  inlineCtas: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 6,
-  },
-  ctaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  ctaBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  emailContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    paddingRight: 4,
-  },
-  phoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'center', 
-    marginBottom: 8,
-  },
-  verifiedContainer: {
-    marginLeft: 8,
-    justifyContent: 'center',
-  },
-  userEmail: {
-    fontSize: 14,
-    flexShrink: 1,
-  },
-  userPhone: {
-    fontSize: 14,
-  },
-  verifiedBadge: {
-    marginLeft: 8,
-    alignSelf: 'center',
-  },
-  userLevel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  userLevelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  section: {
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  sectionContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  settingItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingItemText: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  settingItemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  settingItemValue: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  settingItemRight: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
-  },
-  versionSection: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  versionText: {
-    fontSize: 12,
-  },
-  bottomPadding: {
-    height: 40, // espace au-dessus de la barre d'accueil iPhone
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingBox: {
-    paddingVertical: 24,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '60%',
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    marginHorizontal: 20,
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  modalOptionText: {
-    fontSize: 16,
-  },
-  settingIcon: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingContent: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  settingDescription: {
-    fontSize: 14,
-  },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 4,
-    borderRadius: 8,
-  },
-  roleBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
-  levelBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 4,
-    borderRadius: 8,
-  },
-  verifyLink: {
-    marginLeft: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 4,
-  },
-  verifyText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  checkboxContainer: {
-    padding: 4,
-  },
+  flex: { flex: 1 },
+  userCard: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.lg },
+  avatar: { width: 60, height: 60, borderRadius: 30 },
+  avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  loadingBox: { alignItems: 'center', gap: spacing.md, minWidth: 200 },
 });
 
-export default SettingsScreen; 
+export default SettingsScreen;

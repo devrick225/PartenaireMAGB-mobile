@@ -2,29 +2,37 @@ import logger from '../utils/logger';
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Pressable,
   Image,
   Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { MaterialIcons, Ionicons, Octicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  Card,
+  Section,
+  Row,
+  StatCard,
+  Badge,
+  LoadingState,
+} from '../design/components';
+import { spacing } from '../design/tokens';
 import userService from '../store/services/userService';
 import { updateUser } from '../store/slices/authSlice';
 import useLogout from '../hooks/useLogout';
 import { showApiError } from '../store/services/apiClient';
 import { RootState } from '../store';
 import PartnerIdDisplay from '../components/PartnerIdDisplay';
-import RefreshableHeader from '../components/RefreshableHeader';
 import { requestMediaLibraryPermission } from '../utils/permissions';
 
 interface UserProfile {
@@ -55,10 +63,11 @@ interface UserProfile {
 
 interface ProfileScreenProps {
   navigation: any;
+  route?: { params?: { asTab?: boolean } };
 }
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation, route }) => {
+  const { c } = useDS();
   const dispatch = useDispatch();
   const { logout } = useLogout();
   const { user } = useSelector((state: RootState) => state.auth);
@@ -173,517 +182,149 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const ROLE_LABELS: Record<string, string> = {
+    user: 'Partenaire',
+    admin: 'Administrateur',
+    moderator: 'Modérateur',
+    treasurer: 'Trésorier',
+    support_agent: 'Agent support',
   };
+  const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Mon profil';
+  const emailVerified = user?.isEmailVerified ?? profile?.user?.isEmailVerified;
+  const phoneVerified = user?.isPhoneVerified ?? profile?.user?.isPhoneVerified;
+  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
 
-  const renderInfoItem = (
-    icon: string,
-    label: string,
-    value: string | undefined,
-    verified?: boolean,
-    onVerify?: () => void
-  ) => (
-    <View style={styles.infoItem}>
-      <MaterialIcons name={icon as any} size={20} color={colors.primary} />
-      <View style={styles.infoContent}>
-        <Text style={[styles.infoLabel, { color: colors.text }]}>{label}</Text>
-        <Text style={[styles.infoValue, { color: colors.text }]}>
-          {value || 'Non renseigné'}
-        </Text>
-      </View>
-      {/* Pas d'icône si le champ est vide (ex: pas de téléphone) */}
-      {verified !== undefined && !!value && (
-        verified ? (
-          <MaterialIcons name="verified" size={20} color="#4CAF50" accessibilityLabel={`${label} vérifié`} />
-        ) : (
-          <TouchableOpacity
-            onPress={onVerify}
-            disabled={!onVerify}
-            style={styles.verifyChip}
-            accessibilityRole="button"
-            accessibilityLabel={`Vérifier ${label.toLowerCase()}`}
-          >
-            <MaterialIcons name="error-outline" size={16} color="#FF5722" />
-            <Text style={styles.verifyChipText}>Vérifier</Text>
-          </TouchableOpacity>
-        )
-      )}
-    </View>
-  );
+  const verifiedBadge = (ok?: boolean, onPress?: () => void) =>
+    ok ? (
+      <Badge label="Vérifié" tone="success" icon="checkmark-circle" />
+    ) : (
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Vérifier" hitSlop={6}>
+        <Badge label="À vérifier" tone="warning" icon="alert-circle" />
+      </Pressable>
+    );
 
-  const renderActionItem = (icon: string, title: string, subtitle: string, onPress: () => void, iconColor?: string) => (
-    <TouchableOpacity style={styles.actionItem} onPress={onPress}>
-      <View style={styles.actionIcon}>
-        <MaterialIcons name={icon as any} size={22} color={iconColor || colors.primary} />
+  const hero = (
+    <HeroHeader
+      eyebrow={ROLE_LABELS[user?.role as string] ?? 'Partenaire'}
+      eyebrowIcon="person-outline"
+      title={fullName}
+      subtitle={profile?.user?.email ?? user?.email}
+      onBack={route?.params?.asTab ? undefined : () => navigation.goBack()}
+      right={<IconButton icon="settings-outline" tone="hero" accessibilityLabel="Paramètres" onPress={() => navigation.navigate('Settings')} />}
+    >
+      <View style={styles.heroRow}>
+        <Pressable
+          onPress={handleImagePicker}
+          disabled={isUploading}
+          accessibilityRole="button"
+          accessibilityLabel="Changer ma photo de profil"
+          style={[styles.avatarWrap, { borderColor: c.gold }]}
+        >
+          {profile?.user?.avatar || user?.avatar ? (
+            <Image source={{ uri: (profile?.user?.avatar || user?.avatar) as string }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: c.heroChip }]}>
+              <AppText variant="title" color={c.heroText}>{initials || '?'}</AppText>
+            </View>
+          )}
+          {isUploading ? (
+            <View style={styles.uploading}>
+              <ActivityIndicator color="#FFFFFF" />
+            </View>
+          ) : null}
+          <View style={[styles.camera, { backgroundColor: c.gold }]}>
+            <Ionicons name="camera" size={14} color={c.onGold} />
+          </View>
+        </Pressable>
+        <View style={[styles.flex, styles.chips]}>
+          {user?.partnerId ? <HeroChip icon="id-card-outline" label={`ID ${user.partnerId}`} /> : null}
+          {user?.partnerLevel ? <HeroChip icon="trophy" label={`Niveau ${String(user.partnerLevel)}`} /> : null}
+        </View>
       </View>
-      <View style={styles.actionContent}>
-        <Text style={[styles.actionTitle, { color: colors.text }]}>{title}</Text>
-        <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayscale400 : COLORS.greyscale600 }]}>{subtitle}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={dark ? COLORS.grayscale400 : COLORS.greyscale600} />
-    </TouchableOpacity>
+    </HeroHeader>
   );
 
   if (isLoading && !profile) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>
-          Chargement du profil...
-        </Text>
-      </View>
+      <Screen hero={hero}>
+        <Card>
+          <LoadingState message="Chargement du profil…" />
+        </Card>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <RefreshableHeader
-        title="Mon Profil"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={true}
-        onRefreshPress={onRefresh}
-        isRefreshing={isRefreshing}
-        showSettingsButton={true}
-        onSettingsPress={() => navigation.navigate('Settings')}
-      />
+    <Screen
+      hero={hero}
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+    >
+      <View style={styles.row3}>
+        <StatCard tinted tone="primary" icon="heart-outline" label="Dons" value={profile?.user?.donationCount || 0} />
+        <StatCard tinted tone="success" icon="person-circle-outline" label="Profil" value={`${profile?.completionPercentage || 0}%`} />
+        <StatCard tinted tone="warning" icon="ribbon-outline" label="Badges" value={profile?.user?.badges?.length || 0} />
+      </View>
 
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        {/* Profile Header */}
-        <LinearGradient
-          colors={[colors.primary, colors.primary + '90']}
-          style={styles.profileHeader}
-        >
-          <TouchableOpacity
-            onPress={handleImagePicker}
-            style={styles.avatarContainer}
-            disabled={isUploading}
-          >
-            {profile?.user?.avatar ? (
-              <Image source={{ uri: profile.user.avatar }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </Text>
-              </View>
-            )}
-            {isUploading && (
-              <View style={styles.uploadingOverlay}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              </View>
-            )}
-            <View style={styles.cameraIcon}>
-              <MaterialIcons name="camera-alt" size={16} color="#FFFFFF" />
-            </View>
-          </TouchableOpacity>
-          
-          <Text style={styles.profileName}>
-            {user?.firstName} {user?.lastName}
-          </Text>
-          <Text style={styles.profileRole}>
-            {user?.role?.toUpperCase()}
-          </Text>
-        </LinearGradient>
+      <Section title="Informations personnelles">
+        <Row
+          icon="mail-outline"
+          label="Email"
+          sublabel={profile?.user?.email ?? user?.email ?? 'Non renseigné'}
+          right={verifiedBadge(emailVerified, () => navigation.navigate('EmailVerification'))}
+        />
+        <Row
+          icon="call-outline"
+          label="Téléphone"
+          sublabel={profile?.user?.phone ?? user?.phone ?? 'Non renseigné'}
+          right={verifiedBadge(phoneVerified, () => navigation.navigate('PhoneVerification'))}
+        />
+        <Row icon="business-outline" label="Ville" sublabel={profile?.user?.city || 'Non renseignée'} />
+        <Row icon="earth-outline" label="Pays" sublabel={profile?.user?.country || 'Non renseigné'} />
+        <Row icon="briefcase-outline" label="Profession" sublabel={profile?.occupation || 'Non renseignée'} last />
+      </Section>
 
-        {/* Profile Stats */}
-        <View style={[styles.statsContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>
-              {profile?.user?.donationCount || 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayscale400 : COLORS.greyscale600 }]}>Dons</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>
-              {profile?.completionPercentage || 0}%
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayscale400 : COLORS.greyscale600 }]}>Profil complété</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>
-              {profile?.user?.badges?.length || 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayscale400 : COLORS.greyscale600 }]}>Badges</Text>
-          </View>
-        </View>
-
-        {/* Partner ID Display */}
-        {user?.partnerId && (
-          <View style={styles.partnerIdContainer}>
-            <PartnerIdDisplay
-              partnerId={user.partnerId}
-              partnerLevel={user.partnerLevel}
-              partnerLevelDetails={user.partnerLevelDetails}
-              variant="card"
-              showCopyButton={true}
-              showLevel={true}
+      {profile?.user?.badges && profile.user.badges.length > 0 ? (
+        <Section title="Mes badges">
+          {profile.user.badges.map((badge, index) => (
+            <Row
+              key={`${badge.name}-${index}`}
+              icon="ribbon-outline"
+              label={badge.name}
+              sublabel={badge.earnedAt ? `Obtenu le ${formatDate(badge.earnedAt)}` : undefined}
+              last={index === profile.user.badges.length - 1}
             />
-          </View>
-        )}
+          ))}
+        </Section>
+      ) : null}
 
-        {/* Personal Information */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Informations personnelles
-          </Text>
-          
-          {/* Statut lu dans Redux en priorité : mis à jour dès la vérification, sans recharger le profil */}
-          {renderInfoItem(
-            'email', 'Email',
-            profile?.user?.email ?? user?.email,
-            user?.isEmailVerified ?? profile?.user?.isEmailVerified,
-            () => navigation.navigate('EmailVerification')
-          )}
-          {renderInfoItem(
-            'phone', 'Téléphone',
-            profile?.user?.phone ?? user?.phone,
-            user?.isPhoneVerified ?? profile?.user?.isPhoneVerified,
-            () => navigation.navigate('PhoneVerification')
-          )}
-          {renderInfoItem('location-city', 'Ville', profile?.user?.city)}
-          {renderInfoItem('public', 'Pays', profile?.user?.country)}
-          {renderInfoItem('work', 'Profession', profile?.occupation)}
-        </View>
+      <Section title="Mon compte">
+        <Row icon="create-outline" label="Modifier mon profil" onPress={() => navigation.navigate('EditProfile')} chevron />
+        <Row icon="lock-closed-outline" label="Changer le mot de passe" onPress={() => navigation.navigate('ChangePassword')} chevron />
+        <Row icon="document-text-outline" label="Mes reçus et documents" onPress={() => navigation.navigate('Documents')} chevron />
+        <Row icon="settings-outline" label="Paramètres" onPress={() => navigation.navigate('Settings')} chevron last />
+      </Section>
 
-        {/* Badges */}
-        {profile?.user?.badges && profile.user.badges.length > 0 && (
-          <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Mes badges
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.badgesContainer}>
-                {profile.user.badges.map((badge, index) => (
-                  <View key={index} style={[styles.badgeItem, { backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale200 }]}>
-                    <Text style={styles.badgeIcon}>{badge.icon || '🏆'}</Text>
-                    <Text style={[styles.badgeName, { color: colors.text }]} numberOfLines={2}>
-                      {badge.name}
-                    </Text>
-                    <Text style={[styles.badgeDate, { color: dark ? COLORS.grayscale400 : COLORS.greyscale600 }]}>
-                      {formatDate(badge.earnedAt)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Actions
-          </Text>
-          
-          {renderActionItem(
-            'edit',
-            'Modifier mon profil',
-            'Mettre à jour mes informations',
-            () => navigation.navigate('EditProfile')
-          )}
-          
-          {renderActionItem(
-            'security',
-            'Changer le mot de passe',
-            'Sécuriser mon compte',
-            () => navigation.navigate('ChangePassword')
-          )}
-          
-          {renderActionItem(
-            'description',
-            'Mes Documents',
-            'Télécharger reçus et échéanciers',
-            () => navigation.navigate('Documents')
-          )}
-          
-          {renderActionItem(
-            'settings',
-            'Paramètres',
-            'Gérer mes préférences',
-            () => navigation.navigate('Settings')
-          )}
-          
-          {renderActionItem(
-            'logout',
-            'Déconnexion',
-            'Se déconnecter de l\'application',
-            handleLogout,
-            '#FF5722'
-          )}
-        </View>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-    </SafeAreaView>
+      <Section>
+        <Row icon="log-out-outline" label="Se déconnecter" destructive onPress={handleLogout} last />
+      </Section>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  verifyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FF5722',
-    backgroundColor: '#FF572212',
-  },
-  verifyChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FF5722',
-  },
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  profileHeader: {
-    padding: 30,
-    alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginBottom: 20,
-  },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-    position: 'relative',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraIcon: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  profileRole: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.8,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 16,
-  },
-  section: {
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  infoLabel: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  badgesContainer: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-  },
-  badgeItem: {
-    alignItems: 'center',
-    padding: 12,
-    marginRight: 12,
-    borderRadius: 8,
-    minWidth: 80,
-  },
-  badgeIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  badgeName: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  badgeDate: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  actionContent: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  actionSubtitle: {
-    fontSize: 14,
-  },
-  bottomPadding: {
-    height: 20,
-  },
-  partnerIdContainer: {
-    margin: 20,
-    marginTop: 0,
-    marginBottom: 10,
-  },
+  flex: { flex: 1 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  avatarWrap: { width: 76, height: 76, borderRadius: 38, borderWidth: 2, padding: 2 },
+  avatar: { width: '100%', height: '100%', borderRadius: 36 },
+  avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  uploading: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 38, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  camera: { position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  row3: { flexDirection: 'row', gap: spacing.sm },
 });
 
 export default ProfileScreen;
