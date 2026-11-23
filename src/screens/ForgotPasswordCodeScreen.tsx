@@ -10,24 +10,19 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient from '../store/services/apiClient';
 import { showApiError } from '../store/services/apiClient';
 
-import { IconButton } from '../design/components';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AuthScreen, AppText, Button, ChoiceCard, TextField } from '../design/components';
+import { spacing } from '../design/tokens';
 interface ForgotPasswordCodeScreenProps {
   navigation: any;
 }
 
 const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -77,190 +72,31 @@ const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ nav
   };
 
   return (
-    <SafeAreaView style={[styles.area, { backgroundColor: colors.background }]}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Header avec bouton retour */}
-          <View style={styles.header}>
-            <IconButton icon="chevron-back" onPress={handleBackToLogin} accessibilityLabel="Retour" />
-          </View>
-
-          {/* Illustration */}
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={dark ? illustrations.passwordDark : illustrations.password}
-              resizeMode="contain"
-              style={styles.illustration}
-            />
-          </View>
-
-          {/* Titre et description */}
-          <Text style={[styles.title, { color: c.foreground }]}>
-            Mot de passe oublié ?
-          </Text>
-          
-          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
-            Entrez votre adresse email et nous vous enverrons un code de réinitialisation
-          </Text>
-
-          {/* Champ email */}
-          <View style={styles.inputContainer}>
-            <View style={[styles.inputWrapper, { 
-              backgroundColor: c.muted,
-              borderColor: c.border 
-            }]}>
-              <MaterialIcons 
-                name="email" 
-                size={20} 
-                color={c.mutedForeground} 
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { 
-                  color: c.foreground 
-                }]}
-                placeholder="Adresse email"
-                placeholderTextColor={c.mutedForeground}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
-          </View>
-
-          {/* Bouton d'envoi */}
-          <TouchableOpacity
-            style={[
-              styles.button,
-              { 
-                backgroundColor: COLORS.primary,
-                opacity: (!email.trim() || isLoading) ? 0.7 : 1 
-              }
-            ]}
-            onPress={handleRequestCode}
-            disabled={!email.trim() || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.white} size="small" />
-            ) : (
-              <Text style={styles.buttonText}>Envoyer le code</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Lien retour connexion */}
-          <TouchableOpacity
-            style={styles.backToLoginContainer}
-            onPress={handleBackToLogin}
-          >
-            <Text style={[styles.backToLoginText, { color: COLORS.primary }]}>
-              Retour à la connexion
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+    <AuthScreen
+      title="Code par email"
+      subtitle="Saisissez votre adresse email : nous vous envoyons un code de réinitialisation."
+      icon="mail-outline"
+      onBack={handleBackToLogin}
+    >
+      <TextField
+        label="Adresse email"
+        icon="mail-outline"
+        placeholder="vous@exemple.com"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        textContentType="emailAddress"
+        autoComplete="email"
+        editable={!isLoading}
+        returnKeyType="send"
+        onSubmitEditing={handleRequestCode}
+      />
+      <Button title="Envoyer le code" icon="send" onPress={handleRequestCode} loading={isLoading} disabled={!email.trim()} />
+      <Button title="Retour à la connexion" variant="ghost" onPress={handleBackToLogin} />
+    </AuthScreen>
   );
 };
 
-const styles = StyleSheet.create({
-  area: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.greyscale500,
-  },
-  illustrationContainer: {
-    alignItems: 'center',
-    marginVertical: 32,
-  },
-  illustration: {
-    width: SIZES.width * 0.7,
-    height: 200,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    color: COLORS.black,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'regular',
-    color: COLORS.grayscale700,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: COLORS.greyscale500,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'regular',
-    color: COLORS.black,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 32,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  backToLoginContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  backToLoginText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    color: COLORS.primary,
-  },
-});
-
-export default ForgotPasswordCodeScreen; 
+export default ForgotPasswordCodeScreen;

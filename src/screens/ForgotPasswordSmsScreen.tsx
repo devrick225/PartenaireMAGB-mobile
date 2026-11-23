@@ -11,23 +11,18 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient, { showApiError } from '../store/services/apiClient';
 
-import { IconButton } from '../design/components';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AuthScreen, AppText, Button, ChoiceCard, TextField } from '../design/components';
+import { spacing } from '../design/tokens';
 interface ForgotPasswordSmsScreenProps {
   navigation: any;
 }
 
 const ForgotPasswordSmsScreen: React.FC<ForgotPasswordSmsScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -106,251 +101,29 @@ const ForgotPasswordSmsScreen: React.FC<ForgotPasswordSmsScreenProps> = ({ navig
   };
 
   return (
-    <SafeAreaView style={[styles.area, { backgroundColor: colors.background }]}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Header avec bouton retour */}
-          <View style={styles.header}>
-            <IconButton icon="chevron-back" onPress={handleBackToMethods} accessibilityLabel="Retour" />
-          </View>
-
-          {/* Illustration */}
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={dark ? illustrations.passwordDark : illustrations.password}
-              resizeMode="contain"
-              style={styles.illustration}
-            />
-          </View>
-
-          {/* Titre et description */}
-          <Text style={[styles.title, { color: c.foreground }]}>
-            Réinitialisation par SMS
-          </Text>
-          
-          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
-            Entrez votre numéro de téléphone et nous vous enverrons un code de réinitialisation par SMS
-          </Text>
-
-          {/* Champ téléphone */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: c.foreground }]}>
-              Numéro de téléphone
-            </Text>
-            <View style={[styles.inputWrapper, { 
-              backgroundColor: c.muted,
-              borderColor: c.border 
-            }]}>
-              <MaterialIcons 
-                name="phone" 
-                size={20} 
-                color={c.mutedForeground} 
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { 
-                  color: c.foreground 
-                }]}
-                placeholder="+225 XX XX XX XX XX"
-                placeholderTextColor={c.mutedForeground}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
-          </View>
-
-          {/* Note d'information */}
-          <View style={[styles.infoNote, { 
-            backgroundColor: dark ? COLORS.dark3 : COLORS.tansparentPrimary,
-            borderColor: dark ? COLORS.dark3 : COLORS.primary + '30',
-          }]}>
-            <MaterialIcons 
-              name="info" 
-              size={20} 
-              color={COLORS.primary} 
-              style={styles.infoIcon}
-            />
-            <Text style={[styles.infoText, { color: dark ? COLORS.grayscale400 : COLORS.primary }]}>
-              Assurez-vous que votre téléphone peut recevoir des SMS. Les frais SMS standard peuvent s'appliquer.
-            </Text>
-          </View>
-
-          {/* Bouton d'envoi */}
-          <TouchableOpacity
-            style={[
-              styles.button,
-              { 
-                backgroundColor: COLORS.primary,
-                opacity: (!phone.trim() || isLoading) ? 0.7 : 1 
-              }
-            ]}
-            onPress={handleRequestCode}
-            disabled={!phone.trim() || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.white} size="small" />
-            ) : (
-              <Text style={styles.buttonText}>Envoyer le code SMS</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Lien pour changer de méthode */}
-          <TouchableOpacity
-            style={styles.changeMethodContainer}
-            onPress={() => navigation.navigate('ForgotPasswordCodeScreen')}
-          >
-            <Text style={[styles.changeMethodText, { color: COLORS.primary }]}>
-              Préférer recevoir par email ?
-            </Text>
-          </TouchableOpacity>
-
-          {/* Lien retour connexion */}
-          <TouchableOpacity
-            style={styles.backToLoginContainer}
-            onPress={handleBackToLogin}
-          >
-            <Text style={[styles.backToLoginText, { color: COLORS.primary }]}>
-              Retour à la connexion
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+    <AuthScreen
+      title="Code par SMS"
+      subtitle="Saisissez votre numéro : nous vous envoyons un code de réinitialisation par SMS."
+      icon="chatbubble-ellipses-outline"
+      onBack={handleBackToMethods}
+    >
+      <TextField
+        label="Numéro de téléphone"
+        icon="call-outline"
+        placeholder="+225 07 00 00 00 00"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        autoCorrect={false}
+        textContentType="telephoneNumber"
+        autoComplete="tel"
+        editable={!isLoading}
+        hint="Votre téléphone doit pouvoir recevoir des SMS. Des frais d'opérateur peuvent s'appliquer."
+      />
+      <Button title="Envoyer le code" icon="send" onPress={handleRequestCode} loading={isLoading} disabled={!phone.trim()} />
+      <Button title="Retour à la connexion" variant="ghost" onPress={handleBackToLogin} />
+    </AuthScreen>
   );
 };
 
-const styles = StyleSheet.create({
-  area: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.greyscale500,
-  },
-  illustrationContainer: {
-    alignItems: 'center',
-    marginVertical: 32,
-  },
-  illustration: {
-    width: SIZES.width * 0.7,
-    height: 200,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    color: COLORS.black,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'regular',
-    color: COLORS.grayscale700,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    color: COLORS.black,
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: COLORS.greyscale500,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'regular',
-    color: COLORS.black,
-  },
-  infoNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 32,
-  },
-  infoIcon: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'regular',
-    lineHeight: 20,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 32,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  changeMethodContainer: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  changeMethodText: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    color: COLORS.primary,
-  },
-  backToLoginContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  backToLoginText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    color: COLORS.primary,
-  },
-});
-
-export default ForgotPasswordSmsScreen; 
+export default ForgotPasswordSmsScreen;

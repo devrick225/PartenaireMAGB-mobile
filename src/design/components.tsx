@@ -675,6 +675,46 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
 }
 
 /**
+ * Gabarit des écrans d'authentification (mot de passe oublié, réinitialisation…) :
+ * en-tête de marque en dégradé + contenu en carte qui le chevauche.
+ */
+export function AuthScreen({ title, subtitle, icon, onBack, children, footer }: { title: string; subtitle?: string; icon?: IconName; onBack?: () => void; children: ReactNode; footer?: ReactNode }) {
+  const { c, gradient } = useDS();
+  const insets = useSafeAreaInsets();
+  return (
+    <KeyboardAvoidingView style={[styles.flex, { backgroundColor: c.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}>
+        <LinearGradient
+          colors={gradient as unknown as [string, string, ...string[]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl + spacing.lg }}
+        >
+          {onBack ? <IconButton icon="chevron-back" tone="hero" onPress={onBack} accessibilityLabel="Retour" /> : <View style={{ height: MIN_TOUCH }} />}
+          {icon ? (
+            <View style={styles.authIcon}>
+              <Ionicons name={icon} size={30} color={c.gold} />
+            </View>
+          ) : null}
+          <AppText variant="display" color={c.heroText} accessibilityRole="header" style={{ marginTop: spacing.md }}>
+            {title}
+          </AppText>
+          {subtitle ? (
+            <AppText variant="body" color={c.heroTextMuted} style={{ marginTop: 4 }}>
+              {subtitle}
+            </AppText>
+          ) : null}
+        </LinearGradient>
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: -spacing.xl, gap: spacing.lg }}>
+          <Card style={{ gap: spacing.lg }}>{children}</Card>
+          {footer}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/**
  * Saisie d'un code à usage unique (6 cases). Le premier champ accepte le code
  * complet (collage, suggestion « code reçu » d'iOS / Android).
  */
@@ -772,6 +812,7 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, maxHeight: '88%' },
   sheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: spacing.xs },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  authIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   codeRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
   codeCell: { flex: 1, maxWidth: 52, height: 56, borderWidth: 1.5, borderRadius: radius.lg, textAlign: 'center' },
 });
