@@ -1,23 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Pressable,
   TextInput,
-  FlatList,
-  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-import { IconButton } from '../design/components';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, IconButton, Card, Section, Button, EmptyState } from '../design/components';
+import { cardShadow, radius, spacing, typography } from '../design/tokens';
 interface HelpCategory {
   id: string;
   title: string;
@@ -40,9 +31,7 @@ interface HelpCenterScreenProps {
 }
 
 const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -373,481 +362,132 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
     return matchesSearch && matchesCategory;
   });
 
-  const renderCategory = ({ item }: { item: HelpCategory }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryCard,
-        {
-          backgroundColor: selectedCategory === item.id
-            ? colors.primary + '20'
-            : (c.card),
-          borderColor: selectedCategory === item.id
-            ? colors.primary
-            : 'transparent',
-        },
-      ]}
-      onPress={() => setSelectedCategory(selectedCategory === item.id ? null : item.id)}
-    >
-      <View style={styles.categoryHeader}>
-        <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '20' }]}>
-          <MaterialIcons name={item.icon as any} size={24} color={colors.primary} />
-        </View>
-        <View style={styles.categoryInfo}>
-          <Text style={[styles.categoryTitle, { color: colors.text }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.categoryDescription, { color: c.mutedForeground }]}>
-            {item.description}
-          </Text>
-        </View>
-        <View style={styles.categoryMeta}>
-          <Text style={[styles.articleCount, { color: colors.primary }]}>
-            {item.articleCount}
-          </Text>
-          <MaterialIcons
-            name={selectedCategory === item.id ? 'expand-less' : 'expand-more'}
-            size={24}
-            color={c.mutedForeground}
-          />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderArticle = ({ item }: { item: HelpArticle }) => {
-    const isExpanded = expandedArticle === item.id;
-    
+  const Article = ({ item, last }: { item: HelpArticle; last: boolean }) => {
+    const open = expandedArticle === item.id;
     return (
-      <View style={[styles.articleCard, { backgroundColor: c.card }]}>
-        <TouchableOpacity
-          onPress={() => setExpandedArticle(isExpanded ? null : item.id)}
-          style={styles.articleHeader}
+      <View style={!last ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border } : undefined}>
+        <Pressable
+          onPress={() => setExpandedArticle(open ? null : item.id)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          style={({ pressed }) => [styles.articleHead, pressed && { backgroundColor: c.muted }]}
         >
-          <View style={styles.articleTitleContainer}>
-            <Text style={[styles.articleTitle, { color: colors.text }]}>
-              {item.title}
-            </Text>
-            {false && item.isPopular && (
-              <View style={[styles.popularBadge, { backgroundColor: colors.primary }]}>
-                <MaterialIcons name="star" size={12} color="#FFFFFF" />
-                <Text style={styles.popularText}>Populaire</Text>
-              </View>
-            )}
-          </View>
-          {/*  
-          <View style={styles.articleMeta}>
-            <Text style={[styles.viewCount, { color: c.mutedForeground }]}>
-              {item.views} vues
-            </Text>
-            <MaterialIcons
-              name={isExpanded ? 'expand-less' : 'expand-more'}
-              size={24}
-              color={c.mutedForeground}
-            />
-          </View>
-          */}
-        </TouchableOpacity>
-        
-        {isExpanded && (
-          <View style={styles.articleContent}>
-            <Text style={[styles.articleText, { color: c.mutedForeground }]}>
-              {item.content}
-            </Text>
-            {/*
-            <View style={styles.articleActions}>
-              <TouchableOpacity style={styles.helpfulButton}>
-                <MaterialIcons name="thumb-up" size={16} color={colors.primary} />
-                <Text style={[styles.helpfulText, { color: colors.primary }]}>
-                  Utile
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.helpfulButton}>
-                <MaterialIcons name="share" size={16} color={c.mutedForeground} />
-                <Text style={[styles.helpfulText, { color: c.mutedForeground }]}>
-                  Partager
-                </Text>
-              </TouchableOpacity>
-            </View> */}
-          </View>
-        )}
+          <AppText variant="bodyStrong" style={styles.flex}>{item.title}</AppText>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={c.mutedForeground} />
+        </Pressable>
+        {open ? (
+          <AppText variant="body" color={c.mutedForeground} style={styles.articleBody} selectable>{item.content}</AppText>
+        ) : null}
       </View>
     );
   };
 
+  const ArticleList = ({ items }: { items: HelpArticle[] }) => (
+    <>{items.map((a, i) => <Article key={a.id} item={a} last={i === items.length - 1} />)}</>
+  );
+
+  const selected = categories.find(cat => cat.id === selectedCategory);
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <RefreshableHeader
-        title="Centre d'aide"
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={false}
-        customRightComponent={
-          <IconButton icon="headset-outline" accessibilityLabel="Contacter le support" onPress={() => navigation.navigate('ContactSupport')} />
-        }
-      />
+    <Screen
+      hero={
+        <HeroHeader
+          eyebrow="Support"
+          eyebrowIcon="help-buoy-outline"
+          title="Centre d'aide"
+          subtitle="Réponses aux questions les plus fréquentes."
+          onBack={() => navigation.goBack()}
+          right={<IconButton icon="headset-outline" tone="hero" accessibilityLabel="Contacter le support" onPress={() => navigation.navigate('ContactSupport')} />}
+        />
+      }
+    >
+      <View style={[styles.search, cardShadow, { backgroundColor: c.card, borderColor: c.border }]}>
+        <Ionicons name="search" size={18} color={c.mutedForeground} />
+        <TextInput
+          style={[styles.searchInput, typography.body, { color: c.foreground }]}
+          placeholder="Rechercher une question…"
+          placeholderTextColor={c.mutedForeground}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+          maxFontSizeMultiplier={1.4}
+          accessibilityLabel="Rechercher dans l'aide"
+        />
+        {searchQuery.length > 0 ? (
+          <Pressable onPress={() => setSearchQuery('')} accessibilityRole="button" accessibilityLabel="Effacer la recherche" hitSlop={10}>
+            <Ionicons name="close-circle" size={18} color={c.mutedForeground} />
+          </Pressable>
+        ) : null}
+      </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Barre de recherche */}
-        <View style={[styles.searchContainer, { backgroundColor: c.card }]}>
-          <MaterialIcons name="search" size={24} color={c.mutedForeground} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Rechercher dans l'aide..."
-            placeholderTextColor={c.mutedForeground}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialIcons name="clear" size={24} color={c.mutedForeground} />
-            </TouchableOpacity>
+      {searchQuery || selectedCategory ? (
+        <Section
+          title={searchQuery ? `Résultats pour « ${searchQuery} »` : selected?.title}
+          action={
+            selectedCategory && !searchQuery ? (
+              <Pressable onPress={() => setSelectedCategory(null)} accessibilityRole="button" hitSlop={8}>
+                <AppText variant="smallStrong" color={c.primary}>Toutes les catégories</AppText>
+              </Pressable>
+            ) : undefined
+          }
+        >
+          {filteredArticles.length === 0 ? (
+            <EmptyState icon="search-outline" title="Aucun article trouvé" message="Essayez d'autres mots-clés ou contactez le support." />
+          ) : (
+            <ArticleList items={filteredArticles} />
           )}
-        </View>
+        </Section>
+      ) : (
+        <>
+          {popularArticles.length > 0 ? (
+            <Section title="Questions fréquentes">
+              <ArticleList items={popularArticles} />
+            </Section>
+          ) : null}
+          <Section title="Catégories">
+            {categories.map((cat, i) => {
+              const count = articles.filter(a => a.category === cat.id).length;
+              return (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${cat.title}, ${count} article${count > 1 ? 's' : ''}`}
+                  style={({ pressed }) => [styles.catRow, i < categories.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }, pressed && { backgroundColor: c.muted }]}
+                >
+                  <View style={[styles.tile, { backgroundColor: c.primarySoft }]}>
+                    <MaterialIcons name={cat.icon as any} size={20} color={c.primary} />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="bodyStrong">{cat.title}</AppText>
+                    <AppText variant="small" color={c.mutedForeground} numberOfLines={2}>{cat.description}</AppText>
+                  </View>
+                  <AppText variant="smallStrong" color={c.primary}>{count}</AppText>
+                  <Ionicons name="chevron-forward" size={18} color={c.mutedForeground} />
+                </Pressable>
+              );
+            })}
+          </Section>
+        </>
+      )}
 
-        {/* Articles populaires */}
-        {!searchQuery && !selectedCategory && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="trending-up" size={20} color={colors.primary} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Articles populaires
-              </Text>
-            </View>
-            <FlatList
-              data={popularArticles}
-              renderItem={renderArticle}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-            />
-          </View>
-        )}
-
-        {/* Catégories */}
-        {!searchQuery && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="category" size={20} color={colors.primary} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Catégories d'aide
-              </Text>
-            </View>
-            <FlatList
-              data={categories}
-              renderItem={renderCategory}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-            />
-          </View>
-        )}
-
-        {/* Résultats de recherche ou articles de catégorie */}
-        {(searchQuery || selectedCategory) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="article" size={20} color={colors.primary} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {searchQuery
-                  ? `Résultats pour "${searchQuery}"`
-                  : `Articles - ${categories.find(c => c.id === selectedCategory)?.title}`
-                }
-              </Text>
-              {selectedCategory && (
-                <TouchableOpacity onPress={() => setSelectedCategory(null)}>
-                  <Text style={[styles.clearFilter, { color: colors.primary }]}>
-                    Voir tout
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <FlatList
-              data={filteredArticles}
-              renderItem={renderArticle}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <MaterialIcons name="search-off" size={48} color={c.mutedForeground} />
-                  <Text style={[styles.emptyText, { color: c.mutedForeground }]}>
-                    Aucun article trouvé
-                  </Text>
-                  <Text style={[styles.emptySubtext, { color: c.mutedForeground }]}>
-                    Essayez d'autres mots-clés ou contactez le support
-                  </Text>
-                </View>
-              }
-            />
-          </View>
-        )}
-
-        {/* Contact support */}
-        <View style={[styles.contactSection, { backgroundColor: c.card }]}>
-          <View style={styles.contactHeader}>
-            <MaterialIcons name="help-outline" size={24} color={colors.primary} />
-            <Text style={[styles.contactTitle, { color: colors.text }]}>
-              Besoin d'aide supplémentaire ?
-            </Text>
-          </View>
-          <Text style={[styles.contactText, { color: c.mutedForeground }]}>
-            Notre équipe de support est là pour vous aider 24h/24 et 7j/7
-          </Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ContactSupport')}
-            style={[styles.contactSupportButton, { backgroundColor: colors.primary }]}
-          >
-            <MaterialIcons name="support-agent" size={20} color="#FFFFFF" />
-            <Text style={styles.contactSupportText}>Contacter le support</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-    </SafeAreaView>
+      <Card style={{ gap: spacing.md }}>
+        <AppText variant="subtitle">Besoin d'aide supplémentaire ?</AppText>
+        <AppText variant="small" color={c.mutedForeground}>Notre équipe de support est là pour vous aider.</AppText>
+        <Button title="Contacter le support" icon="headset-outline" onPress={() => navigation.navigate('ContactSupport')} />
+      </Card>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  contactButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 20,
-    paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16, fontFamily: 'regular',
-    marginLeft: 12,
-  },
-  section: {
-    margin: 20,
-    marginTop: 0,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginLeft: 8,
-    flex: 1,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  clearFilter: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  categoryCard: {
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  categoryInfo: {
-    flex: 1,
-  },
-  categoryTitle: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    marginBottom: 4,
-  },
-  categoryDescription: {
-    fontSize: 14, fontFamily: 'regular',
-  },
-  categoryMeta: {
-    alignItems: 'center',
-  },
-  articleCount: {
-    fontSize: 12,
-    fontFamily: 'bold',
-    marginBottom: 4,
-  },
-  articleCard: {
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  articleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  articleTitleContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  articleTitle: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    marginBottom: 4,
-  },
-  popularBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  popularText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontFamily: 'bold',
-    marginLeft: 4,
-  },
-  articleMeta: {
-    alignItems: 'flex-end',
-  },
-  viewCount: {
-    fontSize: 12, fontFamily: 'regular',
-    marginBottom: 4,
-  },
-  articleContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  articleText: {
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  articleActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  helpfulButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  helpfulText: {
-    fontSize: 14,
-    fontFamily: 'medium',
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14, fontFamily: 'regular',
-    textAlign: 'center',
-  },
-  contactSection: {
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  contactHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  contactTitle: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    marginLeft: 8,
-  },
-  contactText: {
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  contactSupportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    gap: 8,
-  },
-  contactSupportText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'bold',
-  },
-  bottomPadding: {
-    height: 20,
-  },
+  flex: { flex: 1 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, minHeight: 48 },
+  searchInput: { flex: 1, paddingVertical: 10 },
+  articleHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 56 },
+  articleBody: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 64 },
+  tile: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 });
 
-export default HelpCenterScreen; 
+export default HelpCenterScreen;
