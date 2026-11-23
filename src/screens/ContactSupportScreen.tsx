@@ -2,28 +2,34 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
+  Pressable,
   Alert,
-  ActivityIndicator,
-  Modal,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  IconButton,
+  Card,
+  ChoiceCard,
+  TextField,
+  Button,
+  EmptyState,
+  Sheet,
+  Row,
+} from '../design/components';
+import { radius, spacing } from '../design/tokens';
 import apiClient from '../store/services/apiClient';
 import useUserPermissions from '../hooks/useUserPermissions';
 import { requestMediaLibraryPermission } from '../utils/permissions';
 
-import RefreshableHeader from '../components/RefreshableHeader';
+
 interface SupportCategory {
   id: string;
   title: string;
@@ -50,8 +56,9 @@ interface ContactSupportScreenProps {
   navigation: any;
 }
 
+
 const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c } = useDS();
   const permissions = useUserPermissions();
   
   // Vérification des permissions d'accès
@@ -70,24 +77,6 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
     }
   }, [permissions.canCreateTickets, navigation]);
 
-  // Si l'utilisateur n'a pas les permissions, on affiche un écran vide
-  if (!permissions.canCreateTickets) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <RefreshableHeader title="Contacter le support" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
-        
-        <View style={styles.unauthorizedContainer}>
-          <MaterialIcons name="block" size={64} color={colors.text} />
-          <Text style={[styles.unauthorizedTitle, { color: colors.text }]}>
-            Accès non autorisé
-          </Text>
-          <Text style={[styles.unauthorizedText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Vous n'avez pas les permissions nécessaires pour créer des tickets de support.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
   
   const [formData, setFormData] = useState({
     category: '',
@@ -327,641 +316,153 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
     }
   };
 
-  const renderCategoryModal = () => (
-    <Modal
-      visible={showCategoryModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowCategoryModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Choisir une catégorie
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowCategoryModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <FlatList
-            data={categories}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.categoryOption,
-                  {
-                    backgroundColor: formData.category === item.id
-                      ? colors.primary + '20'
-                      : 'transparent',
-                  },
-                ]}
-                onPress={() => {
-                  updateFormData('category', item.id);
-                  setShowCategoryModal(false);
-                }}
-              >
-                <MaterialIcons name={item.icon as any} size={24} color={colors.primary} />
-                <View style={styles.categoryOptionText}>
-                  <Text style={[styles.categoryOptionTitle, { color: colors.text }]}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.categoryOptionDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    {item.description}
-                  </Text>
-                </View>
-                {formData.category === item.id && (
-                  <MaterialIcons name="check" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
 
-  const renderPriorityModal = () => (
-    <Modal
-      visible={showPriorityModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowPriorityModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Choisir la priorité
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowPriorityModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <FlatList
-            data={priorities}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.priorityOption,
-                  {
-                    backgroundColor: formData.priority === item.id
-                      ? item.color + '20'
-                      : 'transparent',
-                  },
-                ]}
-                onPress={() => {
-                  updateFormData('priority', item.id);
-                  setShowPriorityModal(false);
-                }}
-              >
-                <View style={[styles.priorityIndicator, { backgroundColor: item.color }]} />
-                <View style={styles.priorityOptionText}>
-                  <Text style={[styles.priorityOptionTitle, { color: colors.text }]}>
-                    {item.label}
-                  </Text>
-                  <Text style={[styles.priorityOptionDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    {item.description}
-                  </Text>
-                </View>
-                {formData.priority === item.id && (
-                  <MaterialIcons name="check" size={20} color={item.color} />
-                )}
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const selectedCategory = categories.find(c => c.id === formData.category);
+  const selectedCategory = categories.find(cat => cat.id === formData.category);
   const selectedPriority = priorities.find(p => p.id === formData.priority);
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Contact Support</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('TicketList')}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <MaterialIcons name="support-agent" size={22} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+  const hero = (
+    <HeroHeader
+      eyebrow="Support"
+      eyebrowIcon="headset-outline"
+      title="Nouvelle demande"
+      subtitle="Notre équipe vous répond au plus vite."
+      onBack={() => navigation.goBack()}
+      right={<IconButton icon="list-outline" tone="hero" accessibilityLabel="Mes demandes" onPress={() => navigation.navigate('TicketList')} />}
+    />
+  );
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+  // Accès refusé (vérifié après les hooks pour respecter les règles de React)
+  if (!permissions.canCreateTickets) {
+    return (
+      <Screen hero={hero}>
+        <Card>
+          <EmptyState icon="lock-closed-outline" title="Accès non autorisé" message="Vous n'avez pas les permissions nécessaires pour créer une demande de support." />
+        </Card>
+      </Screen>
+    );
+  }
+
+  const SelectField = ({ label, required, value, placeholder, icon, error, onPress }: { label: string; required?: boolean; value?: string; placeholder: string; icon: any; error?: string; onPress: () => void }) => (
+    <View style={{ gap: 6 }}>
+      <AppText variant="smallStrong">{label}{required ? <AppText variant="smallStrong" color={c.destructive}> *</AppText> : null}</AppText>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} : ${value ?? placeholder}`}
+        style={({ pressed }) => [styles.select, { backgroundColor: c.card, borderColor: error ? c.destructive : c.input, opacity: pressed ? 0.85 : 1 }]}
       >
-        {/* Information */}
-        <View style={[styles.infoCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <View style={styles.infoHeader}>
-            <MaterialIcons name="support-agent" size={24} color={colors.primary} />
-            <Text style={[styles.infoTitle, { color: colors.text }]}>
-              Notre équipe est là pour vous aider
-            </Text>
+        <MaterialIcons name={icon} size={18} color={c.primary} />
+        <AppText variant="body" color={value ? c.foreground : c.mutedForeground} style={styles.flex} numberOfLines={1}>{value ?? placeholder}</AppText>
+        <Ionicons name="chevron-down" size={18} color={c.mutedForeground} />
+      </Pressable>
+      {error ? <AppText variant="small" color={c.destructive}>{error}</AppText> : null}
+    </View>
+  );
+
+  return (
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen
+        hero={hero}
+        footer={<Button title="Envoyer la demande" icon="send" onPress={handleSubmit} loading={isLoading} />}
+      >
+        <Card style={styles.notice}>
+          <Ionicons name="information-circle-outline" size={20} color={c.primary} />
+          <AppText variant="small" color={c.mutedForeground} style={styles.flex}>
+            Décrivez votre problème en détail pour que nous puissions vous aider au mieux.
+          </AppText>
+        </Card>
+
+        <Card style={{ gap: spacing.lg }}>
+          <SelectField
+            label="Catégorie"
+            required
+            value={selectedCategory?.title}
+            placeholder="Choisir une catégorie"
+            icon={selectedCategory?.icon ?? 'category'}
+            error={errors.category}
+            onPress={() => setShowCategoryModal(true)}
+          />
+          <SelectField
+            label="Priorité"
+            value={selectedPriority ? `${selectedPriority.label} — ${selectedPriority.description}` : undefined}
+            placeholder="Choisir une priorité"
+            icon="flag"
+            onPress={() => setShowPriorityModal(true)}
+          />
+          <TextField
+            label="Sujet *"
+            placeholder="Résumez votre demande en quelques mots"
+            value={formData.subject}
+            onChangeText={(text) => updateFormData('subject', text)}
+            maxLength={100}
+            error={errors.subject}
+            hint={`${formData.subject.length}/100`}
+          />
+          <TextField
+            label="Description *"
+            placeholder="Décrivez votre problème en détail…"
+            value={formData.description}
+            onChangeText={(text) => updateFormData('description', text)}
+            multiline
+            textAlignVertical="top"
+            maxLength={2000}
+            style={{ minHeight: 140 }}
+            error={errors.description}
+            hint={`${formData.description.length}/2000`}
+          />
+        </Card>
+
+        <Card style={{ gap: spacing.md }}>
+          <View>
+            <AppText variant="bodyStrong">Pièces jointes (facultatif)</AppText>
+            <AppText variant="small" color={c.mutedForeground}>Captures d'écran, reçus… (5 fichiers maximum, 10 Mo chacun)</AppText>
           </View>
-          <Text style={[styles.infoText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Décrivez votre problème en détail pour que nous puissions vous apporter la meilleure assistance possible.
-          </Text>
-        </View>
-
-        {/* Formulaire */}
-        <View style={[styles.formCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          {/* Catégorie */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>
-              Catégorie <Text style={styles.required}>*</Text>
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowCategoryModal(true)}
-              style={[
-                styles.selectInput,
-                {
-                  borderColor: errors.category ? '#FF5722' : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                  backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                },
-              ]}
-            >
-              {selectedCategory ? (
-                <View style={styles.selectedOption}>
-                  <MaterialIcons name={selectedCategory.icon as any} size={20} color={colors.primary} />
-                  <Text style={[styles.selectedOptionText, { color: colors.text }]}>
-                    {selectedCategory.title}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={[styles.placeholderText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Sélectionnez une catégorie
-                </Text>
-              )}
-              <MaterialIcons name="expand-more" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-            </TouchableOpacity>
-            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
-          </View>
-
-          {/* Priorité */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>Priorité</Text>
-            <TouchableOpacity
-              onPress={() => setShowPriorityModal(true)}
-              style={[
-                styles.selectInput,
-                {
-                  borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
-                  backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                },
-              ]}
-            >
-              {selectedPriority && (
-                <View style={styles.selectedOption}>
-                  <View style={[styles.priorityIndicator, { backgroundColor: selectedPriority.color }]} />
-                  <Text style={[styles.selectedOptionText, { color: colors.text }]}>
-                    {selectedPriority.label}
-                  </Text>
-                </View>
-              )}
-              <MaterialIcons name="expand-more" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Sujet */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>
-              Sujet <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  borderColor: errors.subject ? '#FF5722' : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                  backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Résumez votre problème en quelques mots"
-              placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
-              value={formData.subject}
-              onChangeText={(text) => updateFormData('subject', text)}
-              maxLength={100}
-            />
-            <View style={styles.charCount}>
-              <Text style={[styles.charCountText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                {formData.subject.length}/100
-              </Text>
-            </View>
-            {errors.subject && <Text style={styles.errorText}>{errors.subject}</Text>}
-          </View>
-
-          {/* Description */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>
-              Description <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[
-                styles.textAreaInput,
-                {
-                  borderColor: errors.description ? '#FF5722' : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                  backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Décrivez votre problème en détail..."
-              placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
-              value={formData.description}
-              onChangeText={(text) => updateFormData('description', text)}
-              multiline={true}
-              numberOfLines={6}
-              textAlignVertical="top"
-              maxLength={2000}
-            />
-            <View style={styles.charCount}>
-              <Text style={[styles.charCountText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                {formData.description.length}/2000
-              </Text>
-            </View>
-            {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
-          </View>
-
-          {/* Pièces jointes */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>
-              Pièces jointes (optionnel)
-            </Text>
-            <Text style={[styles.inputHelp, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Images, captures d'écran, documents (max. 5 fichiers, 10 MB chacun)
-            </Text>
-            
-            <TouchableOpacity
-              onPress={pickDocument}
-              style={[styles.attachButton, { borderColor: colors.primary }]}
-            >
-              <MaterialIcons name="attach-file" size={24} color={colors.primary} />
-              <Text style={[styles.attachButtonText, { color: colors.primary }]}>
-                Ajouter un fichier
-              </Text>
-            </TouchableOpacity>
-
-            {attachments.length > 0 && (
-              <View style={styles.attachmentsList}>
-                {attachments.map((file) => (
-                  <View key={file.id} style={[styles.attachmentItem, { backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100 }]}>
-                    <MaterialIcons name="description" size={20} color={colors.primary} />
-                    <View style={styles.attachmentInfo}>
-                      <Text style={[styles.attachmentName, { color: colors.text }]} numberOfLines={1}>
-                        {file.name}
-                      </Text>
-                      <Text style={[styles.attachmentSize, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                        {formatFileSize(file.size)}
-                      </Text>
-                    </View>
-                    <TouchableOpacity onPress={() => removeAttachment(file.id)}>
-                      <MaterialIcons name="close" size={20} color="#FF5722" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+          {attachments.map((file) => (
+            <View key={file.id} style={[styles.attachment, { backgroundColor: c.muted }]}>
+              <Ionicons name="document-attach-outline" size={20} color={c.primary} />
+              <View style={styles.flex}>
+                <AppText variant="smallStrong" numberOfLines={1}>{file.name}</AppText>
+                <AppText variant="caption" color={c.mutedForeground}>{formatFileSize(file.size)}</AppText>
               </View>
-            )}
-          </View>
-        </View>
+              <IconButton icon="close" accessibilityLabel={`Retirer ${file.name}`} onPress={() => removeAttachment(file.id)} />
+            </View>
+          ))}
+          <Button title="Ajouter un fichier" variant="outline" icon="attach" onPress={pickDocument} disabled={attachments.length >= 5} />
+        </Card>
+      </Screen>
 
-        <View style={styles.bottomPadding} />
-      </ScrollView>
+      <Sheet visible={showCategoryModal} title="Catégorie" onClose={() => setShowCategoryModal(false)}>
+        {categories.map(cat => (
+          <ChoiceCard
+            key={cat.id}
+            title={cat.title}
+            description={cat.description}
+            selected={formData.category === cat.id}
+            onPress={() => { updateFormData('category', cat.id); setShowCategoryModal(false); }}
+          />
+        ))}
+      </Sheet>
 
-      {/* Bouton d'envoi */}
-      <View style={[styles.submitSection, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={isLoading}
-          style={[
-            styles.submitButton,
-            {
-              backgroundColor: colors.primary,
-              opacity: isLoading ? 0.7 : 1,
-            },
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <MaterialIcons name="send" size={24} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Envoyer la demande</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-      </KeyboardAvoidingView>
-
-      {renderCategoryModal()}
-      {renderPriorityModal()}
-    </SafeAreaView>
+      <Sheet visible={showPriorityModal} title="Priorité" onClose={() => setShowPriorityModal(false)}>
+        {priorities.map(p => (
+          <ChoiceCard
+            key={p.id}
+            title={p.label}
+            description={p.description}
+            selected={formData.priority === p.id}
+            onPress={() => { updateFormData('priority', p.id); setShowPriorityModal(false); }}
+          />
+        ))}
+      </Sheet>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  infoCard: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    marginLeft: 8,
-  },
-  infoText: {
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-  },
-  formCard: {
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#FF5722',
-  },
-  inputHelp: {
-    fontSize: 12, fontFamily: 'regular',
-    marginBottom: 8,
-  },
-  selectInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  selectedOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  selectedOptionText: {
-    fontSize: 16, fontFamily: 'regular',
-    marginLeft: 8,
-  },
-  placeholderText: {
-    fontSize: 16, fontFamily: 'regular',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  textAreaInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16, fontFamily: 'regular',
-    minHeight: 120,
-  },
-  charCount: {
-    alignItems: 'flex-end',
-    marginTop: 4,
-  },
-  charCountText: {
-    fontSize: 12, fontFamily: 'regular',
-  },
-  errorText: {
-    color: '#FF5722',
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 4,
-  },
-  attachButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    paddingVertical: 16,
-    marginTop: 8,
-  },
-  attachButtonText: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    marginLeft: 8,
-  },
-  attachmentsList: {
-    marginTop: 12,
-  },
-  attachmentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  attachmentInfo: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  attachmentName: {
-    fontSize: 14,
-    fontFamily: 'medium',
-  },
-  attachmentSize: {
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 2,
-  },
-  bottomPadding: {
-    height: 100,
-  },
-  submitSection: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 12,
-    gap: 8,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginHorizontal: 20,
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  categoryOptionText: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  categoryOptionTitle: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  categoryOptionDescription: {
-    fontSize: 14, fontFamily: 'regular',
-    marginTop: 2,
-  },
-  priorityOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginHorizontal: 20,
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  priorityIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  priorityOptionText: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  priorityOptionTitle: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  priorityOptionDescription: {
-    fontSize: 14, fontFamily: 'regular',
-    marginTop: 2,
-  },
-  unauthorizedContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unauthorizedTitle: {
-    fontSize: 20,
-    fontFamily: 'bold',
-    marginTop: 20,
-  },
-  unauthorizedText: {
-    fontSize: 16, fontFamily: 'regular',
-    textAlign: 'center',
-    marginHorizontal: 20,
-  },
+  flex: { flex: 1 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  select: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 50, borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  attachment: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.lg, paddingLeft: spacing.md },
 });
 
-export default ContactSupportScreen; 
+export default ContactSupportScreen;
