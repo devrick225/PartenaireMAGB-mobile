@@ -6,22 +6,18 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 
 import RefreshableHeader from '../components/RefreshableHeader';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, Card } from '../design/components';
+import { spacing } from '../design/tokens';
 interface PrivacyPolicyScreenProps {
   navigation: any;
 }
 
 const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
 
   const sections = [
     {
@@ -101,130 +97,34 @@ Pour exercer ces droits, contactez-nous à l'adresse : partenaireadorationgene.b
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <RefreshableHeader title="Politique de confidentialité" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
-
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          {sections.map((section, index) => (
-            <View key={index} style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {section.title}
-              </Text>
-              
-              {section.content && (
-                <Text style={[styles.sectionContent, { color: colors.text }]}>
-                  {section.content}
-                </Text>
-              )}
-
-              {section.subsections?.map((subsection, subIndex) => (
-                <View key={subIndex} style={styles.subsection}>
-                  <Text style={[styles.subsectionTitle, { color: colors.text }]}>
-                    {subsection.subtitle}
-                  </Text>
-                  <Text style={[styles.subsectionContent, { color: colors.text }]}>
-                    {subsection.content}
-                  </Text>
-                </View>
-              ))}
+    <Screen
+      hero={
+        <HeroHeader
+          eyebrow="Informations légales"
+          eyebrowIcon="document-lock-outline"
+          title="Politique de confidentialité"
+          subtitle="Comment Partenaire MAGB protège vos données."
+          onBack={() => navigation.goBack()}
+        />
+      }
+    >
+      {sections.map((section: any, index: number) => (
+        <Card key={index} style={{ gap: spacing.sm }}>
+          <AppText variant="subtitle" accessibilityRole="header">{section.title}</AppText>
+          {section.content ? <AppText variant="body" color={c.mutedForeground} selectable>{section.content}</AppText> : null}
+          {(section.subsections || []).map((sub: any, i: number) => (
+            <View key={i} style={{ gap: 4, marginTop: spacing.xs }}>
+              <AppText variant="bodyStrong">{sub.subtitle}</AppText>
+              <AppText variant="body" color={c.mutedForeground} selectable>{sub.content}</AppText>
             </View>
           ))}
-
-          <Text style={[styles.lastUpdate, { color: c.mutedForeground }]}>
-            Dernière mise à jour : 12 juillet 2025
-          </Text>
-
-          <Text style={[styles.acknowledgment, { color: colors.text }]}>
-            En utilisant PartenaireMAGB, vous reconnaissez avoir lu et compris cette Politique de Confidentialité.
-          </Text>
-
-          <View style={styles.bottomPadding} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </Card>
+      ))}
+      <AppText variant="caption" color={c.mutedForeground} center>
+        Dernière mise à jour : 12 juillet 2025.{'\n'}En utilisant Partenaire MAGB, vous reconnaissez avoir lu et compris cette politique de confidentialité.
+      </AppText>
+    </Screen>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  sectionContent: {
-    fontSize: 16, fontFamily: 'regular',
-    lineHeight: 24,
-  },
-  subsection: {
-    marginTop: 16,
-    marginLeft: 8,
-  },
-  subsectionTitle: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    marginBottom: 8,
-  },
-  subsectionContent: {
-    fontSize: 16, fontFamily: 'regular',
-    lineHeight: 24,
-  },
-  lastUpdate: {
-    fontSize: 14, fontFamily: 'regular',
-    marginTop: 24,
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
-  acknowledgment: {
-    fontSize: 16,
-    fontFamily: 'medium',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  bottomPadding: {
-    height: 40,
-  },
-});
-
-export default PrivacyPolicyScreen; 
+export default PrivacyPolicyScreen;
