@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: '#333',
   },
   headerRight: {
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     color: '#666',
   },
   statsContainer: {
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   statsTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     color: '#333',
     marginBottom: 12,
   },
@@ -344,11 +344,11 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'bold',
     color: '#007AFF',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     color: '#666',
     marginTop: 4,
   },
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     color: '#333',
     marginHorizontal: 16,
     marginBottom: 12,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
   },
   categoryButtonText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     color: '#666',
     marginLeft: 6,
   },
@@ -412,12 +412,12 @@ const styles = StyleSheet.create({
   },
   ministryTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     color: '#333',
     marginBottom: 8,
   },
   ministryDescription: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     color: '#666',
     lineHeight: 20,
     marginBottom: 12,
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   actionButtonText: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     color: '#007AFF',
     marginLeft: 4,
   },
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     color: '#666',
     marginTop: 16,
     textAlign: 'center',

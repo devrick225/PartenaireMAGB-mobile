@@ -202,14 +202,14 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: '#FFFFFF',
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     color: '#FFFFFF',
     textAlign: 'center',
     opacity: 0.9,
@@ -231,17 +231,17 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 12,
   },
   paragraph: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     lineHeight: 24,
     marginBottom: 12,
   },
   highlightText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     lineHeight: 24,
     fontStyle: 'italic',
     textAlign: 'center',
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   activityText: {
-    fontSize: 15,
+    fontSize: 15, fontFamily: 'regular',
     lineHeight: 22,
     flex: 1,
   },
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   contactText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     lineHeight: 22,
   },
   actionButton: {
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     color: '#FFFFFF',
   },
   bottomPadding: {

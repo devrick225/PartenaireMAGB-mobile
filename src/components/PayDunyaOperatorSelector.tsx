@@ -45,7 +45,7 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
     },
     label: {
       fontSize: 16,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: 8,
     },
@@ -75,16 +75,16 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
     },
     operatorName: {
       fontSize: 16,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
     },
     operatorDescription: {
-      fontSize: 14,
+      fontSize: 14, fontFamily: 'regular',
       color: colors.textSecondary,
       marginTop: 2,
     },
     placeholder: {
-      fontSize: 16,
+      fontSize: 16, fontFamily: 'regular',
       color: colors.textSecondary,
     },
     chevron: {
@@ -115,7 +115,7 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
     },
     modalTitle: {
       fontSize: 18,
-      fontWeight: '600',
+      fontFamily: 'PlayfairDisplay_700Bold',
       color: colors.text,
     },
     closeButton: {
@@ -131,7 +131,7 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
     },
     countryTitle: {
       fontSize: 14,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: 12,
     },
@@ -155,7 +155,7 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
       borderColor: colors.primary,
     },
     countryChipText: {
-      fontSize: 12,
+      fontSize: 12, fontFamily: 'regular',
       color: colors.text,
       marginLeft: 4,
     },
@@ -183,7 +183,7 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
       backgroundColor: colors.primaryLight || colors.primary + '10',
     },
     operatorFlag: {
-      fontSize: 24,
+      fontSize: 24, fontFamily: 'regular',
       marginRight: 12,
     },
     operatorDetails: {
@@ -191,11 +191,11 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
     },
     operatorMainName: {
       fontSize: 16,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
     },
     operatorCountry: {
-      fontSize: 14,
+      fontSize: 14, fontFamily: 'regular',
       color: colors.textSecondary,
       marginTop: 2,
     },
@@ -212,7 +212,7 @@ const PayDunyaOperatorSelector: React.FC<PayDunyaOperatorSelectorProps> = ({
     },
     sectionTitle: {
       fontSize: 16,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: 12,
       paddingHorizontal: 20,

@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'PlayfairDisplay_700Bold',
     flex: 1,
   },
   headerAmount: {
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   headerAmountText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'bold',
   },
   webview: { flex: 1 },
   loadingOverlay: {
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
 });
 

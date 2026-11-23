@@ -626,11 +626,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: '#FFFFFF',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 16,
   },
   mapContainer: {
@@ -671,11 +671,11 @@ const styles = StyleSheet.create({
   },
   mapPlaceholderText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginTop: 12,
   },
   mapPlaceholderSubtext: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginTop: 4,
   },
   mapOverlay: {
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
   mapOverlayText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   mapActions: {
     flexDirection: 'row',
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
   mapActionText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   contactSection: {
     marginBottom: 30,
@@ -744,11 +744,11 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 2,
   },
   contactSubtitle: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   hoursSection: {
     padding: 20,
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   hoursText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     flex: 1,
   },
   addressSection: {
@@ -790,11 +790,11 @@ const styles = StyleSheet.create({
   },
   addressTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 4,
   },
   addressDetails: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
   },
   emailFormContainer: {
@@ -827,11 +827,11 @@ const styles = StyleSheet.create({
   },
   emailFormTitleMain: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     color: '#FFFFFF',
   },
   emailFormSubtitle: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: 'regular',
     color: 'rgba(255,255,255,0.75)',
     marginTop: 2,
   },
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   },
   recipientText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     flex: 1,
   },
   formCard: {
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   },
   formFieldLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   },
   formFieldInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 15, fontFamily: 'regular',
     height: '100%',
   },
   formMessageWrapper: {
@@ -913,7 +913,7 @@ const styles = StyleSheet.create({
     height: Platform.OS === 'android' ? 120 : 40,
   },
   charCounter: {
-    fontSize: 11,
+    fontSize: 11, fontFamily: 'regular',
     textAlign: 'right',
     marginTop: 4,
   },
@@ -935,12 +935,12 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
   formDisclaimer: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     textAlign: 'center',
     marginTop: 16,
   },

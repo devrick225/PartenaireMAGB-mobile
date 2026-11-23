@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 8,
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   headerSpacer: {
     width: 40,
@@ -366,11 +366,11 @@ const styles = StyleSheet.create({
   },
   instructionsTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 8,
   },
   instructionsText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
   },
   formCard: {
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
   },
   passwordInputContainer: {
@@ -402,14 +402,14 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   passwordToggle: {
     padding: 4,
   },
   errorText: {
     color: '#FF5722',
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 4,
   },
   criteriaCard: {
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   },
   criteriaTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 16,
   },
   criteriaList: {
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   criteriaText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginLeft: 8,
   },
   bottomPadding: {
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
 });
 

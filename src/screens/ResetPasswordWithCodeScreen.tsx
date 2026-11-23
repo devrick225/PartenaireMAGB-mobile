@@ -22,6 +22,7 @@ import { useOtpClipboard } from '../hooks/useOtpClipboard';
 import * as SecureStore from 'expo-secure-store';
 import { getSavedCredentials, REMEMBER_PASSWORD_KEY } from '../utils/biometricAuth';
 
+import { IconButton } from '../design/components';
 interface ResetPasswordWithCodeScreenProps {
   navigation: any;
   route: any;
@@ -189,16 +190,7 @@ const ResetPasswordWithCodeScreen: React.FC<ResetPasswordWithCodeScreenProps> = 
         >
           {/* Header avec bouton retour */}
           <View style={styles.header}>
-            <TouchableOpacity
-              onPress={handleBackToLogin}
-              style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale500 }]}
-            >
-              <MaterialIcons 
-                name="arrow-back" 
-                size={24} 
-                color={dark ? COLORS.white : COLORS.black} 
-              />
-            </TouchableOpacity>
+            <IconButton icon="chevron-back" onPress={handleBackToLogin} accessibilityLabel="Retour" />
           </View>
 
           {/* Illustration */}
@@ -432,7 +424,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: COLORS.black,
     textAlign: 'center',
     marginBottom: 16,

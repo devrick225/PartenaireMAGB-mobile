@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   contactButton: {
     width: 40,
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     marginLeft: 12,
   },
   section: {
@@ -668,13 +668,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 8,
     flex: 1,
   },
   clearFilter: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   categoryCard: {
     borderRadius: 12,
@@ -704,18 +704,18 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 4,
   },
   categoryDescription: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   categoryMeta: {
     alignItems: 'center',
   },
   articleCount: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 4,
   },
   articleCard: {
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
   },
   articleTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 4,
   },
   popularBadge: {
@@ -753,14 +753,14 @@ const styles = StyleSheet.create({
   popularText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 4,
   },
   articleMeta: {
     alignItems: 'flex-end',
   },
   viewCount: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginBottom: 4,
   },
   articleContent: {
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   articleText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
   },
   helpfulText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
   emptyState: {
     alignItems: 'center',
@@ -791,12 +791,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     textAlign: 'center',
   },
   contactSection: {
@@ -817,11 +817,11 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 8,
   },
   contactText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
   contactSupportText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   bottomPadding: {
     height: 20,

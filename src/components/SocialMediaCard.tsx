@@ -120,12 +120,12 @@ const SocialMediaCard: React.FC<SocialMediaCardProps> = ({
     },
     platformName: {
       fontSize: variant === 'minimal' ? 14 : variant === 'compact' ? 15 : 16,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: variant === 'minimal' ? 0 : 4,
     },
     platformDescription: {
-      fontSize: variant === 'minimal' ? 12 : 14,
+      fontSize: variant === 'minimal' ? 12 : 14, fontFamily: 'regular',
       color: colors.textSecondary,
       marginBottom: variant === 'minimal' ? 0 : 6,
     },
@@ -134,14 +134,14 @@ const SocialMediaCard: React.FC<SocialMediaCardProps> = ({
       alignItems: 'center',
     },
     platformFollowers: {
-      fontSize: 12,
+      fontSize: 12, fontFamily: 'regular',
       color: colors.textSecondary,
       marginRight: 12,
     },
     platformCategory: {
       fontSize: 10,
       color: colors.primary,
-      fontWeight: '500',
+      fontFamily: 'medium',
       textTransform: 'uppercase',
     },
     actionIcon: {

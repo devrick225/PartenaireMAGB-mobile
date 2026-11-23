@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   headerSpacer: {
     width: 40,
@@ -731,11 +731,11 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 8,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
   },
   formCard: {
@@ -754,14 +754,14 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
   },
   required: {
     color: '#FF5722',
   },
   inputHelp: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginBottom: 8,
   },
   selectInput: {
@@ -779,25 +779,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectedOptionText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     marginLeft: 8,
   },
   placeholderText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   textInput: {
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 16,
     height: 50,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   textAreaInput: {
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     minHeight: 120,
   },
   charCount: {
@@ -805,11 +805,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   charCountText: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
   },
   errorText: {
     color: '#FF5722',
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 4,
   },
   attachButton: {
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
   },
   attachButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginLeft: 8,
   },
   attachmentsList: {
@@ -844,10 +844,10 @@ const styles = StyleSheet.create({
   },
   attachmentName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
   attachmentSize: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 2,
   },
   bottomPadding: {
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   modalOverlay: {
     flex: 1,
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   modalCloseButton: {
     width: 32,
@@ -915,10 +915,10 @@ const styles = StyleSheet.create({
   },
   categoryOptionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   categoryOptionDescription: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginTop: 2,
   },
   priorityOption: {
@@ -941,10 +941,10 @@ const styles = StyleSheet.create({
   },
   priorityOptionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   priorityOptionDescription: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginTop: 2,
   },
   unauthorizedContainer: {
@@ -954,11 +954,11 @@ const styles = StyleSheet.create({
   },
   unauthorizedTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginTop: 20,
   },
   unauthorizedText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     textAlign: 'center',
     marginHorizontal: 20,
   },

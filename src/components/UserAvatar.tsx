@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   fullScreenInitials: {
     fontSize: 60,
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   userInfo: {
     position: 'absolute',
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     textAlign: 'center',
   },
 });

@@ -17,6 +17,7 @@ import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient from '../store/services/apiClient';
 import { showApiError } from '../store/services/apiClient';
 
+import { IconButton } from '../design/components';
 interface ForgotPasswordCodeScreenProps {
   navigation: any;
 }
@@ -80,16 +81,7 @@ const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ nav
         >
           {/* Header avec bouton retour */}
           <View style={styles.header}>
-            <TouchableOpacity
-              onPress={handleBackToLogin}
-              style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale500 }]}
-            >
-              <MaterialIcons 
-                name="arrow-back" 
-                size={24} 
-                color={dark ? COLORS.white : COLORS.black} 
-              />
-            </TouchableOpacity>
+            <IconButton icon="chevron-back" onPress={handleBackToLogin} accessibilityLabel="Retour" />
           </View>
 
           {/* Illustration */}
@@ -208,7 +200,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: COLORS.black,
     textAlign: 'center',
     marginBottom: 16,

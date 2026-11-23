@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   illustrationContainer: {
     alignItems: 'center',
@@ -355,18 +355,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     textAlign: 'center',
     marginBottom: 8,
   },
   email: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     textAlign: 'center',
   },
   codeContainer: {
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -401,14 +401,14 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   timerText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   resendButton: {
     padding: 10,
   },
   resendText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   verifyButton: {
     height: 50,
@@ -420,10 +420,10 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   helpText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     textAlign: 'center',
     lineHeight: 20,
   },

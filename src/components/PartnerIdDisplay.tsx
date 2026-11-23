@@ -130,7 +130,7 @@ const PartnerIdDisplay: React.FC<PartnerIdDisplayProps> = ({
     
     title: {
       fontSize: variant === 'card' ? 16 : variant === 'inline' ? 14 : 12,
-      fontWeight: '600',
+      fontFamily: 'PlayfairDisplay_700Bold',
       color: colors.text,
     },
     
@@ -180,12 +180,12 @@ const PartnerIdDisplay: React.FC<PartnerIdDisplayProps> = ({
     
     levelText: {
       fontSize: variant === 'card' ? 12 : 10,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.surface,
     },
     
     levelDetails: {
-      fontSize: variant === 'card' ? 11 : 9,
+      fontSize: variant === 'card' ? 11 : 9, fontFamily: 'regular',
       color: colors.textSecondary,
       fontStyle: 'italic',
     },

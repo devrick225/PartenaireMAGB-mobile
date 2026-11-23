@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   headerSpacer: {
     width: 40,
@@ -464,11 +464,11 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 8,
   },
   userEmail: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   actionsContainer: {
     width: '100%',
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginLeft: 12,
   },
   modalOverlay: {

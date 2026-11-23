@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   headerSpacer: {
     width: 40,
@@ -184,11 +184,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 12,
   },
   sectionContent: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     lineHeight: 24,
   },
   subsection: {
@@ -197,22 +197,22 @@ const styles = StyleSheet.create({
   },
   subsectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
   },
   subsectionContent: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     lineHeight: 24,
   },
   lastUpdate: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginTop: 24,
     marginBottom: 16,
     fontStyle: 'italic',
   },
   acknowledgment: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'medium',
     textAlign: 'center',
     marginBottom: 24,
   },

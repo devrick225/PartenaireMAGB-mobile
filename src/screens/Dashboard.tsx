@@ -361,11 +361,11 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     color: '#333',
   },
   roleText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     color: '#666',
     marginTop: 4,
   },
@@ -380,14 +380,14 @@ const styles = StyleSheet.create({
   notificationText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   statsSection: {
     padding: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     color: '#333',
     marginBottom: 16,
   },
@@ -410,17 +410,17 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statTitle: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     color: '#666',
     marginBottom: 4,
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 4,
   },
   statSubtitle: {
-    fontSize: 10,
+    fontSize: 10, fontFamily: 'regular',
     color: '#999',
   },
   actionsSection: {
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     fontSize: 14,
   },
   activitySection: {
@@ -460,23 +460,23 @@ const styles = StyleSheet.create({
   },
   activityTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     color: '#333',
     marginBottom: 4,
   },
   activityDate: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     color: '#666',
     marginBottom: 4,
   },
   activityStatus: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     textTransform: 'uppercase',
   },
   message: {
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     color: '#666',
     marginTop: 50,
   },

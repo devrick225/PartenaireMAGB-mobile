@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   header: {
     flexDirection: 'row',
@@ -1011,7 +1011,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   saveButton: {
     paddingHorizontal: 16,
@@ -1023,7 +1023,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: COLORS.white,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   scrollView: {
     flex: 1,
@@ -1057,7 +1057,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     color: COLORS.white,
   },
   avatarEditButton: {
@@ -1094,7 +1094,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginLeft: 8,
   },
   sectionContent: {
@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
   },
   inputWrapper: {
@@ -1121,7 +1121,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   textInput: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     paddingVertical: 0,
     flex: 1,
   },
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   selectOptionText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginRight: 8,
   },
   bottomPadding: {
@@ -1167,7 +1167,7 @@ const styles = StyleSheet.create({
   },
   selectedCountryText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   phoneContainer: {
     flexDirection: 'row',
@@ -1191,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   phonePrefixText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   countryItem: {
     flexDirection: 'row',
@@ -1209,12 +1209,12 @@ const styles = StyleSheet.create({
   },
   countryName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'medium',
     flex: 1,
   },
   callingCode: {
     fontSize: 14,
-    fontWeight: '400',
+    fontFamily: 'regular',
   },
   modalOverlay: {
     flex: 1,
@@ -1244,7 +1244,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   datePickerText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     marginLeft: 12,
     flex: 1,
   },

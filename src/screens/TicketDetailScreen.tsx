@@ -1553,7 +1553,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 16,
@@ -1574,7 +1574,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   errorContainer: {
     flex: 1,
@@ -1585,7 +1585,7 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 16,
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   ticketHeader: {
     padding: 20,
@@ -1610,7 +1610,7 @@ const styles = StyleSheet.create({
   },
   ticketNumber: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1622,11 +1622,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   ticketSubject: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 16,
     lineHeight: 26,
   },
@@ -1639,7 +1639,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   metaText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   assignedSection: {
     flexDirection: 'row',
@@ -1652,7 +1652,7 @@ const styles = StyleSheet.create({
   },
   assignedText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
   section: {
     padding: 20,
@@ -1666,11 +1666,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     marginBottom: 12,
   },
   description: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     lineHeight: 24,
   },
   resolutionHeader: {
@@ -1680,7 +1680,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   resolvedBy: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     marginTop: 8,
     fontStyle: 'italic',
   },
@@ -1716,7 +1716,7 @@ const styles = StyleSheet.create({
   },
   commentAuthorName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   supportBadge: {
     paddingHorizontal: 6,
@@ -1725,17 +1725,17 @@ const styles = StyleSheet.create({
   },
   supportBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   commentDate: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
   },
   commentText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
   },
   noComments: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -1765,7 +1765,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     maxWidth: '90%',
   },
   ratingDisplay: {
@@ -1777,7 +1777,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   ratingCommentText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     fontStyle: 'italic',
     lineHeight: 20,
   },
@@ -1808,7 +1808,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   modalCloseButton: {
     width: 32,
@@ -1822,7 +1822,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     minHeight: 120,
   },
   commentActions: {
@@ -1838,7 +1838,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   submitButton: {
     flex: 1,
@@ -1849,10 +1849,10 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   ratingLabel: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 20,
@@ -1867,7 +1867,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   ratingDescription: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -1876,7 +1876,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     minHeight: 80,
   },
   submitRatingButton: {
@@ -1888,7 +1888,7 @@ const styles = StyleSheet.create({
   submitRatingButtonText: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   adminSectionHeader: {
     flexDirection: 'row',
@@ -1901,7 +1901,7 @@ const styles = StyleSheet.create({
   },
   adminActionLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
@@ -1923,7 +1923,7 @@ const styles = StyleSheet.create({
   },
   statusActionText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     flexShrink: 1,
   },
   managementActions: {
@@ -1945,7 +1945,7 @@ const styles = StyleSheet.create({
   managementButtonText: {
     color: COLORS.white,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   userSection: {
     marginTop: 12,
@@ -1961,11 +1961,11 @@ const styles = StyleSheet.create({
   },
   userText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
     flexShrink: 1,
   },
   userEmail: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: 'regular',
     fontStyle: 'italic',
     marginLeft: 24,
   },
@@ -1977,7 +1977,7 @@ const styles = StyleSheet.create({
   },
   staffLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginHorizontal: 20,
     marginTop: 16,
     marginBottom: 8,
@@ -1996,16 +1996,16 @@ const styles = StyleSheet.create({
   },
   staffName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   staffRole: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 2,
   },
   staffEmpty: {
     marginHorizontal: 20,
     marginVertical: 16,
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   modalSubmit: {
     flex: 0,
@@ -2033,10 +2033,10 @@ const styles = StyleSheet.create({
   },
   internalToggleTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   internalToggleHint: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 2,
   },
   charCount: {
@@ -2044,21 +2044,21 @@ const styles = StyleSheet.create({
     marginRight: 20,
     marginTop: -12,
     marginBottom: 8,
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
   },
   adminInput: {
     margin: 20,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   adminTextArea: {
     margin: 20,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     minHeight: 80,
   },
   // Nouveaux styles pour les fonctionnalités ajoutées
@@ -2084,7 +2084,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   userRoleBadge: {
     paddingHorizontal: 6,
@@ -2094,10 +2094,10 @@ const styles = StyleSheet.create({
   },
   userRoleText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   assignedDate: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginLeft: 8,
   },
   // Styles pour les métriques
@@ -2116,13 +2116,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   metricLabel: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     textAlign: 'center',
     marginTop: 4,
   },
   metricValue: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
     textAlign: 'center',
     marginTop: 2,
   },
@@ -2134,7 +2134,7 @@ const styles = StyleSheet.create({
   },
   internalBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   commentAttachments: {
     flexDirection: 'row',
@@ -2150,10 +2150,10 @@ const styles = StyleSheet.create({
   },
   attachmentName: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   attachmentSize: {
-    fontSize: 10,
+    fontSize: 10, fontFamily: 'regular',
     fontStyle: 'italic',
   },
   // Styles pour les nouvelles sections
@@ -2173,16 +2173,16 @@ const styles = StyleSheet.create({
   },
   slaLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 4,
   },
   slaValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
   overdueText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginTop: 4,
   },
   escalationHeader: {
@@ -2195,12 +2195,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   escalationDate: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     fontStyle: 'italic',
   },
   escalationUser: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   escalationReason: {
     marginTop: 8,
@@ -2212,11 +2212,11 @@ const styles = StyleSheet.create({
   },
   escalationReasonLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 4,
   },
   escalationReasonText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
   },
   contextHeader: {
@@ -2238,11 +2238,11 @@ const styles = StyleSheet.create({
   },
   contextLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     flex: 1,
   },
   contextValue: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     flex: 2,
     textAlign: 'right',
   },
@@ -2256,7 +2256,7 @@ const styles = StyleSheet.create({
   },
   statusAlertText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   restrictionInfo: {
     padding: 12,
@@ -2268,7 +2268,7 @@ const styles = StyleSheet.create({
   },
   restrictionText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   headerAlert: {
     flexDirection: 'row',
@@ -2283,7 +2283,7 @@ const styles = StyleSheet.create({
   },
   headerAlertText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
 });
 

@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     paddingVertical: 16,
     paddingHorizontal: 0,
   },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#D32235',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
 });
 

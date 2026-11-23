@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   summaryCard: {
     marginVertical: 16,
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginLeft: 12,
   },
   summaryStats: {
@@ -605,10 +605,10 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 4,
   },
   section: {
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 12,
   },
   emptySection: {
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 8,
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   documentItem: {
     flexDirection: 'row',
@@ -654,16 +654,16 @@ const styles = StyleSheet.create({
   },
   documentTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'medium',
     marginBottom: 4,
   },
   documentMeta: {
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginBottom: 2,
   },
   documentAmount: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   downloadAction: {
     padding: 8,
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
     minWidth: 40,
   },
   progressText: {
-    fontSize: 10,
+    fontSize: 10, fontFamily: 'regular',
     marginTop: 2,
   },
   modalOverlay: {
@@ -691,11 +691,11 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
   },
   progressSubtitle: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   },
   progressPercent: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   bottomPadding: {
     height: 80,

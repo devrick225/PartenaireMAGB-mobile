@@ -61,7 +61,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     headerTitle: {
       fontSize: 20,
-      fontWeight: '700',
+      fontFamily: 'PlayfairDisplay_700Bold',
       color: colors.text,
     },
     shareButton: {
@@ -85,13 +85,13 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     heroTitle: {
       fontSize: 24,
-      fontWeight: '700',
+      fontFamily: 'bold',
       color: colors.surface,
       textAlign: 'center',
       marginBottom: 8,
     },
     heroSubtitle: {
-      fontSize: 16,
+      fontSize: 16, fontFamily: 'regular',
       color: colors.surface,
       textAlign: 'center',
       opacity: 0.9,
@@ -103,7 +103,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     categoriesTitle: {
       fontSize: 18,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: 12,
     },
@@ -130,7 +130,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     categoryChipText: {
       fontSize: 14,
-      fontWeight: '500',
+      fontFamily: 'medium',
       color: colors.text,
     },
     categoryChipTextSelected: {
@@ -143,7 +143,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     platformsTitle: {
       fontSize: 18,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: 16,
     },
@@ -162,7 +162,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     statsTitle: {
       fontSize: 18,
-      fontWeight: '600',
+      fontFamily: 'semiBold',
       color: colors.text,
       marginBottom: 16,
       textAlign: 'center',
@@ -176,12 +176,12 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     },
     statNumber: {
       fontSize: 24,
-      fontWeight: '700',
+      fontFamily: 'bold',
       color: colors.primary,
       marginBottom: 4,
     },
     statLabel: {
-      fontSize: 12,
+      fontSize: 12, fontFamily: 'regular',
       color: colors.textSecondary,
       textAlign: 'center',
     },
@@ -192,7 +192,7 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
       alignItems: 'center',
     },
     footerText: {
-      fontSize: 14,
+      fontSize: 14, fontFamily: 'regular',
       color: colors.textSecondary,
       textAlign: 'center',
       lineHeight: 20,

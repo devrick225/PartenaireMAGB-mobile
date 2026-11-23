@@ -46,7 +46,7 @@ const RefreshableHeader: React.FC<RefreshableHeaderProps> = ({
   const { c } = useDS();
 
   return (
-    <View style={[styles.bar, { backgroundColor: backgroundColor ?? c.card, borderBottomColor: c.border }]}>
+    <View style={[styles.bar, { backgroundColor: backgroundColor ?? c.background, borderBottomColor: c.border }]}>
       <View style={styles.side}>
         {customLeftComponent ??
           (showBackButton && onBackPress ? (

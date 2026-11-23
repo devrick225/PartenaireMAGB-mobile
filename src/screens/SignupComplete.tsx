@@ -24,6 +24,7 @@ import { registerUser, clearError } from '../store/slices/authSlice';
 import { showError, showSuccess } from '../store/slices/notificationSlice';
 import { RootState, AppDispatch } from '../store';
 
+import { IconButton } from '../design/components';
 interface Country {
   code: string;
   name: string;
@@ -282,12 +283,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-            >
-              <Ionicons name="arrow-back" size={24} color={dark ? COLORS.white : COLORS.black} />
-            </TouchableOpacity>
+            <IconButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Retour" />
             <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>Créer un compte</Text>
             <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
               Rejoignez notre communauté de donateurs
@@ -576,12 +572,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     textAlign: 'center',
     marginTop: 8,
   },
@@ -603,7 +599,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginBottom: 8,
   },
   inputContainer: {
@@ -622,7 +618,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     paddingVertical: 0,
     height: '100%',
   },
@@ -631,7 +627,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
     marginTop: 4,
   },
   countrySelector: {
@@ -650,7 +646,7 @@ const styles = StyleSheet.create({
   },
   selectedCountryText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   phoneContainer: {
     flexDirection: 'row',
@@ -673,7 +669,7 @@ const styles = StyleSheet.create({
   },
   phonePrefixText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
   termsContainer: {
     flexDirection: 'row',
@@ -697,7 +693,7 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     lineHeight: 20,
   },
   termsLink: {
@@ -717,11 +713,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
   },
   loginLink: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   modalOverlay: {
     flex: 1,
@@ -743,7 +739,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   modalCloseButton: {
     width: 32,
@@ -766,11 +762,11 @@ const styles = StyleSheet.create({
   },
   countryName: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
   },
   callingCode: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'medium',
   },
 });
 

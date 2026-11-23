@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: '#333',
     flex: 1,
     textAlign: 'center',
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   ministryTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'bold',
     color: '#333',
     marginBottom: 8,
   },
@@ -292,19 +292,19 @@ const styles = StyleSheet.create({
   categoryText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     color: '#333',
     marginBottom: 12,
   },
   description: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     color: '#666',
     lineHeight: 24,
   },
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   infoText: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: 'regular',
     color: '#333',
     marginLeft: 12,
     flex: 1,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'semiBold',
     marginLeft: 8,
   },
   secondaryButtonText: {

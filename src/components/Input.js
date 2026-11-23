@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: 'red',
-    fontSize: 12,
+    fontSize: 12, fontFamily: 'regular',
   },
 });
 

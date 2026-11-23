@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
-    fontSize: 24,
+    fontSize: 24, fontFamily: 'regular',
     marginRight: 12,
   },
   textContainer: {
@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: '#333',
     marginBottom: 2,
   },
   message: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: 'regular',
     color: '#666',
     lineHeight: 20,
   },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   closeText: {
     fontSize: 16,
     color: '#999',
-    fontWeight: 'bold',
+    fontFamily: 'bold',
   },
 });
 
