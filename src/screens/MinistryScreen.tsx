@@ -2,18 +2,13 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Image,
   RefreshControl,
   Alert,
-  Linking,
-  Dimensions,
-  ActivityIndicator
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -33,11 +28,12 @@ import {
 import { Ministry } from '../types/navigation';
 import openLink from '../utils/openLink';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-const { width } = Dimensions.get('window');
+import { useDS, AppText, Screen, HeroHeader, HeroChip, Card, Button, EmptyState, LoadingState } from '../design/components';
+import { cardShadow, radius, spacing, MIN_TOUCH } from '../design/tokens';
 
 const MinistryScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
+  const { c } = useDS();
   const dispatch = useAppDispatch();
   
   // Sélecteurs Redux
@@ -121,337 +117,98 @@ const MinistryScreen: React.FC = () => {
     }
   };
 
-  const renderCategoryButton = (category: any) => (
-    <TouchableOpacity
-      key={category.key}
-      style={[
-        styles.categoryButton,
-        selectedCategory === category.key && styles.categoryButtonActive
-      ]}
-      onPress={() => handleCategoryPress(category.key)}
-    >
-      <Ionicons
-        name={category.icon as any}
-        size={20}
-        color={selectedCategory === category.key ? '#fff' : '#666'}
-      />
-      <Text style={[
-        styles.categoryButtonText,
-        selectedCategory === category.key && styles.categoryButtonTextActive
-      ]}>
-        {category.label}
-      </Text>
-    </TouchableOpacity>
-  );
 
-  const renderMinistryCard = (ministry: Ministry) => (
-    <TouchableOpacity
-      key={ministry._id}
-      style={styles.ministryCard}
-      onPress={() => handleMinistryPress(ministry)}
+  const hero = (
+    <HeroHeader
+      eyebrow="Le ministère"
+      eyebrowIcon="people-outline"
+      title="Ministères"
+      subtitle="Découvrez les ministères et leurs activités."
+      onBack={() => navigation.goBack()}
     >
-      {ministry.imageUrl && (
-        <Image
-          source={{ uri: ministry.imageUrl }}
-          style={styles.ministryImage}
-          resizeMode="cover"
-        />
-      )}
-      
-      <View style={styles.ministryContent}>
-        <Text style={styles.ministryTitle}>{ministry.title}</Text>
-        <Text style={styles.ministryDescription} numberOfLines={3}>
-          {ministry.description}
-        </Text>
-        
-        <View style={styles.ministryActions}>
-          {ministry.contactInfo && (ministry.contactInfo.phone || ministry.contactInfo.email) && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleContactPress(ministry)}
-            >
-              <Ionicons name="call-outline" size={16} color="#007AFF" />
-              <Text style={styles.actionButtonText}>Contact</Text>
-            </TouchableOpacity>
-          )}
-          
-          {ministry.externalLink && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleExternalLink(ministry.externalLink!)}
-            >
-              <Ionicons name="open-outline" size={16} color="#007AFF" />
-              <Text style={styles.actionButtonText}>Lien</Text>
-            </TouchableOpacity>
-          )}
+      {stats ? (
+        <View style={styles.chips}>
+          <HeroChip icon="checkmark-circle" label={`${stats.active} actifs`} />
+          <HeroChip label={`${stats.total} au total`} />
         </View>
-      </View>
-    </TouchableOpacity>
+      ) : null}
+    </HeroHeader>
   );
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container}>
-        <RefreshableHeader title="Ministères" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Chargement des ministères...</Text>
-        </View>
-      </SafeAreaView>
+      <Screen hero={hero}>
+        <Card><LoadingState message="Chargement des ministères…" /></Card>
+      </Screen>
     );
   }
 
+  const currentLabel = selectedCategory === 'all' ? 'Tous les ministères' : categories.find(cat => cat.key === selectedCategory)?.label;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ministères</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Statistiques */}
-        {stats && (
-          <View style={styles.statsContainer}>
-            <Text style={styles.statsTitle}>Aperçu</Text>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.active}</Text>
-                <Text style={styles.statLabel}>Actifs</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.total}</Text>
-                <Text style={styles.statLabel}>Total</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {categories.length - 1}
-                </Text>
-                <Text style={styles.statLabel}>Catégories</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Catégories */}
-        <View style={styles.categoriesContainer}>
-          <Text style={styles.sectionTitle}>Catégories</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesScroll}
-          >
-            {categories.map(renderCategoryButton)}
-          </ScrollView>
-        </View>
-
-        {/* Liste des ministères */}
-        <View style={styles.ministriesContainer}>
-          <Text style={styles.sectionTitle}>
-            {selectedCategory === 'all' ? 'Tous les ministères' : 
-             categories.find(c => c.key === selectedCategory)?.label}
-          </Text>
-          
-          {ministries.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>
-                Aucun ministère trouvé dans cette catégorie
-              </Text>
-            </View>
-          ) : (
-            ministries.map(renderMinistryCard)
-          )}
-        </View>
+    <Screen hero={hero} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}>
+      {/* Catégories */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats} accessibilityLabel="Catégories">
+        {categories.map((cat: any) => {
+          const active = selectedCategory === cat.key;
+          return (
+            <Pressable
+              key={cat.key}
+              onPress={() => handleCategoryPress(cat.key)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+              style={[styles.cat, { backgroundColor: active ? c.primary : c.card, borderColor: active ? c.primary : c.border }]}
+            >
+              <Ionicons name={cat.icon as any} size={16} color={active ? c.primaryForeground : c.mutedForeground} />
+              <AppText variant="smallStrong" color={active ? c.primaryForeground : c.foreground}>{cat.label}</AppText>
+            </Pressable>
+          );
+        })}
       </ScrollView>
-    </SafeAreaView>
+
+      <AppText variant="overline" color={c.mutedForeground}>{currentLabel}</AppText>
+
+      {ministries.length === 0 ? (
+        <Card><EmptyState icon="people-outline" title="Aucun ministère" message="Aucun ministère dans cette catégorie pour le moment." /></Card>
+      ) : (
+        ministries.map((ministry: Ministry) => {
+          const canContact = !!ministry.contactInfo && !!(ministry.contactInfo.phone || ministry.contactInfo.email);
+          return (
+            <Pressable
+              key={ministry._id}
+              onPress={() => handleMinistryPress(ministry)}
+              accessibilityRole="button"
+              accessibilityLabel={ministry.title}
+              style={({ pressed }) => [styles.card, cardShadow, { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.92 : 1 }]}
+            >
+              {ministry.imageUrl ? <Image source={{ uri: ministry.imageUrl }} style={styles.image} resizeMode="cover" /> : null}
+              <View style={styles.cardBody}>
+                <AppText variant="subtitle">{ministry.title}</AppText>
+                <AppText variant="small" color={c.mutedForeground} numberOfLines={3}>{ministry.description}</AppText>
+                {canContact || ministry.externalLink ? (
+                  <View style={styles.actions}>
+                    {canContact ? <Button title="Contacter" variant="outline" icon="call-outline" fullWidth={false} onPress={() => handleContactPress(ministry)} style={styles.action} /> : null}
+                    {ministry.externalLink ? <Button title="En savoir plus" variant="ghost" icon="open-outline" fullWidth={false} onPress={() => handleExternalLink(ministry.externalLink!)} style={styles.action} /> : null}
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })
+      )}
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    color: '#333',
-  },
-  headerRight: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16, fontFamily: 'regular',
-    color: '#666',
-  },
-  statsContainer: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontFamily: 'semiBold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontFamily: 'bold',
-    color: '#007AFF',
-  },
-  statLabel: {
-    fontSize: 12, fontFamily: 'regular',
-    color: '#666',
-    marginTop: 4,
-  },
-  categoriesContainer: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    color: '#333',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  categoriesScroll: {
-    paddingHorizontal: 16,
-  },
-  categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryButtonText: {
-    fontSize: 14, fontFamily: 'regular',
-    color: '#666',
-    marginLeft: 6,
-  },
-  categoryButtonTextActive: {
-    color: '#fff',
-  },
-  ministriesContainer: {
-    paddingBottom: 20,
-  },
-  ministryCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  ministryImage: {
-    width: '100%',
-    height: 200,
-  },
-  ministryContent: {
-    padding: 16,
-  },
-  ministryTitle: {
-    fontSize: 18,
-    fontFamily: 'semiBold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  ministryDescription: {
-    fontSize: 14, fontFamily: 'regular',
-    color: '#666',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  ministryActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  actionButtonText: {
-    fontSize: 12, fontFamily: 'regular',
-    color: '#007AFF',
-    marginLeft: 4,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16, fontFamily: 'regular',
-    color: '#666',
-    marginTop: 16,
-    textAlign: 'center',
-  },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  cats: { gap: spacing.sm, paddingRight: spacing.lg },
+  cat: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TOUCH - 4, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1 },
+  card: { borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  image: { width: '100%', height: 160 },
+  cardBody: { padding: spacing.lg, gap: spacing.sm },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+  action: { minHeight: 40 },
 });
 
-export default MinistryScreen; 
+export default MinistryScreen;
