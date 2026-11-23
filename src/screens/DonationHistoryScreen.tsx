@@ -5,19 +5,31 @@ import { useDispatch } from 'react-redux';
 import { showError, showSuccess } from '../store/slices/notificationSlice';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   ActivityIndicator,
   RefreshControl,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
-import MenuRefreshIcon from '../components/MenuRefreshIcon';
+import {
+  useDS,
+  AppText,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  SegmentedTabs,
+  Card,
+  StatusBadge,
+  Badge,
+  Button,
+  EmptyState,
+  LoadingState,
+  formatAmount,
+  formatDate,
+} from '../design/components';
+import { cardShadow, radius, spacing } from '../design/tokens';
 import donationService, { Donation, DonationFilters } from '../store/services/donationService';
 
 interface DonationHistoryScreenProps {
@@ -30,7 +42,7 @@ interface DonationHistoryScreenProps {
 }
 
 const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigation, route }) => {
-  const { colors, dark } = useTheme();
+  const { c } = useDS();
   const showOnlyDonations = route?.params?.showOnlyDonations || false;
   
   const dispatch = useDispatch();
@@ -132,436 +144,198 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
     }, [loadDonations])
   );
 
-  const renderDonationItem = ({ item }: { item: Donation }) => (
-    <TouchableOpacity
-      style={[styles.donationCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-      onPress={() => navigation.navigate('DonationDetail', { donationId: item._id })}
-    >
-      <View style={styles.donationHeader}>
-        <View style={[styles.categoryIcon, { backgroundColor: colors.primary + '20' }]}>
-          <MaterialIcons
-            name={donationService.getCategoryIcon(item.category) as any}
-            size={24}
-            color={colors.primary}
-          />
-        </View>
-        <View style={styles.donationInfo}>
-          <Text
-            style={[styles.donationAmount, { color: colors.text }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-          >
-            {donationService.formatAmount(item.amount, item.currency)}
-          </Text>
-          <Text style={[styles.donationCategory, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
-            {donationService.formatCategory(item.category)}
-          </Text>
-        </View>
-        <View style={styles.donationMeta}>
-          <View style={[styles.statusBadge, { backgroundColor: donationService.getStatusColor(item.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: donationService.getStatusColor(item.status) }]} numberOfLines={1}>
-              {donationService.formatStatus(item.status)}
-            </Text>
-          </View>
-          {/* Échéance d'un don récurrent : don distinct à régler, créé par le backend à chaque échéance */}
-          {!!item.recurringParent && (
-            <View style={[styles.recurringBadge, { backgroundColor: colors.primary + '20' }]}>
-              <MaterialIcons name="event-repeat" size={12} color={colors.primary} />
-              <Text style={[styles.recurringText, { color: colors.primary }]}>
-                {item.occurrenceNumber ? `Échéance n°${item.occurrenceNumber}` : 'Échéance'}
-              </Text>
-            </View>
-          )}
-          {item.type === 'recurring' && (
-            <View style={[styles.recurringBadge, { backgroundColor: colors.primary + '20' }]}>
-              <MaterialIcons name="repeat" size={12} color={colors.primary} />
-              <Text style={[styles.recurringText, { color: colors.primary }]}>
-                Récurrent
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
 
-      <View style={styles.donationDetails}>
-        <View style={styles.donationDetailRow}>
-          <MaterialIcons name="receipt" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.donationDetailText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            {item.receipt?.number ? `Reçu #${item.receipt.number}` : 'Reçu disponible après paiement'}
-          </Text>
+  const renderDonationItem = ({ item }: { item: Donation }) => {
+    const isOccurrence = !!item.recurringParent;
+    const isRecurring = item.type === 'recurring';
+    return (
+      <Pressable
+        onPress={() => navigation.navigate('DonationDetail', { donationId: item._id })}
+        accessibilityRole="button"
+        accessibilityLabel={`Don de ${formatAmount(item.amount, item.currency)}, ${donationService.formatCategory(item.category)}, ${formatDate(item.createdAt)}`}
+        style={({ pressed }) => [
+          styles.card,
+          cardShadow,
+          { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.9 : 1 },
+        ]}
+      >
+        <View style={styles.cardTop}>
+          <View style={[styles.iconTile, { backgroundColor: c.primarySoft }]}>
+            <MaterialIcons name={donationService.getCategoryIcon(item.category) as any} size={22} color={c.primary} />
+          </View>
+          <View style={styles.flex}>
+            <AppText variant="subtitle" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {formatAmount(item.amount, item.currency)}
+            </AppText>
+            <AppText variant="small" color={c.mutedForeground} numberOfLines={1}>
+              {donationService.formatCategory(item.category)} · {formatDate(item.createdAt)}
+            </AppText>
+          </View>
+          <StatusBadge status={item.status} />
         </View>
-        <View style={styles.donationDetailRow}>
-          <MaterialIcons name="event" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.donationDetailText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            {new Date(item.createdAt).toLocaleDateString('fr-FR')}
-          </Text>
-        </View>
-        {item.recurring && (
-          <View style={styles.donationDetailRow}>
-            <MaterialIcons name="schedule" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-            <Text style={[styles.donationDetailText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Prochaine: {item.recurring.nextPaymentDate ? 
-                new Date(item.recurring.nextPaymentDate).toLocaleDateString('fr-FR') : 
-                'Non définie'
-              }
-            </Text>
+
+        {(isOccurrence || isRecurring) && (
+          <View style={styles.badges}>
+            {isOccurrence && (
+              <Badge
+                tone="primary"
+                icon="calendar-outline"
+                label={item.occurrenceNumber ? `Échéance n°${item.occurrenceNumber}` : 'Échéance'}
+              />
+            )}
+            {isRecurring && <Badge tone="primary" icon="repeat" label="Récurrent" />}
           </View>
         )}
-      </View>
 
-      {item.message && (
-        <View style={styles.donationMessage}>
-          <Text style={[styles.messageText, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={2}>
-            "{item.message}"
-          </Text>
+        <View style={[styles.meta, { borderTopColor: c.border }]}>
+          <View style={styles.metaItem}>
+            <Ionicons name="receipt-outline" size={14} color={c.mutedForeground} />
+            <AppText variant="caption" color={c.mutedForeground} numberOfLines={1}>
+              {item.receipt?.number ? `Reçu n°${item.receipt.number}` : 'Reçu disponible après paiement'}
+            </AppText>
+          </View>
+          {item.recurring?.nextPaymentDate ? (
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={14} color={c.mutedForeground} />
+              <AppText variant="caption" color={c.mutedForeground}>
+                Prochaine échéance : {formatDate(item.recurring.nextPaymentDate)}
+              </AppText>
+            </View>
+          ) : null}
         </View>
-      )}
 
-      {item.type === 'recurring' && item.recurring?.isActive && (
-        <View style={styles.donationActions}>
-          <TouchableOpacity
+        {item.message ? (
+          <AppText variant="small" color={c.mutedForeground} numberOfLines={2} style={styles.message}>
+            « {item.message} »
+          </AppText>
+        ) : null}
+
+        {isRecurring && item.recurring?.isActive && (
+          <Button
+            title="Arrêter ce don récurrent"
+            variant="outline"
+            icon="stop-circle-outline"
             onPress={() => handleCancelRecurring(item._id)}
-            style={[styles.actionButton, { borderColor: '#FF5722' }]}
-          >
-            <MaterialIcons name="stop" size={16} color="#FF5722" />
-            <Text style={[styles.actionButtonText, { color: '#FF5722' }]}>
-              Annuler
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+            style={{ marginTop: spacing.md, minHeight: 44 }}
+          />
+        )}
+      </Pressable>
+    );
+  };
 
   const currentDonations = showOnlyDonations ? donations : (selectedTab === 'all' ? donations : recurringDonations);
+  const title = showOnlyDonations ? 'Mes dons ponctuels' : 'Historique des dons';
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
-          {showOnlyDonations ? 'Mes Donations' : 'Historique des dons'}
-        </Text>
-        <MenuRefreshIcon
-          onPress={() => loadDonations(true)}
-          isRefreshing={isRefreshing}
-          size={24}
-          color={colors.primary}
-          style={{ backgroundColor: colors.primary + '15', borderRadius: 20 }}
+  const header = (
+    <>
+      <HeroHeader
+        eyebrow="Mes dons"
+        eyebrowIcon="heart-outline"
+        title={title}
+        onBack={() => navigation.goBack()}
+        right={
+          <IconButton
+            icon={isRefreshing ? 'hourglass-outline' : 'refresh'}
+            tone="hero"
+            accessibilityLabel="Actualiser"
+            onPress={() => loadDonations(true)}
+          />
+        }
+      >
+        {hasLoaded ? (
+          <View style={styles.chips}>
+            <HeroChip icon="heart" label={`${pageInfo.totalDocs} don${pageInfo.totalDocs > 1 ? 's' : ''}`} />
+          </View>
+        ) : null}
+      </HeroHeader>
+      <View style={styles.headerBody}>
+        {!showOnlyDonations && (
+          <SegmentedTabs
+            value={selectedTab}
+            onChange={(key) => {
+              if (key !== selectedTab) {
+                setHasLoaded(false);
+                setSelectedTab(key);
+              }
+            }}
+            options={[
+              { key: 'all', label: 'Tous les dons', icon: 'list-outline' },
+              { key: 'recurring', label: 'Récurrents', icon: 'repeat' },
+            ]}
+          />
+        )}
+        <Button
+          title="Faire un don"
+          variant="gold"
+          icon="add-circle-outline"
+          onPress={() => navigation.navigate('CreateDonation', selectedTab === 'recurring' && !showOnlyDonations ? { initialType: 'recurring' } : undefined)}
         />
       </View>
+    </>
+  );
 
-      {/* Tabs */}
-      {!showOnlyDonations && (
-        <View style={[styles.tabContainer, { backgroundColor: colors.background }]}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              {
-                backgroundColor: selectedTab === 'all' 
-                  ? colors.primary 
-                  : (dark ? COLORS.dark2 : COLORS.white),
-              },
-            ]}
-            onPress={() => { if (selectedTab !== 'all') { setHasLoaded(false); setSelectedTab('all'); } }}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                {
-                  color: selectedTab === 'all' 
-                    ? '#FFFFFF' 
-                    : colors.text,
-                },
-              ]}
-            >
-              Tous les dons
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              {
-                backgroundColor: selectedTab === 'recurring' 
-                  ? colors.primary 
-                  : (dark ? COLORS.dark2 : COLORS.white),
-              },
-            ]}
-            onPress={() => { if (selectedTab !== 'recurring') { setHasLoaded(false); setSelectedTab('recurring'); } }}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                {
-                  color: selectedTab === 'recurring' 
-                    ? '#FFFFFF' 
-                    : colors.text,
-                },
-              ]}
-            >
-              Dons récurrents
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Donations List */}
+  return (
+    <View style={[styles.flex, { backgroundColor: c.background }]}>
       <FlatList
         data={currentDonations}
         renderItem={renderDonationItem}
         keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={header}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.4}
-        ListHeaderComponent={
-          hasLoaded && pageInfo.totalDocs > 0 ? (
-            <Text style={[styles.countText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              {pageInfo.totalDocs} don{pageInfo.totalDocs > 1 ? 's' : ''}
-            </Text>
-          ) : null
-        }
         ListFooterComponent={
-          isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} /> : null
+          isLoadingMore ? <ActivityIndicator style={{ marginVertical: spacing.lg }} color={c.primary} /> : undefined
         }
         refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => loadDonations(true)}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={isRefreshing} onRefresh={() => loadDonations(true)} colors={[c.primary]} tintColor={c.primary} />
         }
         ListEmptyComponent={
           hasLoaded && !isLoading ? (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="history" size={64} color={dark ? COLORS.grayTie : COLORS.gray} />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                Aucun don trouvé
-              </Text>
-              <Text style={[styles.emptyText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                {showOnlyDonations 
-                  ? 'Vous n\'avez pas encore fait de donation'
-                  : selectedTab === 'all' 
-                    ? 'Vous n\'avez pas encore fait de don'
-                    : 'Vous n\'avez pas de don récurrent'
-                }
-              </Text>
-              <TouchableOpacity
-                style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-                onPress={() => navigation.navigate('CreateDonation', selectedTab === 'recurring' && !showOnlyDonations ? { initialType: 'recurring' } : undefined)}
-              >
-                <MaterialIcons name="add" size={18} color="#FFFFFF" />
-                <Text style={styles.emptyButtonText}>Faire un don</Text>
-              </TouchableOpacity>
+            <View style={styles.pad}>
+              <Card>
+                <EmptyState
+                  icon={selectedTab === 'recurring' && !showOnlyDonations ? 'repeat' : 'heart-outline'}
+                  title="Aucun don pour le moment"
+                  message={
+                    showOnlyDonations
+                      ? 'Vous n\'avez pas encore fait de don ponctuel.'
+                      : selectedTab === 'all'
+                        ? 'Vos dons apparaîtront ici dès votre première contribution.'
+                        : 'Vous n\'avez pas de don récurrent.'
+                  }
+                />
+              </Card>
             </View>
           ) : (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
+            <LoadingState message="Chargement de vos dons…" />
           )
         }
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  countText: {
-    fontSize: 13,
-    marginBottom: 8,
+  flex: { flex: 1 },
+  listContent: { paddingBottom: spacing.xxl },
+  headerBody: { paddingHorizontal: spacing.lg, marginTop: -spacing.lg, marginBottom: spacing.lg, gap: spacing.md },
+  pad: { paddingHorizontal: spacing.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap' },
+  card: {
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: spacing.lg,
   },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 8,
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
-    padding: 4,
-    gap: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  listContainer: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  donationCard: {
-    borderRadius: 12,
-    marginBottom: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  donationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  donationInfo: {
-    flex: 1,
-  },
-  donationAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  donationCategory: {
-    fontSize: 14,
-  },
-  donationMeta: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  recurringBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 2,
-  },
-  recurringText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  donationDetails: {
-    gap: 6,
-    marginBottom: 12,
-  },
-  donationDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  donationDetailText: {
-    fontSize: 12,
-  },
-  donationMessage: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 12,
-  },
-  messageText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  donationActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    gap: 4,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  iconTile: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  meta: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, gap: 6 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  message: { marginTop: spacing.sm, fontStyle: 'italic' },
 });
 
 export default DonationHistoryScreen;

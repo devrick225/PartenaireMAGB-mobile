@@ -3,6 +3,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useFonts } from 'expo-font'
 import { useCallback } from 'react'
 import { FONTS } from './src/constants/fonts'
+import { PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display'
+import {
+  SourceSans3_400Regular,
+  SourceSans3_500Medium,
+  SourceSans3_600SemiBold,
+  SourceSans3_700Bold,
+} from '@expo-google-fonts/source-sans-3'
 import AppNavigation from './src/navigations/AppNavigation'
 import { ThemeProvider } from './src/theme/ThemeProvider'
 import { Provider } from 'react-redux'
@@ -16,7 +23,16 @@ import ToastNotification from './src/components/ToastNotification'
 SplashScreen.preventAutoHideAsync()
 
 export default function App() {
-  const [fontsLoaded] = useFonts(FONTS)
+  // Urbanist (anciens écrans) + Playfair Display / Source Sans 3 (charte frontend-new, src/design)
+  const [fontsLoaded] = useFonts({
+    ...FONTS,
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+    SourceSans3_400Regular,
+    SourceSans3_500Medium,
+    SourceSans3_600SemiBold,
+    SourceSans3_700Bold,
+  })
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {

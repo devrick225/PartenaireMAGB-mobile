@@ -1,18 +1,25 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
-  ScrollView,
   AppState,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  Card,
+  InfoRow,
+  Button,
+  LoadingState,
+  StatusBadge,
+  formatAmount,
+  IconName,
+} from '../design/components';
+import { spacing } from '../design/tokens';
 import { useDeepLinking } from '../hooks/useDeepLinking';
 import donationService from '../store/services/donationService';
 import paymentService from '../store/services/paymentService';
@@ -41,7 +48,7 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
   navigation, 
   route 
 }) => {
-  const { colors, dark } = useTheme();
+  const { c } = useDS();
   const { lastDeepLink, parsePaymentDeepLink, clearLastDeepLink } = useDeepLinking();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -414,328 +421,122 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
     }
   };
 
-  const getStatusIcon = () => {
-    if (!verificationResult) return null;
-    
-    const status = verificationResult.details?.status;
-    
-    if (verificationResult.success) {
-      return (
-        <View style={[styles.statusIcon, { backgroundColor: COLORS.success }]}>
-          <MaterialIcons name="check" size={32} color={COLORS.white} />
-        </View>
-      );
-    } else if (['processing', 'pending', 'initialized'].includes(status)) {
-      return (
-        <View style={[styles.statusIcon, { backgroundColor: COLORS.warning || '#FF9800' }]}>
-          <MaterialIcons name="hourglass-empty" size={32} color={COLORS.white} />
-        </View>
-      );
-    } else {
-      return (
-        <View style={[styles.statusIcon, { backgroundColor: COLORS.error }]}>
-          <MaterialIcons name="error" size={32} color={COLORS.white} />
-        </View>
-      );
-    }
-  };
 
-  const getStatusColor = () => {
-    if (!verificationResult) return COLORS.gray;
-    
-    const status = verificationResult.details?.status;
-    
-    if (verificationResult.success) {
-      return COLORS.success;
-    } else if (['processing', 'pending', 'initialized'].includes(status)) {
-      return COLORS.warning || '#FF9800';
-    } else {
-      return COLORS.error;
-    }
-  };
+  // Présentation du résultat : succès, en attente ou échec
+  const pendingStatuses = ['processing', 'pending', 'initialized'];
+  const resultStatus = verificationResult?.details?.status;
+  const tone: 'success' | 'warning' | 'danger' = verificationResult?.success
+    ? 'success'
+    : pendingStatuses.includes(resultStatus)
+      ? 'warning'
+      : 'danger';
+  const toneColor = tone === 'success' ? c.success : tone === 'warning' ? c.warning : c.destructive;
+  const toneSoft = tone === 'success' ? c.successSoft : tone === 'warning' ? c.warningSoft : c.destructiveSoft;
+  const toneIcon: IconName = tone === 'success' ? 'checkmark' : tone === 'warning' ? 'hourglass-outline' : 'close';
+  const toneTitle = tone === 'success' ? 'Paiement confirmé' : tone === 'warning' ? 'Paiement en attente' : 'Paiement non abouti';
+  const isPaid = verificationResult?.success || resultStatus === 'paid' || resultStatus === 'completed';
+  const details = verificationResult?.details;
+  const donationId = getPaymentParams()?.donationId;
+
+  const detailRows: { label: string; value: React.ReactNode }[] = [];
+  if (details) {
+    if (details.amount != null) detailRows.push({ label: 'Montant', value: formatAmount(details.amount, details.currency || 'XOF') });
+    if (details.status) detailRows.push({ label: 'Statut', value: <StatusBadge status={details.status} /> });
+    if (details.provider) detailRows.push({ label: 'Moyen de paiement', value: paymentService.formatProvider(details.provider) });
+    if (details.transactionId) detailRows.push({ label: 'Référence', value: String(details.transactionId) });
+    if (details.fees != null) detailRows.push({ label: 'Frais', value: formatAmount(details.fees, 'XOF') });
+    if (details.customerName) detailRows.push({ label: 'Donateur', value: details.customerName });
+    if (details.customerPhone) detailRows.push({ label: 'Téléphone', value: details.customerPhone });
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-        >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>
-            Vérification du Paiement
-        </Text>
-        </View>
-
-        {/* Contenu principal */}
-        <View style={styles.content}>
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: colors.text }]}>
-                Vérification en cours...
-            </Text>
-            </View>
-          ) : verificationResult ? (
-            <View style={styles.resultContainer}>
-              {/* Icône de statut */}
-              {getStatusIcon()}
-              
-              {/* Message de résultat */}
-              <Text style={[
-                styles.resultMessage, 
-                { color: getStatusColor() }
-              ]}>
-                {verificationResult.message}
-              </Text>
-
-              {/* Détails du paiement */}
-              {verificationResult.details && (
-                <View style={[styles.detailsContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-                  <Text style={[styles.detailsTitle, { color: colors.text }]}>
-                    Détails du Paiement
-                  </Text>
-                  
-                  {verificationResult.details.amount != null && (
-                    <View style={styles.detailRow}>
-                      <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                        Montant:
-                      </Text>
-                      <Text style={[styles.detailValue, { color: colors.text }]}>
-                        {verificationResult.details.amount} {verificationResult.details.currency || 'XOF'}
-                  </Text>
-                </View>
-              )}
-              
-                  {verificationResult.details.status && (
-                    <View style={styles.detailRow}>
-                      <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                        Statut:
-                  </Text>
-                      <Text style={[styles.detailValue, { color: colors.text }]}>
-                        {(() => {
-                          switch (verificationResult.details.status) {
-                            case 'paid': return 'Payé';
-                            case 'pending': return 'En attente';
-                            case 'failed': return 'Échoué';
-                            case 'processing': return 'En cours';
-                            case 'completed': return 'Complété';
-                            case 'cancelled': return 'Annulé';
-                            case 'expired': return 'Expiré';
-                            case 'initialized': return 'Initialisé';
-                            default: return verificationResult.details.status;
-                          }
-                        })()}
-                  </Text>
-                </View>
-              )}
-
-                  {verificationResult.details.transactionId && (
-                    <View style={styles.detailRow}>
-                      <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                        Transaction ID:
-                  </Text>
-                      <Text style={[styles.detailValue, { color: colors.text }]}>
-                        {verificationResult.details.transactionId}
-                  </Text>
-                </View>
-              )}
-
-              {verificationResult.details.fees != null && (
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Frais MoneyFusion:
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {verificationResult.details.fees} F CFA
-                  </Text>
-                </View>
-              )}
-
-              {verificationResult.details.customerName && (
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Client:
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {verificationResult.details.customerName}
-                  </Text>
-                </View>
-              )}
-
-              {verificationResult.details.customerPhone && (
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Téléphone:
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {verificationResult.details.customerPhone}
-                  </Text>
-                </View>
-              )}
-                </View>
-              )}
-
-        {/* Actions */}
-        <View style={styles.actionsContainer}>
-                {/* Bouton Continuer le paiement désactivé */}
-
-                
-
-                {/* Masquer "Vérifier à nouveau" si le paiement est payé */}
-                {verificationResult?.details?.status !== 'paid' && (
-                <TouchableOpacity
-                  onPress={handleRetry}
-                  style={[styles.actionButton, { backgroundColor: colors.primary }]}
-                >
-                  <MaterialIcons name="refresh" size={20} color={COLORS.white} />
-                  <Text style={[styles.actionButtonText, { color: COLORS.white }]}>
-                    Vérifier à nouveau
-                  </Text>
-                </TouchableOpacity>
-                )}
-
-                {getPaymentParams()?.donationId && (
-                               <TouchableOpacity
-                    onPress={handleViewDonation}
-                    style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
-               >
-                    <MaterialIcons name="receipt" size={20} color={colors.text} />
-                    <Text style={[styles.actionButtonText, { color: colors.text }]}>
-                      Voir le don
-                 </Text>
-               </TouchableOpacity>
-              )}
+    <Screen
+      hero={
+        <HeroHeader
+          eyebrow="Paiement"
+          eyebrowIcon="shield-checkmark-outline"
+          title="Vérification du paiement"
+          subtitle="Nous confirmons votre paiement auprès du prestataire."
+          onBack={() => navigation.goBack()}
+        />
+      }
+      footer={
+        !isLoading && verificationResult ? (
+          <View style={styles.footer}>
+            {!isPaid && <Button title="Vérifier à nouveau" icon="refresh" onPress={handleRetry} />}
+            {donationId ? (
+              <Button title="Voir le don" icon="receipt-outline" variant={isPaid ? 'primary' : 'outline'} onPress={handleViewDonation} />
+            ) : null}
+            {isPaid ? (
+              <Button title="Retour à l'accueil" variant="ghost" onPress={() => navigation.navigate('Dashboard')} />
+            ) : null}
+          </View>
+        ) : undefined
+      }
+    >
+      {isLoading ? (
+        <Card>
+          <LoadingState message="Vérification en cours… Cela peut prendre quelques secondes." />
+        </Card>
+      ) : verificationResult ? (
+        <>
+          <Card style={styles.result}>
+            <View style={[styles.resultIcon, { backgroundColor: toneSoft }]} accessibilityElementsHidden>
+              <View style={[styles.resultIconInner, { backgroundColor: toneColor }]}>
+                <Ionicons name={toneIcon} size={30} color="#FFFFFF" />
               </View>
             </View>
-          ) : (
-            <View style={styles.errorContainer}>
-              <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
-              <Text style={[styles.errorText, { color: colors.text }]}>
-                Impossible de récupérer les informations de paiement
-            </Text>
-            </View>
+            <AppText variant="title" center accessibilityRole="header">
+              {toneTitle}
+            </AppText>
+            <AppText variant="body" color={c.mutedForeground} center accessibilityLiveRegion="polite">
+              {/* L'icône et le titre portent déjà le statut : retirer l'émoji en tête du message */}
+              {verificationResult.message.replace(/^(?:✅|⏳|❌|⚠️|⚠)\s*/u, '')}
+            </AppText>
+          </Card>
+
+          {detailRows.length > 0 && (
+            <Card>
+              <AppText variant="overline" color={c.mutedForeground} style={{ marginBottom: spacing.xs }}>
+                Détails du paiement
+              </AppText>
+              {detailRows.map((r, i) => (
+                <InfoRow key={r.label} label={r.label} value={r.value} last={i === detailRows.length - 1} />
+              ))}
+            </Card>
           )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+
+          {tone === 'warning' ? (
+            <Card style={styles.notice}>
+              <Ionicons name="information-circle-outline" size={20} color={c.primary} />
+              <AppText variant="small" color={c.mutedForeground} style={styles.flex}>
+                La confirmation du prestataire peut prendre quelques minutes. Votre don sera mis à jour automatiquement.
+              </AppText>
+            </Card>
+          ) : null}
+        </>
+      ) : (
+        <Card>
+          <View style={styles.result}>
+            <Ionicons name="alert-circle-outline" size={44} color={c.destructive} />
+            <AppText variant="body" center>
+              Impossible de récupérer les informations de paiement.
+            </AppText>
+            <Button title="Réessayer" icon="refresh" variant="outline" onPress={handleRetry} />
+          </View>
+        </Card>
+      )}
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  resultContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  resultMessage: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  detailsContainer: {
-    width: '100%',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  detailsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 16,
-  },
+  flex: { flex: 1 },
+  footer: { gap: spacing.sm },
+  result: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
+  resultIcon: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  resultIconInner: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
 });
 
-export default PaymentVerificationScreen; 
+export default PaymentVerificationScreen;
