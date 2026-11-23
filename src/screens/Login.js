@@ -15,7 +15,9 @@ import { COLORS, SIZES, icons, images } from '../constants';
 import Header from '../components/Header';
 import Input from '../components/Input';
 import Checkbox from 'expo-checkbox';
-import Button from '../components/Button';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppText, Card, Button as DSButton, useDS } from '../design/components';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAppDispatch } from '../store/hooks';
 import { useAuth } from '../store/hooks';
@@ -25,6 +27,8 @@ import { showSuccess, showError } from '../store/slices/notificationSlice';
 const Login = ({ navigation }) => {
   const [isChecked, setChecked] = useState(false);
   const { colors, dark } = useTheme();
+  const { c, gradient } = useDS();
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();  
   const { isAuthenticated, isLoading, error } = useAuth();
   
@@ -216,109 +220,97 @@ const Login = ({ navigation }) => {
 
 
   return (
-    <SafeAreaView style={[styles.area, {
-      backgroundColor: colors.background }]}>
-      <View style={[styles.container, {
-        backgroundColor: colors.background
-      }]}>
-        <Header  showBackButton={false} />
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={images.logo}
-              resizeMode='contain'
-              style={styles.logo}
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+        {/* En-tête de marque (hero du site) */}
+        <LinearGradient
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ paddingTop: insets.top + 32, paddingBottom: 56, paddingHorizontal: 24, alignItems: 'center' }}
+        >
+          <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Image source={images.logo} resizeMode="contain" style={{ width: 64, height: 64 }} />
+          </View>
+          <AppText variant="display" color="#FFFFFF" center accessibilityRole="header">Bon retour</AppText>
+          <AppText variant="body" color="rgba(255,255,255,0.8)" center style={{ marginTop: 4 }}>
+            Connectez-vous à votre espace Partenaire MAGB
+          </AppText>
+        </LinearGradient>
+
+        {/* Formulaire */}
+        <View style={{ paddingHorizontal: 16, marginTop: -28, flex: 1 }}>
+          <Card style={{ gap: 4 }}>
+            <AppText variant="smallStrong">Email</AppText>
+            <Input
+              id="email"
+              placeholderTextColor={c.mutedForeground}
+              icon="email"
+              keyboardType="email-address"
+              value={formData.email}
+              onInputChanged={(value) => handleInputChange('email', value)}
+              placeholder="vous@exemple.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+              accessibilityLabel="Email"
             />
-          </View>
-          <Text style={[styles.title, {
-            color: dark ? COLORS.white : COLORS.black
-          }]}>Connectez-vous à votre compte</Text>
-          <Input
-            id="email"
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.black}
-            icon="email"
-            keyboardType="email-address"
-            value={formData.email}
-            onInputChanged={(value) => handleInputChange('email', value)}
-            placeholder="Entrez votre email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
-          />
-          <Input
-            autoCapitalize="none"
-            id="password"
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.black}
-            icon="lock"
-            value={formData.password}
-            onInputChanged={(value) => handleInputChange('password', value)}
-            placeholder="Entrez votre mot de passe"
-            autoCorrect={false}
-            editable={!isLoading}
-            showPasswordToggle={true}
-            secureTextEntry={!showPassword}
-          />
-          <View style={styles.checkBoxContainer}>
-            <View style={{ flexDirection: 'row' }}>
-              <Checkbox
-                style={styles.checkbox}
-                value={isChecked}
-                color={isChecked ? '#472A6F' : dark ? '#472A6F' : "gray"}
-                onValueChange={setChecked}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.privacy, {
-                  color: dark ? COLORS.white : COLORS.black
-                }]}>Se souvenir de moi</Text>
-              </View>
+            <AppText variant="smallStrong" style={{ marginTop: 8 }}>Mot de passe</AppText>
+            <Input
+              autoCapitalize="none"
+              id="password"
+              placeholderTextColor={c.mutedForeground}
+              icon="lock"
+              value={formData.password}
+              onInputChanged={(value) => handleInputChange('password', value)}
+              placeholder="Votre mot de passe"
+              autoCorrect={false}
+              editable={!isLoading}
+              showPasswordToggle={true}
+              secureTextEntry={!showPassword}
+              accessibilityLabel="Mot de passe"
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 16 }}>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}
+                onPress={() => setChecked(!isChecked)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isChecked }}
+              >
+                <Checkbox style={styles.checkbox} value={isChecked} color={isChecked ? c.primary : c.mutedForeground} onValueChange={setChecked} />
+                <AppText variant="small">Se souvenir de moi</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("ForgotPasswordMethods")}
+                disabled={isLoading}
+                accessibilityRole="link"
+                style={{ minHeight: 44, justifyContent: 'center' }}
+              >
+                <AppText variant="smallStrong" color={c.primary}>Mot de passe oublié ?</AppText>
+              </TouchableOpacity>
             </View>
-          </View>
-          <Button
-            title={isLoading ? "Connexion..." : "Se connecter"}
-            filled
-            onPress={handleLogin}
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            isLoading={isLoading}
-          />
-          {biometricAvailable && (
-            <TouchableOpacity
-              style={[styles.biometricButton, isLoading && styles.buttonDisabled]}
-              onPress={handleBiometricLogin}
-              disabled={isLoading}
-              accessibilityRole="button"
-              accessibilityLabel={`Se connecter avec ${biometricLabel}`}>
-              <Ionicons
-                name={biometricLabel.includes('empreinte') || biometricLabel === 'Touch ID' ? 'finger-print' : 'scan'}
-                size={22}
-                color="#472A6F"
+            <DSButton title={isLoading ? "Connexion…" : "Se connecter"} onPress={handleLogin} loading={isLoading} />
+            {biometricAvailable && (
+              <DSButton
+                title={`Se connecter avec ${biometricLabel}`}
+                variant="outline"
+                icon={biometricLabel.includes('empreinte') || biometricLabel === 'Touch ID' ? 'finger-print' : 'scan'}
+                onPress={handleBiometricLogin}
+                disabled={isLoading}
+                style={{ marginTop: 12 }}
               />
-              <Text style={styles.biometricButtonText}>Se connecter avec {biometricLabel}</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("ForgotPasswordMethods")}
-            disabled={isLoading}>
-            <Text style={[styles.forgotPasswordBtnText, {
-              opacity: isLoading ? 0.5 : 1,
-              color: '#472A6F'
-            }]}>Mot de passe oublié ?</Text>
-          </TouchableOpacity>
-        </ScrollView>
-        <View style={styles.bottomContainer}>
-          <Text style={[styles.bottomLeft, {
-            color: dark ? COLORS.white : COLORS.black
-          }]}>Vous n'avez pas de compte ?</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Signup")}
-            disabled={isLoading}>
-            <Text style={[styles.bottomRight, {
-              opacity: isLoading ? 0.5 : 1,
-              color: '#472A6F'
-            }]}>{"  "}S'inscrire</Text>
+            )}
+          </Card>
+        </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 24, paddingBottom: insets.bottom + 24 }}>
+          <AppText variant="body" color={c.mutedForeground}>Pas encore de compte ? </AppText>
+          <TouchableOpacity onPress={() => navigation.navigate("Signup")} disabled={isLoading} accessibilityRole="link" style={{ minHeight: 44, justifyContent: 'center' }}>
+            <AppText variant="bodyStrong" color={c.primary}>S'inscrire</AppText>
           </TouchableOpacity>
         </View>
-      </View>
-    </SafeAreaView>
+      </ScrollView>
+    </View>
   )
 };
 

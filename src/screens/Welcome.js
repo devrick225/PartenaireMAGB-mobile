@@ -1,118 +1,70 @@
-import {View, Text, StyleSheet, Image, TouchableOpacity} from "react-native";
+import { View, StyleSheet, Image, Pressable } from "react-native";
 import React from "react";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {COLORS, SIZES, icons, images} from "../constants";
-import SocialButtonV2 from "../components/SocialButtonV2";
-import {useTheme} from "../theme/ThemeProvider";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { images } from "../constants";
+import { AppText, Button, useDS } from "../design/components";
+import { spacing } from "../design/tokens";
 
-const Welcome = ({navigation}) => {
-    const {colors, dark} = useTheme();
+// Écran d'accueil — hero violet de la charte frontend-new, logo, accroche et actions
+const Welcome = ({ navigation }) => {
+    const { c, gradient } = useDS();
+    const insets = useSafeAreaInsets();
 
     return (
-        <SafeAreaView style={[styles.area, {backgroundColor: colors.background}]}>
-            <View style={[styles.container, {backgroundColor: colors.background}]}>
-                <Image source={images.logo} resizeMode="contain" style={styles.logo}/>
-                <Text style={[styles.title, {color: colors.text}]}>Partenaire MAGB</Text>
-                <Text style={[styles.subtitle, {color: dark ? COLORS.white : "black"}]}>
-                    Ici, chaque don compte. Chaque geste rapproche un rêve de sa réalité.
-                    Rejoignez une communauté de cœur, soutenez les causes qui vous inspirent, et vivez la joie de donner
-                    avec simplicité et confiance.
-                </Text>
-                <View style={{marginVertical: 32}}>
-                    <SocialButtonV2 title="Continuer avec le numéro de téléphone" icon={icons.phoneCall}
-                                    onPress={() => navigation.navigate("Signup")}
-                                    iconStyles={{tintColor: dark ? COLORS.white : COLORS.black}}/>
-                    <SocialButtonV2 title="Continuer avec l'adresse mail" icon={icons.email2}
-                                    onPress={() => navigation.navigate("Signup")}/>
+        <View style={[styles.flex, { backgroundColor: c.background }]}>
+            <LinearGradient
+                colors={gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.hero, { paddingTop: insets.top + spacing.xxl }]}
+            >
+                <View style={styles.logoWrap}>
+                    <Image source={images.logo} resizeMode="contain" style={styles.logo} />
                 </View>
-                <View style={{flexDirection: "row"}}>
-                    <Text style={[styles.loginTitle, {
-                        color: dark ? COLORS.white : "black"
-                    }]}>Vous avez déjà un compte ? </Text>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate("Login")}>
-                        <Text style={styles.loginSubtitle}>Se connecter</Text>
-                    </TouchableOpacity>
-                </View>
+                <AppText variant="display" color="#FFFFFF" center accessibilityRole="header">
+                    Partenaire MAGB
+                </AppText>
+                <AppText variant="body" color="rgba(255,255,255,0.82)" center style={styles.tagline}>
+                    Ici, chaque don compte. Soutenez l'œuvre du ministère avec simplicité et confiance.
+                </AppText>
+            </LinearGradient>
+
+            <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.xl }]}>
+                <Button title="Créer mon compte" variant="gold" icon="person-add-outline" onPress={() => navigation.navigate("Signup")} />
+                <Button title="Se connecter" variant="outline" icon="log-in-outline" onPress={() => navigation.navigate("Login")} />
+                <AppText variant="caption" color={c.mutedForeground} center style={styles.legal}>
+                    En continuant, vous acceptez les conditions d'utilisation et la politique de confidentialité.
+                </AppText>
             </View>
-            <View style={styles.bottomContainer}>
-                <Text style={[styles.bottomTitle, {
-                    color: dark ? COLORS.white : COLORS.black
-                }]}>
-                    En continuant, vous acceptez les conditions d'utilisation et
-                </Text>
-                <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                    <Text style={[styles.bottomSubtitle, {
-                        color: dark ? COLORS.white : COLORS.black
-                    }]}>la politique de confidentialité.</Text>
-                </TouchableOpacity>
-            </View>
-        </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    area: {
+    flex: { flex: 1 },
+    hero: {
         flex: 1,
-        backgroundColor: COLORS.white,
-    },
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.white,
-        padding: 16,
         alignItems: "center",
         justifyContent: "center",
+        paddingHorizontal: spacing.xl,
+        paddingBottom: spacing.xxl,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
     },
-    logo: {
-        width: 100,
-        height: 100,
-        marginBottom: 22,
-        marginTop: -22,
-    },
-    title: {
-        fontSize: 28,
-        fontFamily: "bold",
-        color: COLORS.black,
-        marginVertical: 12,
-        textAlign: "center",
-    },
-    subtitle: {
-        fontSize: 12,
-        fontFamily: "regular",
-        color: "black",
-        textAlign: "center",
-        paddingHorizontal: 16,
-    },
-    loginTitle: {
-        fontSize: 14,
-        fontFamily: "regular",
-        color: "black",
-    },
-    loginSubtitle: {
-        fontSize: 14,
-        fontFamily: "semiBold",
-        color: COLORS.primary,
-    },
-    bottomContainer: {
-        position: "absolute",
-        bottom: 32,
-        right: 0,
-        left: 0,
-        width: SIZES.width - 32,
+    logoWrap: {
+        width: 112,
+        height: 112,
+        borderRadius: 56,
+        backgroundColor: "rgba(255,255,255,0.95)",
         alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.xl,
     },
-    bottomTitle: {
-        fontSize: 12,
-        fontFamily: "regular",
-        color: COLORS.black,
-    },
-    bottomSubtitle: {
-        fontSize: 12,
-        fontFamily: "regular",
-        color: COLORS.black,
-        textDecorationLine: "underline",
-        marginTop: 2,
-    },
+    logo: { width: 80, height: 80 },
+    tagline: { marginTop: spacing.sm, maxWidth: 320 },
+    actions: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, gap: spacing.md },
+    legal: { marginTop: spacing.sm },
 });
 
 export default Welcome;
