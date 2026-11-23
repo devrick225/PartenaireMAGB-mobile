@@ -2,31 +2,24 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Image,
-  Modal,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS, SIZES } from '../constants';
-import Button from '../components/Button';
 import { registerUser, clearError } from '../store/slices/authSlice';
 import { showError, showSuccess } from '../store/slices/notificationSlice';
 import { RootState, AppDispatch } from '../store';
 
-import { IconButton } from '../design/components';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Card, Button, IconButton, TextField, Sheet } from '../design/components';
+import { radius, spacing, MIN_TOUCH } from '../design/tokens';
 interface Country {
   code: string;
   name: string;
@@ -41,9 +34,8 @@ interface SignupCompleteProps {
 const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error } = useSelector((state: RootState) => state.auth);
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c, gradient } = useDS();
+  const insets = useSafeAreaInsets();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -210,568 +202,168 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
     }
   };
 
-  const renderInput = (
-    placeholder: string,
-    value: string,
-    onChangeText: (text: string) => void,
-    error?: string,
-    secureTextEntry?: boolean,
-    keyboardType?: any,
-    icon?: string,
-    rightIcon?: React.ReactNode,
-    inputProps?: React.ComponentProps<typeof TextInput>
-  ) => (
-    <View style={styles.inputContainer}>
-      <View style={[styles.inputWrapper, {
-        backgroundColor: c.card,
-        borderColor: error ? c.destructive : (c.border)
-      }]}>
-        {icon && (
-          <Ionicons
-            name={icon as any}
-            size={20}
-            color={dark ? COLORS.white : COLORS.grayscale400}
-            style={styles.inputIcon}
-          />
-        )}
-        <TextInput
-          style={[styles.textInput, {
-            color: c.foreground,
-          }]}
-          placeholder={placeholder}
-          placeholderTextColor={c.mutedForeground}
-          value={value}
-          onChangeText={onChangeText}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType}
-          autoCapitalize="none"
-          autoCorrect={false}
-          {...inputProps}
-        />
-        {rightIcon}
-      </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
 
-  const renderCountryItem = ({ item }: { item: Country }) => (
-    <TouchableOpacity
-      style={[styles.countryItem, {
-        backgroundColor: c.card,
-        borderBottomColor: dark ? COLORS.dark3 : '#F5F5F5'
-      }]}
-      onPress={() => {
-        setSelectedCountry(item);
-        handleInputChange('country', item.code);
-        setShowCountryModal(false);
-      }}
-    >
-      <Image source={{ uri: item.flag }} style={styles.flagImage} />
-      <Text style={[styles.countryName, { color: c.foreground }]}>{item.name}</Text>
-      <Text style={[styles.callingCode, { color: c.mutedForeground }]}>{item.callingCode}</Text>
-    </TouchableOpacity>
+  const eye = (visible: boolean, toggle: () => void) => (
+    <Pressable onPress={toggle} hitSlop={10} accessibilityRole="button" accessibilityLabel={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} style={styles.eye}>
+      <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.mutedForeground} />
+    </Pressable>
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <IconButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Retour" />
-            <Text style={[styles.title, { color: c.foreground }]}>Créer un compte</Text>
-            <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
-              Rejoignez notre communauté de donateurs
-            </Text>
-          </View>
+    <KeyboardAvoidingView style={[styles.flex, { backgroundColor: c.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}>
+        {/* En-tête de marque */}
+        <LinearGradient colors={gradient as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + spacing.sm }]}>
+          <IconButton icon="chevron-back" tone="hero" onPress={() => navigation.goBack()} accessibilityLabel="Retour" />
+          <AppText variant="display" color="#FFFFFF" accessibilityRole="header" style={{ marginTop: spacing.md }}>Créer un compte</AppText>
+          <AppText variant="body" color="rgba(255,255,255,0.8)">Rejoignez la communauté des partenaires MAGB.</AppText>
+        </LinearGradient>
 
-          {/* Form */}
-          <View style={[styles.form, { backgroundColor: c.card }]}>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Nom *</Text>
-              {renderInput(
-                'Votre nom',
-                formData.lastName,
-                (text) => handleInputChange('lastName', text),
-                errors.lastName,
-                false,
-                'default',
-                'person-outline',
-                undefined,
-                { autoCapitalize: 'words', textContentType: 'familyName', autoComplete: 'name-family' }
-              )}
+        <View style={styles.body}>
+          <Card style={{ gap: spacing.lg }}>
+            <View style={styles.row}>
+              <View style={styles.flex}>
+                <TextField label="Prénom *" placeholder="Votre prénom" value={formData.firstName} onChangeText={(t) => handleInputChange('firstName', t)} error={errors.firstName} autoCapitalize="words" textContentType="givenName" autoComplete="name-given" />
+              </View>
+              <View style={styles.flex}>
+                <TextField label="Nom *" placeholder="Votre nom" value={formData.lastName} onChangeText={(t) => handleInputChange('lastName', t)} error={errors.lastName} autoCapitalize="words" textContentType="familyName" autoComplete="name-family" />
+              </View>
             </View>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Prénom *</Text>
-              {renderInput(
-                'Votre prénom',
-                formData.firstName,
-                (text) => handleInputChange('firstName', text),
-                errors.firstName,
-                false,
-                'default',
-                'person-outline',
-                undefined,
-                { autoCapitalize: 'words', textContentType: 'givenName', autoComplete: 'name-given' }
-              )}
-            </View>
+            <TextField label="Email *" icon="mail-outline" placeholder="vous@exemple.com" value={formData.email} onChangeText={(t) => handleInputChange('email', t)} error={errors.email} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" />
 
-            {/* Email */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Email *</Text>
-              {renderInput(
-                'votre@email.com',
-                formData.email,
-                (text) => handleInputChange('email', text),
-                errors.email,
-                false,
-                'email-address',
-                'mail-outline',
-                undefined,
-                { textContentType: 'emailAddress', autoComplete: 'email' }
-              )}
-            </View>
-
-            {/* Pays */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Pays *</Text>
-              <TouchableOpacity
-                style={[styles.countrySelector, {
-                  backgroundColor: c.card,
-                  borderColor: c.border
-                }]}
+            <View style={{ gap: 6 }}>
+              <AppText variant="smallStrong">Pays *</AppText>
+              <Pressable
                 onPress={() => setShowCountryModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Pays : ${selectedCountry?.name ?? 'à choisir'}`}
+                style={({ pressed }) => [styles.select, { backgroundColor: c.card, borderColor: c.input, opacity: pressed ? 0.85 : 1 }]}
               >
-                {selectedCountry ? (
-                  <>
-                    <Image source={{ uri: selectedCountry.flag }} style={styles.selectedFlag} />
-                    <Text style={[styles.selectedCountryText, { color: c.foreground }]} numberOfLines={1}>
-                      {selectedCountry.name}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={[styles.selectedCountryText, { color: c.mutedForeground }]}>
-                    Chargement des pays...
-                  </Text>
-                )}
-                <Ionicons name="chevron-down" size={20} color={c.mutedForeground} />
-              </TouchableOpacity>
+                {selectedCountry ? <Image source={{ uri: selectedCountry.flag }} style={styles.flag} /> : <ActivityIndicator size="small" color={c.primary} />}
+                <AppText variant="body" style={styles.flex} numberOfLines={1} color={selectedCountry ? c.foreground : c.mutedForeground}>
+                  {selectedCountry?.name ?? 'Chargement des pays…'}
+                </AppText>
+                <Ionicons name="chevron-down" size={18} color={c.mutedForeground} />
+              </Pressable>
             </View>
 
-            {/* Ville */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Ville *</Text>
-              {renderInput(
-                'Votre ville',
-                formData.city,
-                (text) => handleInputChange('city', text),
-                errors.city,
-                false,
-                'default',
-                'location-outline',
-                undefined,
-                { autoCapitalize: 'words', textContentType: 'addressCity' }
-              )}
-            </View>
+            <TextField label="Ville *" icon="business-outline" placeholder="Votre ville" value={formData.city} onChangeText={(t) => handleInputChange('city', t)} error={errors.city} autoCapitalize="words" textContentType="addressCity" />
 
-            {/* Téléphone */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Téléphone *</Text>
-              <View style={styles.phoneContainer}>
-                <View style={[styles.phonePrefix, {
-                  backgroundColor: c.card,
-                  borderColor: c.border
-                }]}>
-                  {selectedCountry ? (
-                    <>
-                      <Image source={{ uri: selectedCountry.flag }} style={styles.phoneFlagImage} />
-                      <Text style={[styles.phonePrefixText, { color: c.foreground }]}>
-                        {selectedCountry.callingCode}
-                      </Text>
-                    </>
-                  ) : (
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                  )}
+            <View style={{ gap: 6 }}>
+              <AppText variant="smallStrong">Téléphone *</AppText>
+              <View style={styles.row}>
+                <View style={[styles.prefix, { backgroundColor: c.muted, borderColor: c.input }]}>
+                  {selectedCountry ? <Image source={{ uri: selectedCountry.flag }} style={styles.flag} /> : null}
+                  <AppText variant="bodyStrong">{selectedCountry?.callingCode ?? '+'}</AppText>
                 </View>
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  {renderInput(
-                    '12345678',
-                    formData.phone,
-                    (text) => handleInputChange('phone', text),
-                    errors.phone,
-                    false,
-                    'phone-pad',
-                    'call-outline',
-                    undefined,
-                    { textContentType: 'telephoneNumber', autoComplete: 'tel' }
-                  )}
+                <View style={styles.flex}>
+                  <TextField placeholder="07 00 00 00 00" value={formData.phone} onChangeText={(t) => handleInputChange('phone', t)} error={errors.phone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" accessibilityLabel="Numéro de téléphone" />
                 </View>
               </View>
             </View>
 
-            {/* Mot de passe */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Mot de passe *</Text>
-              {renderInput(
-                'Votre mot de passe',
-                formData.password,
-                (text) => handleInputChange('password', text),
-                errors.password,
-                !showPassword,
-                'default',
-                'lock-closed-outline',
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10} style={styles.eyeButton}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={c.mutedForeground}
-                  />
-                </TouchableOpacity>,
-                { textContentType: 'newPassword', autoComplete: 'new-password' }
-              )}
-            </View>
+            <TextField
+              label="Mot de passe *"
+              icon="lock-closed-outline"
+              placeholder="Au moins 8 caractères"
+              value={formData.password}
+              onChangeText={(t) => handleInputChange('password', t)}
+              error={errors.password}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              right={eye(showPassword, () => setShowPassword(!showPassword))}
+            />
+            <TextField
+              label="Confirmer le mot de passe *"
+              icon="lock-closed-outline"
+              placeholder="Retapez le mot de passe"
+              value={formData.confirmPassword}
+              onChangeText={(t) => handleInputChange('confirmPassword', t)}
+              error={errors.confirmPassword}
+              secureTextEntry={!showConfirmPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              right={eye(showConfirmPassword, () => setShowConfirmPassword(!showConfirmPassword))}
+            />
 
-            {/* Confirmation mot de passe */}
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: c.foreground }]}>Confirmer le mot de passe *</Text>
-              {renderInput(
-                'Confirmez votre mot de passe',
-                formData.confirmPassword,
-                (text) => handleInputChange('confirmPassword', text),
-                errors.confirmPassword,
-                !showConfirmPassword,
-                'default',
-                'lock-closed-outline',
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} hitSlop={10} style={styles.eyeButton}>
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={c.mutedForeground}
-                  />
-                </TouchableOpacity>,
-                { textContentType: 'newPassword', autoComplete: 'new-password' }
-              )}
-            </View>
-
-            {/* Conditions d'utilisation */}
-            <TouchableOpacity
-              style={styles.termsContainer}
+            <Pressable
+              style={styles.terms}
               onPress={() => setTermsAccepted(!termsAccepted)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: termsAccepted }}
             >
-              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, errors.terms && { borderColor: c.destructive }]}>
-                {termsAccepted && <Ionicons name="checkmark" size={16} color={COLORS.white} />}
+              <View style={[styles.checkbox, { borderColor: errors.terms ? c.destructive : termsAccepted ? c.primary : c.input, backgroundColor: termsAccepted ? c.primary : 'transparent' }]}>
+                {termsAccepted ? <Ionicons name="checkmark" size={16} color={c.primaryForeground} /> : null}
               </View>
-              <Text style={[styles.termsText, { color: c.foreground }]}>
-                J'accepte les{' '}
-                <Text style={[styles.termsLink, { color: COLORS.primary }]}>
-                  conditions d'utilisation
-                </Text>{' '}
-                et la{' '}
-                <Text style={[styles.termsLink, { color: COLORS.primary }]}>
-                  politique de confidentialité
-                </Text>
-              </Text>
-            </TouchableOpacity>
+              <AppText variant="small" style={styles.flex}>
+                J'accepte les <AppText variant="smallStrong" color={c.primary}>conditions d'utilisation</AppText> et la{' '}
+                <AppText variant="smallStrong" color={c.primary}>politique de confidentialité</AppText>.
+              </AppText>
+            </Pressable>
+            {errors.terms ? <AppText variant="small" color={c.destructive}>{errors.terms}</AppText> : null}
 
-            {errors.terms && (
-              <Text style={styles.errorText}>{errors.terms}</Text>
-            )}
+            <Button title="Créer mon compte" variant="gold" icon="person-add-outline" onPress={handleSubmit} loading={isLoading} />
+          </Card>
 
-            {/* Bouton d'inscription */}
-            <Button
-              title="S'inscrire"
-              onPress={handleSubmit}
-              filled
-              isLoading={isLoading}
-              style={{ ...styles.submitButton, opacity: isLoading ? 0.7 : 1 }}
-            />
-
-            {/* Lien de connexion */}
-            <View style={styles.loginLinkContainer}>
-              <Text style={[styles.loginText, { color: c.mutedForeground }]}>
-                Vous avez déjà un compte ?{' '}
-              </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={[styles.loginLink, { color: COLORS.primary }]}>Se connecter</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.loginRow}>
+            <AppText variant="body" color={c.mutedForeground}>Déjà inscrit ? </AppText>
+            <Pressable onPress={() => navigation.navigate('Login')} accessibilityRole="link" style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}>
+              <AppText variant="bodyStrong" color={c.primary}>Se connecter</AppText>
+            </Pressable>
           </View>
-        </ScrollView>
+        </View>
+      </ScrollView>
 
-        {/* Modal de sélection de pays */}
-        <Modal
-          visible={showCountryModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowCountryModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: c.card }]}>
-              <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
-                <Text style={[styles.modalTitle, { color: c.foreground }]}>Sélectionner un pays</Text>
-                <TouchableOpacity
-                  onPress={() => setShowCountryModal(false)}
-                  style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
-                >
-                  <Ionicons name="close" size={24} color={c.foreground} />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={countries}
-                renderItem={renderCountryItem}
-                keyExtractor={(item) => item.code}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-          </View>
-        </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <Sheet visible={showCountryModal} title="Pays" onClose={() => setShowCountryModal(false)}>
+        <Card padded={false}>
+          {countries.map((item, i) => {
+            const active = selectedCountry?.code === item.code;
+            return (
+              <Pressable
+                key={item.code}
+                onPress={() => {
+                  setSelectedCountry(item);
+                  handleInputChange('country', item.code);
+                  setShowCountryModal(false);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                style={({ pressed }) => [
+                  styles.countryRow,
+                  i < countries.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+                  (pressed || active) && { backgroundColor: c.primarySoft },
+                ]}
+              >
+                <Image source={{ uri: item.flag }} style={styles.flag} />
+                <AppText variant="body" style={styles.flex} numberOfLines={1}>{item.name}</AppText>
+                <AppText variant="small" color={c.mutedForeground}>{item.callingCode}</AppText>
+              </Pressable>
+            );
+          })}
+        </Card>
+      </Sheet>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 48, // espace sous "Se connecter" (barre d'accueil iPhone)
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-    paddingTop: 52, // place pour le bouton retour : le titre ne passe plus dessous
-    position: 'relative',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16, fontFamily: 'regular',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  form: {
-    borderRadius: 12,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 0,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    marginBottom: 8,
-  },
-  inputContainer: {
-    marginBottom: 0,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16, fontFamily: 'regular',
-    paddingVertical: 0,
-    height: '100%',
-  },
-  eyeButton: {
-    marginLeft: 8,
-  },
-  errorText: {
-    color: COLORS.error,
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 4,
-  },
-  countrySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'space-between',
-    height: 50,
-  },
-  selectedFlag: {
-    width: 24,
-    height: 24,
-    marginRight: 12,
-  },
-  selectedCountryText: {
-    flex: 1,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  phoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  phonePrefix: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    minWidth: 96,
-    height: 50,
-    justifyContent: 'center',
-  },
-  phoneFlagImage: {
-    width: 20,
-    height: 20,
-    marginRight: 6,
-  },
-  phonePrefixText: {
-    fontSize: 14,
-    fontFamily: 'medium',
-  },
-  termsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    paddingVertical: 4,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderRadius: 4,
-    marginRight: 12,
-    marginTop: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.primary,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-  },
-  termsLink: {
-    fontWeight: '600',
-  },
-  submitButton: {
-    marginTop: 20,
-    marginBottom: 14,
-    borderRadius: 30,
-    height: 56,
-    justifyContent: 'center',
-  },
-  loginLinkContainer: {
-    marginTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loginText: {
-    fontSize: 14, fontFamily: 'regular',
-  },
-  loginLink: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-  },
-  flagImage: {
-    width: 32,
-    height: 32,
-    marginRight: 16,
-  },
-  countryName: {
-    flex: 1,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  callingCode: {
-    fontSize: 14,
-    fontFamily: 'medium',
-  },
+  flex: { flex: 1 },
+  hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl + spacing.sm },
+  body: { paddingHorizontal: spacing.lg, marginTop: -spacing.xl, gap: spacing.lg },
+  row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+  select: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 50, borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  prefix: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 50, borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  flag: { width: 24, height: 16, borderRadius: 2 },
+  eye: { padding: 4 },
+  terms: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, minHeight: MIN_TOUCH },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  countryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, minHeight: 52 },
 });
 
-export default SignupComplete; 
+export default SignupComplete;
