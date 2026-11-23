@@ -167,6 +167,11 @@ class UserService {
     return apiClient.put('/users/profile', profileData);
   }
 
+  // Supprimer la photo de profil (DELETE /api/users/avatar)
+  async removeAvatar() {
+    return apiClient.delete('/users/avatar');
+  }
+
   async uploadAvatar(formData: FormData) {
     return apiClient.post(ENDPOINTS.USERS.UPLOAD_AVATAR, formData, {
       headers: {

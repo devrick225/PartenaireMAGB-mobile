@@ -72,7 +72,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
         [
           { text: 'Prendre une photo', onPress: () => handleImageOptionSelection(0, options) },
           { text: 'Choisir depuis la galerie', onPress: () => handleImageOptionSelection(1, options) },
-          ...(imageUri ? [{ text: 'Supprimer la photo', onPress: () => handleImageOptionSelection(2, options), style: 'destructive' }] : []),
+          ...(imageUri ? [{ text: 'Supprimer la photo', onPress: () => handleImageOptionSelection(2, options), style: 'destructive' as const }] : []),
           { text: 'Annuler', style: 'cancel' }
         ]
       );
@@ -194,7 +194,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
               await userService.removeAvatar();
               
               setImageUri(null);
-              dispatch(updateUser({ avatar: null }));
+              dispatch(updateUser({ avatar: undefined }));
               
               Alert.alert('Succès', 'Photo de profil supprimée');
             } catch (error: any) {
