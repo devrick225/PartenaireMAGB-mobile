@@ -2,34 +2,42 @@ import logger from '../utils/logger';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
-  Modal,
   TextInput,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
-import MenuRefreshIcon from '../components/MenuRefreshIcon';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import {
+  useDS,
+  AppText,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  Card,
+  Badge,
+  Button,
+  EmptyState,
+  LoadingState,
+  Sheet,
+  formatDate,
+} from '../design/components';
+import { cardShadow, radius, spacing, typography, MIN_TOUCH } from '../design/tokens';
 import ticketService, { Ticket, TicketListParams } from '../store/services/ticketService';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor } from '../hooks/useUserPermissions';
 import { useSelector, useDispatch } from 'react-redux';
 import { showError } from '../store/slices/notificationSlice';
 import { RootState } from '../store';
-import RefreshableHeader from '../components/RefreshableHeader';
 
 interface TicketListScreenProps {
   navigation: any;
+  route?: { params?: { asTab?: boolean } };
 }
 
-const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation, route }) => {
+  const { c } = useDS();
   const permissions = useUserPermissions();
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const dispatch = useDispatch();
@@ -187,16 +195,6 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
     setShowFilters(false);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   // Recherche locale (numéro, sujet, description, nom) sur les tickets déjà chargés
   const displayedTickets = useMemo(() => {
@@ -208,898 +206,247 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
     );
   }, [tickets, searchQuery]);
 
-  const getActiveFiltersCount = () => {
-    let count = 0;
-    if (filters.status) count++;
-    if (filters.category) count++;
-    if (filters.priority) count++;
-    return count;
+  const activeFilters = [filters.status, filters.category, filters.priority].filter(Boolean).length;
+
+  // Ton des statuts et priorités de ticket
+  const STATUS_TONE: Record<string, 'primary' | 'info' | 'warning' | 'success' | 'neutral' | 'danger'> = {
+    open: 'info',
+    in_progress: 'primary',
+    waiting_user: 'warning',
+    waiting_admin: 'warning',
+    resolved: 'success',
+    closed: 'neutral',
+    cancelled: 'neutral',
+  };
+  const PRIORITY_TONE: Record<string, 'neutral' | 'info' | 'warning' | 'danger'> = {
+    low: 'neutral',
+    medium: 'info',
+    high: 'warning',
+    urgent: 'danger',
+  };
+  const CATEGORY_ICONS: Record<string, string> = {
+    technical: 'build',
+    payment: 'payment',
+    account: 'account-circle',
+    donation: 'favorite',
+    feature_request: 'lightbulb',
+    general: 'help',
+    bug_report: 'bug-report',
+    complaint: 'report',
+    suggestion: 'emoji-objects',
   };
 
-  const renderStatsHeader = () => {
-    if (!permissions.canViewTicketStats || !stats) return null;
-
-    const formatTime = (minutes?: number) => {
-      if (!minutes) return '0h';
-      if (minutes < 60) return `${minutes}m`;
-      const hours = Math.floor(minutes / 60);
-      const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 ? `${hours}h${remainingMinutes}m` : `${hours}h`;
-    };
-
-    return (
-      <View style={[styles.statsHeader, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: colors.primary }]}>
-              {stats.totalTickets || 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Total
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: COLORS.warning }]}>
-              {stats.openTickets + stats.inProgressTickets || 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Ouverts
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: COLORS.success }]}>
-              {stats.resolvedTickets || 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Résolus
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {formatTime(stats.averageFirstResponseTime)}
-            </Text>
-            <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Réponse moy.
-            </Text>
-          </View>
-        </View>
-        
-        {/* Statistiques détaillées pour les admins */}
-        {permissions.canViewAllTickets && (
-          <View style={styles.detailedStats}>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: COLORS.info }]}>
-                  {stats.waitingUserTickets || 0}
-                </Text>
-                <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Att. utilisateur
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: COLORS.warning }]}>
-                  {stats.waitingAdminTickets || 0}
-                </Text>
-                <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Att. admin
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: COLORS.gray }]}>
-                  {stats.closedTickets || 0}
-                </Text>
-                <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Fermés
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.text }]}>
-                  {formatTime(stats.averageResolutionTime)}
-                </Text>
-                <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Résolution moy.
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-        
-        <Text style={[styles.statsNote, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-          {permissions.canViewAllTickets ? 'Statistiques globales' : 'Vos statistiques'}
-        </Text>
-      </View>
-    );
-  };
+  const Chip = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
+      style={[styles.chip, { backgroundColor: active ? c.primary : c.card, borderColor: active ? c.primary : c.border }]}
+    >
+      <AppText variant="smallStrong" color={active ? c.primaryForeground : c.foreground}>{label}</AppText>
+    </Pressable>
+  );
 
   const renderTicketItem = ({ item }: { item: Ticket }) => (
-    <TouchableOpacity
-      style={[styles.ticketCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
+    <Pressable
       onPress={() => navigation.navigate('TicketDetail', { ticketId: item._id })}
-      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Ticket ${item.ticketNumber} : ${item.subject}, ${ticketService.formatTicketStatus(item.status)}`}
+      style={({ pressed }) => [styles.card, cardShadow, { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.9 : 1 }]}
     >
-      {/* Header avec numéro et statut */}
-      <View style={styles.ticketHeader}>
-        <View style={styles.ticketNumberContainer}>
-          <MaterialIcons name="confirmation-number" size={16} color={colors.primary} />
-          <Text style={[styles.ticketNumber, { color: colors.primary }]} numberOfLines={1}>
-            {item.ticketNumber}
-          </Text>
+      <View style={styles.cardTop}>
+        <View style={[styles.iconTile, { backgroundColor: c.primarySoft }]}>
+          <MaterialIcons name={(CATEGORY_ICONS[item.category] || 'help') as any} size={18} color={c.primary} />
         </View>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: ticketService.getStatusColor(item.status) + '20' }
-        ]}>
-          <Text style={[
-            styles.statusText,
-            { color: ticketService.getStatusColor(item.status) }
-          ]}>
-            {ticketService.formatTicketStatus(item.status)}
-          </Text>
+        <View style={styles.flex}>
+          <AppText variant="caption" color={c.mutedForeground} numberOfLines={1}>
+            {item.ticketNumber} · {formatDate(item.createdAt, true)}
+          </AppText>
+          <AppText variant="bodyStrong" numberOfLines={2}>{item.subject}</AppText>
         </View>
       </View>
-
-      {/* Sujet */}
-      <Text style={[styles.ticketSubject, { color: colors.text }]} numberOfLines={2}>
-        {item.subject}
-      </Text>
-
-      {/* Description courte */}
-      <Text style={[styles.ticketDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={2}>
+      <AppText variant="small" color={c.mutedForeground} numberOfLines={2} style={{ marginTop: spacing.sm }}>
         {item.description}
-      </Text>
-
-      {/* Informations utilisateur pour les agents de support */}
-      {permissions.canViewAllTickets && item.user && (
-        <View style={styles.userInfo}>
-          <MaterialIcons name="person" size={14} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.userInfoText, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
-            {item.user.firstName} {item.user.lastName}
-          </Text>
+      </AppText>
+      <View style={styles.badges}>
+        <Badge label={ticketService.formatTicketStatus(item.status)} tone={STATUS_TONE[item.status] ?? 'neutral'} />
+        <Badge label={ticketService.formatTicketPriority(item.priority)} tone={PRIORITY_TONE[item.priority] ?? 'neutral'} icon="flag-outline" />
+        <Badge label={ticketService.formatTicketCategory(item.category)} tone="neutral" />
+      </View>
+      {(permissions.canViewAllTickets && item.user) || item.assignedTo ? (
+        <View style={[styles.meta, { borderTopColor: c.border }]}>
+          {permissions.canViewAllTickets && item.user ? (
+            <View style={styles.metaItem}>
+              <Ionicons name="person-outline" size={13} color={c.mutedForeground} />
+              <AppText variant="caption" color={c.mutedForeground} numberOfLines={1}>
+                {item.user.firstName} {item.user.lastName}
+              </AppText>
+            </View>
+          ) : null}
+          {item.assignedTo ? (
+            <View style={styles.metaItem}>
+              <Ionicons name="headset-outline" size={13} color={c.primary} />
+              <AppText variant="caption" color={c.primary}>Assigné à {item.assignedTo.firstName}</AppText>
+            </View>
+          ) : null}
         </View>
-      )}
+      ) : null}
+    </Pressable>
+  );
 
-      {/* Footer avec catégorie, priorité et date */}
-      <View style={styles.ticketFooter}>
-        <View style={styles.ticketMeta}>
-          <View style={styles.metaItem}>
-            <MaterialIcons 
-              name={getCategoryIcon(item.category)} 
-              size={14} 
-              color={dark ? COLORS.grayTie : COLORS.gray} 
+  const header = (
+    <>
+      <HeroHeader
+        eyebrow="Support"
+        eyebrowIcon="chatbubbles-outline"
+        title={permissions.canViewAllTickets ? 'Tous les tickets' : 'Mes demandes'}
+        subtitle={permissions.canViewAllTickets ? undefined : 'Suivez vos échanges avec l\'équipe support.'}
+        onBack={route?.params?.asTab ? undefined : () => navigation.goBack()}
+        right={<IconButton icon={isRefreshing ? 'hourglass-outline' : 'refresh'} tone="hero" accessibilityLabel="Actualiser" onPress={handleRefresh} />}
+      >
+        {hasLoaded ? (
+          <View style={styles.chips}>
+            <HeroChip icon="chatbubbles" label={`${pagination.totalDocs} ticket${pagination.totalDocs > 1 ? 's' : ''}`} />
+          </View>
+        ) : null}
+      </HeroHeader>
+      <View style={styles.headerBody}>
+        <View style={styles.searchRow}>
+          <View style={[styles.search, cardShadow, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Ionicons name="search" size={18} color={c.mutedForeground} />
+            <TextInput
+              style={[styles.searchInput, typography.body, { color: c.foreground }]}
+              placeholder="Rechercher un ticket…"
+              placeholderTextColor={c.mutedForeground}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              maxFontSizeMultiplier={1.4}
+              accessibilityLabel="Rechercher un ticket"
             />
-            <Text style={[styles.metaText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              {ticketService.formatTicketCategory(item.category)}
-            </Text>
           </View>
-          <View style={[
-            styles.priorityBadge,
-            { backgroundColor: ticketService.getPriorityColor(item.priority) + '20' }
-          ]}>
-            <Text style={[
-              styles.priorityText,
-              { color: ticketService.getPriorityColor(item.priority) }
-            ]}>
-              {ticketService.formatTicketPriority(item.priority)}
-            </Text>
-          </View>
+          <Pressable
+            onPress={openFilters}
+            accessibilityRole="button"
+            accessibilityLabel={activeFilters > 0 ? `Filtres, ${activeFilters} actifs` : 'Filtrer les tickets'}
+            style={[styles.filterBtn, cardShadow, { backgroundColor: activeFilters > 0 ? c.primary : c.card, borderColor: activeFilters > 0 ? c.primary : c.border }]}
+          >
+            <Ionicons name="options-outline" size={20} color={activeFilters > 0 ? c.primaryForeground : c.foreground} />
+            {activeFilters > 0 ? (
+              <View style={[styles.filterCount, { backgroundColor: c.gold }]}>
+                <AppText variant="caption" color={c.onGold} style={{ fontSize: 10, lineHeight: 12 }}>{activeFilters}</AppText>
+              </View>
+            ) : null}
+          </Pressable>
         </View>
-        <Text style={[styles.ticketDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-          {formatDate(item.createdAt)}
-        </Text>
+        {permissions.canCreateTickets ? (
+          <Button title="Nouvelle demande" variant="gold" icon="add-circle-outline" onPress={() => navigation.navigate('ContactSupport')} />
+        ) : null}
+        {searchQuery.trim() ? (
+          <AppText variant="small" color={c.mutedForeground}>
+            {displayedTickets.length} résultat{displayedTickets.length > 1 ? 's' : ''} sur {tickets.length} chargé{tickets.length > 1 ? 's' : ''}
+          </AppText>
+        ) : null}
       </View>
-
-      {/* Indicateur d'assignation */}
-      {item.assignedTo && (
-        <View style={styles.assignedIndicator}>
-          <MaterialIcons name="person" size={12} color={colors.primary} />
-          <Text style={[styles.assignedText, { color: colors.primary }]}>
-            Assigné à {item.assignedTo.firstName}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
+    </>
   );
 
-  const getCategoryIcon = (category: string): any => {
-    const icons: Record<string, string> = {
-      'technical': 'build',
-      'payment': 'payment',
-      'account': 'account-circle',
-      'donation': 'favorite',
-      'feature_request': 'lightbulb',
-      'general': 'help',
-      'bug_report': 'bug-report',
-      'complaint': 'report',
-      'suggestion': 'emoji-objects'
-    };
-    return icons[category] || 'help';
-  };
-
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilters}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowFilters(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowFilters(false)} />
-        <View style={[styles.filterModal, { backgroundColor: colors.background }]}>
-          <View style={styles.filterHeader}>
-            <Text style={[styles.filterTitle, { color: colors.text }]}>
-              Filtres
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowFilters(false)}
-              style={[styles.closeButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.filterScroll} showsVerticalScrollIndicator={false}>
-          {/* Statut */}
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.text }]}>Statut</Text>
-            <View style={styles.filterOptions}>
-              {statusOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.filterOption,
-                    {
-                      backgroundColor: draftFilters.status === option.value
-                        ? colors.primary + '20'
-                        : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                    },
-                  ]}
-                  onPress={() => setDraftFilters(prev => ({ ...prev, status: option.value }))}
-                >
-                  <Text style={[
-                    styles.filterOptionText,
-                    {
-                      color: draftFilters.status === option.value
-                        ? colors.primary
-                        : colors.text,
-                    },
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Catégorie */}
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.text }]}>Catégorie</Text>
-            <View style={styles.filterOptions}>
-              {categoryOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.filterOption,
-                    {
-                      backgroundColor: draftFilters.category === option.value
-                        ? colors.primary + '20'
-                        : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                    },
-                  ]}
-                  onPress={() => setDraftFilters(prev => ({ ...prev, category: option.value }))}
-                >
-                  <Text style={[
-                    styles.filterOptionText,
-                    {
-                      color: draftFilters.category === option.value
-                        ? colors.primary
-                        : colors.text,
-                    },
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Priorité */}
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: colors.text }]}>Priorité</Text>
-            <View style={styles.filterOptions}>
-              {priorityOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.filterOption,
-                    {
-                      backgroundColor: draftFilters.priority === option.value
-                        ? colors.primary + '20'
-                        : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                    },
-                  ]}
-                  onPress={() => setDraftFilters(prev => ({ ...prev, priority: option.value }))}
-                >
-                  <Text style={[
-                    styles.filterOptionText,
-                    {
-                      color: draftFilters.priority === option.value
-                        ? colors.primary
-                        : colors.text,
-                    },
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          </ScrollView>
-
-          {/* Boutons d'action */}
-          <View style={styles.filterActions}>
-            <TouchableOpacity
-              style={[styles.resetButton, { backgroundColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}
-              onPress={resetFilters}
-            >
-              <Text style={[styles.resetButtonText, { color: colors.text }]}>
-                Réinitialiser
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.primary }]}
-              onPress={applyFilters}
-            >
-              <Text style={styles.applyButtonText}>
-                Appliquer
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderEmptyState = () => {
-    if (!hasLoaded || (isLoading && tickets.length === 0)) {
-      return (
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      );
-    }
-    if (searchQuery.trim() && tickets.length > 0) {
-      return (
-        <View style={styles.emptyState}>
-          <MaterialIcons name="search-off" size={64} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.emptyStateTitle, { color: colors.text }]}>Aucun résultat</Text>
-          <Text style={[styles.emptyStateText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Aucun ticket chargé ne correspond à « {searchQuery.trim()} ».
-          </Text>
-        </View>
-      );
-    }
+  const empty = () => {
+    if (!hasLoaded || (isLoading && tickets.length === 0)) return <LoadingState message="Chargement des tickets…" />;
     return (
-    <View style={styles.emptyState}>
-      <MaterialIcons name="support-agent" size={80} color={dark ? COLORS.grayTie : COLORS.gray} />
-      <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
-        Aucun ticket trouvé
-      </Text>
-      <Text style={[styles.emptyStateText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-        {getActiveFiltersCount() > 0
-          ? 'Aucun ticket ne correspond à vos filtres.'
-          : permissions.canViewAllTickets 
-            ? 'Aucun ticket dans le système pour le moment.'
-            : 'Vous n\'avez pas encore créé de ticket de support.'}
-      </Text>
-      {getActiveFiltersCount() === 0 && permissions.canCreateTickets && (
-        <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.navigate('ContactSupport')}
-        >
-          <MaterialIcons name="add" size={20} color={COLORS.white} />
-          <Text style={styles.createButtonText}>Créer un ticket</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+      <View style={styles.pad}>
+        <Card>
+          {searchQuery.trim() && tickets.length > 0 ? (
+            <EmptyState icon="search-outline" title="Aucun résultat" message={`Aucun ticket ne correspond à « ${searchQuery.trim()} ».`} />
+          ) : (
+            <EmptyState
+              icon="chatbubbles-outline"
+              title="Aucun ticket"
+              message={
+                activeFilters > 0
+                  ? 'Aucun ticket ne correspond à vos filtres.'
+                  : permissions.canViewAllTickets
+                    ? 'Aucun ticket pour le moment.'
+                    : 'Une question ou un souci ? Écrivez à l\'équipe support.'
+              }
+              action={activeFilters > 0 ? <Button title="Effacer les filtres" variant="outline" onPress={resetFilters} /> : undefined}
+            />
+          )}
+        </Card>
+      </View>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <RefreshableHeader
-        title={permissions.canViewAllTickets ? 'Tous les tickets' : 'Mes Tickets'}
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={true}
-        onRefreshPress={handleRefresh}
-        isRefreshing={isRefreshing}
-        customRightComponent={
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MenuRefreshIcon
-              onPress={handleRefresh}
-              isRefreshing={isRefreshing}
-              size={22}
-              color={colors.primary}
-              style={{ backgroundColor: colors.primary + '15', borderRadius: 20, marginRight: 8 }}
-            />
-          </View>
-        }
-      />
- 
-      {/* Statistiques pour les rôles élevés - Temporairement désactivé */}
-      {/* {renderStatsHeader()} */}
-
-      {/* Barre de recherche et filtres */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
-        <View style={[styles.searchBar, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <MaterialIcons name="search" size={20} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Rechercher un ticket..."
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
-        </View>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            {
-              backgroundColor: getActiveFiltersCount() > 0 ? colors.primary : (dark ? COLORS.dark2 : COLORS.white),
-            },
-          ]}
-          onPress={openFilters}
-          accessibilityLabel="Filtrer les tickets"
-        >
-          <MaterialIcons 
-            name="filter-list" 
-            size={20} 
-            color={getActiveFiltersCount() > 0 ? COLORS.white : colors.text} 
-          />
-          {getActiveFiltersCount() > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{getActiveFiltersCount()}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats rapides */}
-      <View style={[styles.statsContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderBottomColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}>
-        <Text style={[styles.statsText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-          {searchQuery.trim()
-            ? `${displayedTickets.length} résultat${displayedTickets.length > 1 ? 's' : ''} sur ${tickets.length} chargé${tickets.length > 1 ? 's' : ''}`
-            : `${pagination.totalDocs} ticket${pagination.totalDocs > 1 ? 's' : ''} au total`}
-        </Text>
-      </View>
-
-      {/* Liste des tickets */}
+    <View style={[styles.flex, { backgroundColor: c.background }]}>
       <FlatList
         data={displayedTickets}
         renderItem={renderTicketItem}
         keyExtractor={(item) => item._id}
-        style={styles.list}
-        contentContainerStyle={displayedTickets.length === 0 ? styles.listEmpty : styles.listContent}
+        ListHeaderComponent={header}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        ListFooterComponent={
-          isLoading && tickets.length > 0 ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
-          ) : null
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
+        ListFooterComponent={isLoading && tickets.length > 0 ? <ActivityIndicator style={{ marginVertical: spacing.lg }} color={c.primary} /> : undefined}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[c.primary]} tintColor={c.primary} />}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={empty}
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Modal des filtres */}
-      {renderFilterModal()}
-    </SafeAreaView>
+      <Sheet visible={showFilters} title="Filtrer les tickets" onClose={() => setShowFilters(false)}>
+        <AppText variant="overline" color={c.mutedForeground}>Statut</AppText>
+        <View style={styles.chipsWrap}>
+          {statusOptions.map(o => (
+            <Chip key={o.value || 'all'} label={o.value ? o.label : 'Tous'} active={(draftFilters.status || '') === o.value} onPress={() => setDraftFilters(prev => ({ ...prev, status: o.value as any }))} />
+          ))}
+        </View>
+        <AppText variant="overline" color={c.mutedForeground}>Catégorie</AppText>
+        <View style={styles.chipsWrap}>
+          {categoryOptions.map(o => (
+            <Chip key={o.value || 'all'} label={o.value ? o.label : 'Toutes'} active={(draftFilters.category || '') === o.value} onPress={() => setDraftFilters(prev => ({ ...prev, category: o.value as any }))} />
+          ))}
+        </View>
+        <AppText variant="overline" color={c.mutedForeground}>Priorité</AppText>
+        <View style={styles.chipsWrap}>
+          {priorityOptions.map(o => (
+            <Chip key={o.value || 'all'} label={o.value ? o.label : 'Toutes'} active={(draftFilters.priority || '') === o.value} onPress={() => setDraftFilters(prev => ({ ...prev, priority: o.value as any }))} />
+          ))}
+        </View>
+        <View style={styles.sheetActions}>
+          <Button title="Réinitialiser" variant="outline" onPress={resetFilters} fullWidth={false} style={styles.flex} />
+          <Button title="Appliquer" onPress={applyFilters} fullWidth={false} style={styles.flex} />
+        </View>
+      </Sheet>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginTop: 2,
-  },
-  roleBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statsHeader: {
-    marginHorizontal: 20,
-    marginVertical: 12,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  statsNote: {
-    fontSize: 12,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  detailedStats: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.greyscale300,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#FF5722',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadgeText: {
-    color: COLORS.white,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  statsContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  statsText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    padding: 20,
-  },
-  listEmpty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  ticketCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  ticketNumberContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ticketNumber: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  ticketSubject: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 6,
-    lineHeight: 22,
-  },
-  ticketDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  userInfoText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  ticketFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  ticketMeta: {
-    flex: 1,
-    marginRight: 8,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  metaText: {
-    fontSize: 12,
-  },
-  priorityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  priorityText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  ticketDate: {
-    fontSize: 12,
-    textAlign: 'right',
-  },
-  assignedIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.greyscale300,
-  },
-  assignedText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  createButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Styles du modal de filtres
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  filterModal: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
-    maxHeight: '85%',
-  },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  filterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  filterTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterSection: {
-    padding: 20,
-  },
-  filterLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  filterOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 8,
-  },
-  filterOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterActions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  resetButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  applyButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  flex: { flex: 1 },
+  listContent: { paddingBottom: spacing.xxl },
+  headerBody: { paddingHorizontal: spacing.lg, marginTop: -spacing.lg, marginBottom: spacing.lg, gap: spacing.md },
+  pad: { paddingHorizontal: spacing.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap' },
+  searchRow: { flexDirection: 'row', gap: spacing.sm },
+  search: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, minHeight: 48 },
+  searchInput: { flex: 1, paddingVertical: 10 },
+  filterBtn: { width: 48, height: 48, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  filterCount: { position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  card: { marginHorizontal: spacing.lg, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  iconTile: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.md },
+  meta: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, gap: 6 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chip: { minHeight: MIN_TOUCH - 6, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  sheetActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
 });
 
-export default TicketListScreen; 
+export default TicketListScreen;
