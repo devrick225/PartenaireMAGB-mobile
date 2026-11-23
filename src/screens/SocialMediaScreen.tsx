@@ -2,19 +2,13 @@ import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Linking,
-  Alert,
+  Pressable,
   Share,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import {
   SOCIAL_MEDIA_PLATFORMS,
   SOCIAL_MEDIA_CATEGORIES,
@@ -24,184 +18,18 @@ import {
   SHARE_CONFIG,
   ERROR_MESSAGES,
 } from '../constants/socialMedia';
-import SocialMediaCard from '../components/SocialMediaCard';
-import RefreshableHeader from '../components/RefreshableHeader';
 import openLink from '../utils/openLink';
 
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, IconButton, Section } from '../design/components';
+import { radius, spacing, MIN_TOUCH } from '../design/tokens';
 interface SocialMediaScreenProps {
   navigation: any;
 }
 
 const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      backgroundColor: colors.card,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    backButton: {
-      marginRight: 16,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontFamily: 'PlayfairDisplay_700Bold',
-      color: colors.text,
-    },
-    shareButton: {
-      padding: 8,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: 20,
-    },
-    
-    // Hero section styles
-    heroSection: {
-      borderColor: colors.primary,
-      borderRadius: 16,
-      padding: 20,
-      marginVertical: 20,
-      alignItems: 'center',
-    },
-    heroIcon: {
-      marginBottom: 12,
-    },
-    heroTitle: {
-      fontSize: 24,
-      fontFamily: 'bold',
-      color: colors.surface,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    heroSubtitle: {
-      fontSize: 16, fontFamily: 'regular',
-      color: colors.surface,
-      textAlign: 'center',
-      opacity: 0.9,
-    },
-    
-    // Category filter styles
-    categoriesContainer: {
-      marginBottom: 20,
-    },
-    categoriesTitle: {
-      fontSize: 18,
-      fontFamily: 'semiBold',
-      color: colors.text,
-      marginBottom: 12,
-    },
-    categoriesRow: {
-      flexDirection: 'row',
-      gap: 8,
-      flexWrap: 'wrap',
-    },
-    categoryChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    categoryChipSelected: {
-      borderColor: colors.primary,
-    },
-    categoryChipIcon: {
-      marginRight: 6,
-    },
-    categoryChipText: {
-      fontSize: 14,
-      fontFamily: 'medium',
-      color: colors.text,
-    },
-    categoryChipTextSelected: {
-      color: colors.surface,
-    },
-    
-    // Platforms grid styles
-    platformsContainer: {
-      marginBottom: 20,
-    },
-    platformsTitle: {
-      fontSize: 18,
-      fontFamily: 'semiBold',
-      color: colors.text,
-      marginBottom: 16,
-    },
-    platformsGrid: {
-      gap: 8,
-    },
-    
-    // Stats section
-    statsSection: {
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    statsTitle: {
-      fontSize: 18,
-      fontFamily: 'semiBold',
-      color: colors.text,
-      marginBottom: 16,
-      textAlign: 'center',
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-    },
-    statItem: {
-      alignItems: 'center',
-    },
-    statNumber: {
-      fontSize: 24,
-      fontFamily: 'bold',
-      color: colors.primary,
-      marginBottom: 4,
-    },
-    statLabel: {
-      fontSize: 12, fontFamily: 'regular',
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    
-    // Footer
-    footer: {
-      padding: 20,
-      alignItems: 'center',
-    },
-    footerText: {
-      fontSize: 14, fontFamily: 'regular',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-  });
 
   const handlePlatformPress = async (platform: SocialMediaPlatform) => {
     await openLink(platform.url, ERROR_MESSAGES.linkNotAvailable);
@@ -254,159 +82,77 @@ const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => 
     return `${Math.round(total / 1000)}K+`;
   };
 
-  const renderCategoryFilter = () => (
-    <View style={styles.categoriesContainer}>
-      <Text style={styles.categoriesTitle}>Catégories</Text>
-      <View style={styles.categoriesRow}>
-        <TouchableOpacity
-          style={[
-            styles.categoryChip,
-            selectedCategory === 'all' && styles.categoryChipSelected,
-          ]}
-          onPress={() => setSelectedCategory('all')}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons
-            name="apps"
-            size={16}
-            color={selectedCategory === 'all' ? colors.surface : colors.text}
-            style={styles.categoryChipIcon}
-          />
-          <Text
-            style={[
-              styles.categoryChipText,
-              selectedCategory === 'all' && styles.categoryChipTextSelected,
-            ]}
-          >
-            Tous
-          </Text>
-        </TouchableOpacity>
-        
-        {SOCIAL_MEDIA_CATEGORIES.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category.id && styles.categoryChipSelected,
-            ]}
-            onPress={() => setSelectedCategory(category.id)}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons
-              name={category.icon as any}
-              size={16}
-              color={selectedCategory === category.id ? colors.surface : colors.text}
-              style={styles.categoryChipIcon}
-            />
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === category.id && styles.categoryChipTextSelected,
-              ]}
-            >
-              {category.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
 
-  const renderPlatformCard = (platform: SocialMediaPlatform) => (
-    <View key={platform.id} style={{ marginVertical: 4 }}>
-      <SocialMediaCard
-        platform={platform}
-        variant="default"
-        showDescription={true}
-        showStats={true}
-        onPress={handlePlatformPress}
-      />
-    </View>
-  );
-
-  const renderStats = () => (
-    <View style={styles.statsSection}>
-      <Text style={styles.statsTitle}>Notre Présence en Ligne</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{getActivePlatforms().length}</Text>
-          <Text style={styles.statLabel}>Plateformes</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{getTotalFollowers()}</Text>
-          <Text style={styles.statLabel}>Followers</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>24/7</Text>
-          <Text style={styles.statLabel}>Disponibilité</Text>
-        </View>
-      </View>
-    </View>
-  );
+  const platforms = getFilteredPlatforms();
+  const Chip = ({ id, label, icon }: { id: string; label: string; icon: string }) => {
+    const active = selectedCategory === id;
+    return (
+      <Pressable
+        onPress={() => setSelectedCategory(id)}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: active }}
+        style={[styles.chip, { backgroundColor: active ? c.primary : c.card, borderColor: active ? c.primary : c.border }]}
+      >
+        <MaterialIcons name={icon as any} size={16} color={active ? c.primaryForeground : c.mutedForeground} />
+        <AppText variant="smallStrong" color={active ? c.primaryForeground : c.foreground}>{label}</AppText>
+      </Pressable>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <RefreshableHeader
-        title="Nos Réseaux Sociaux"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={false}
-        onRefreshPress={onRefresh}
-        isRefreshing={refreshing}
-        showShareButton={false}
-        onSharePress={handleSharePress}
-      />
-
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <MaterialIcons
-            name="public"
-            size={48}
-            color={colors.surface}
-            style={styles.heroIcon}
-          />
-          <Text style={styles.heroTitle}>Restez Connectés</Text>
-          <Text style={styles.heroSubtitle}>
-            Suivez toutes nos activités et rejoignez notre communauté en ligne
-          </Text>
-        </View>
-
-        {/* Stats 
-        {renderStats()}
-*/}
-        {/* Category Filter */}
-        {renderCategoryFilter()}
-
-        {/* Platforms List */}
-        <View style={styles.platformsContainer}>
-          <Text style={styles.platformsTitle}>
-            {selectedCategory === 'all' 
-              ? 'Toutes nos plateformes' 
-              : SOCIAL_MEDIA_CATEGORIES.find(c => c.id === selectedCategory)?.name}
-          </Text>
-          <View style={styles.platformsGrid}>
-            {getFilteredPlatforms().map(renderPlatformCard)}
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Rejoignez notre communauté en ligne et ne manquez aucune de nos activités !
-            {'\n'}Partagez, commentez et restez inspirés avec MAGB.
-          </Text>
-        </View>
+    <Screen
+      hero={
+        <HeroHeader
+          eyebrow="Le ministère"
+          eyebrowIcon="globe-outline"
+          title="Restez connectés"
+          subtitle="Suivez nos activités et rejoignez la communauté en ligne."
+          onBack={() => navigation.goBack()}
+          right={<IconButton icon="share-social-outline" tone="hero" accessibilityLabel="Partager nos réseaux" onPress={handleSharePress} />}
+        />
+      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+    >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Catégories">
+        <Chip id="all" label="Tous" icon="apps" />
+        {SOCIAL_MEDIA_CATEGORIES.map(cat => <Chip key={cat.id} id={cat.id} label={cat.name} icon={cat.icon} />)}
       </ScrollView>
-    </SafeAreaView>
+
+      <Section title={selectedCategory === 'all' ? 'Toutes nos plateformes' : SOCIAL_MEDIA_CATEGORIES.find(cat => cat.id === selectedCategory)?.name}>
+        {platforms.map((p, i) => (
+          <Pressable
+            key={p.id}
+            onPress={() => handlePlatformPress(p)}
+            accessibilityRole="link"
+            accessibilityLabel={`Ouvrir ${p.name}`}
+            style={({ pressed }) => [styles.row, i < platforms.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }, pressed && { backgroundColor: c.muted }]}
+          >
+            <View style={[styles.logo, { backgroundColor: p.color }]}>
+              <MaterialIcons name={p.icon as any} size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.flex}>
+              <AppText variant="bodyStrong">{p.name}</AppText>
+              <AppText variant="small" color={c.mutedForeground} numberOfLines={2}>{p.description}</AppText>
+              {p.followers ? <AppText variant="caption" color={c.primary}>{p.followers} abonnés</AppText> : null}
+            </View>
+            <Ionicons name="open-outline" size={18} color={c.mutedForeground} />
+          </Pressable>
+        ))}
+      </Section>
+
+      <AppText variant="small" color={c.mutedForeground} center>
+        Partagez, commentez et restez inspirés avec MAGB.
+      </AppText>
+    </Screen>
   );
 };
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  chips: { gap: spacing.sm, paddingRight: spacing.lg },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TOUCH - 4, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 64 },
+  logo: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+});
 
 export default SocialMediaScreen;
