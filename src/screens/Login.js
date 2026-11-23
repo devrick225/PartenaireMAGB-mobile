@@ -263,7 +263,7 @@ const Login = ({ navigation }) => {
               <Checkbox
                 style={styles.checkbox}
                 value={isChecked}
-                color={isChecked ? '#26335F' : dark ? '#26335F' : "gray"}
+                color={isChecked ? '#472A6F' : dark ? '#472A6F' : "gray"}
                 onValueChange={setChecked}
               />
               <View style={{ flex: 1 }}>
@@ -290,7 +290,7 @@ const Login = ({ navigation }) => {
               <Ionicons
                 name={biometricLabel.includes('empreinte') || biometricLabel === 'Touch ID' ? 'finger-print' : 'scan'}
                 size={22}
-                color="#26335F"
+                color="#472A6F"
               />
               <Text style={styles.biometricButtonText}>Se connecter avec {biometricLabel}</Text>
             </TouchableOpacity>
@@ -300,7 +300,7 @@ const Login = ({ navigation }) => {
             disabled={isLoading}>
             <Text style={[styles.forgotPasswordBtnText, {
               opacity: isLoading ? 0.5 : 1,
-              color: '#26335F'
+              color: '#472A6F'
             }]}>Mot de passe oublié ?</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -313,7 +313,7 @@ const Login = ({ navigation }) => {
             disabled={isLoading}>
             <Text style={[styles.bottomRight, {
               opacity: isLoading ? 0.5 : 1,
-              color: '#26335F'
+              color: '#472A6F'
             }]}>{"  "}S'inscrire</Text>
           </TouchableOpacity>
         </View>
@@ -331,13 +331,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 30,
     borderWidth: 1.5,
-    borderColor: '#26335F',
+    borderColor: '#472A6F',
   },
   biometricButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontFamily: 'semiBold',
-    color: '#26335F',
+    color: '#472A6F',
   },
   area: {
     flex: 1,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     height: 16,
     width: 16,
     borderRadius: 4,
-    borderColor: '#26335F',
+    borderColor: '#472A6F',
     borderWidth: 2,
   },
   privacy: {
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   bottomRight: {
     fontSize: 16,
     fontFamily: "medium",
-    color: '#26335F'
+    color: '#472A6F'
   },
   button: {
     marginVertical: 6,
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   forgotPasswordBtnText: {
     fontSize: 16,
     fontFamily: "semiBold",
-    color: '#26335F',
+    color: '#472A6F',
     textAlign: "center",
     marginTop: 12
   }

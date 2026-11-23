@@ -998,7 +998,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 key={star}
                 name="star"
                 size={24}
-                color={star <= ticket.rating!.score ? '#FFD700' : dark ? COLORS.dark3 : COLORS.greyscale300}
+                color={star <= ticket.rating!.score ? '#E8B130' : dark ? COLORS.dark3 : COLORS.greyscale300}
               />
             ))}
           </View>
@@ -1309,7 +1309,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 <MaterialIcons
                   name="star"
                   size={32}
-                  color={star <= rating ? '#FFD700' : dark ? COLORS.dark3 : COLORS.greyscale300}
+                  color={star <= rating ? '#E8B130' : dark ? COLORS.dark3 : COLORS.greyscale300}
                 />
               </TouchableOpacity>
             ))}

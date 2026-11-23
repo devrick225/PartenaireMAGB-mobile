@@ -64,7 +64,7 @@ const PartnerIdDisplay: React.FC<PartnerIdDisplayProps> = ({
       classique: '#8B5CF6', // Violet
       bronze: '#CD7F32',    // Bronze
       argent: '#C0C0C0',    // Argent
-      or: '#FFD700',        // Or
+      or: '#E8B130',        // Or
     };
     
     return levelColors[partnerLevel] || levelColors.classique;

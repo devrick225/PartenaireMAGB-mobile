@@ -8,12 +8,12 @@ import React from 'react';
 import { COLORS, SIZES } from '../constants';
 
 const Button = (props) => {
-    const filledBgColor = props.color || '#26335F' // Bleu principal
+    const filledBgColor = props.color || '#472A6F' // Bleu principal
     const outlinedBgColor = COLORS.white
     const bgColor = props.filled ? filledBgColor : outlinedBgColor
     const textColor = props.filled
         ? COLORS.white || props.textColor
-        : props.textColor || '#26335F' // Bleu principal
+        : props.textColor || '#472A6F' // Bleu principal
     const isLoading = props.isLoading || false
 
     return (
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     btn: {
         paddingHorizontal: SIZES.padding,
         paddingVertical: SIZES.padding,
-        borderColor: '#26335F', // Bleu principal
+        borderColor: '#472A6F', // Bleu principal
         borderWidth: 1,
         borderRadius: 25,
         alignItems: 'center',

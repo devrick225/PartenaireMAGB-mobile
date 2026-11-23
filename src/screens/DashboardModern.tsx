@@ -305,16 +305,16 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
         <TouchableOpacity
           style={[
             styles.topNavRefreshBtn,
-            refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
+            refreshing && { backgroundColor: 'rgba(232, 177, 48,0.25)' },
           ]}
           onPress={onRefresh}
           disabled={refreshing}
           activeOpacity={0.7}
         >
           {refreshing ? (
-            <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
+            <MaterialIcons name="hourglass-top" size={22} color="#E8B130" />
           ) : (
-            <MaterialIcons name="refresh" size={26} color="#FFD61D" />
+            <MaterialIcons name="refresh" size={26} color="#E8B130" />
           )}
         </TouchableOpacity>
       </View>
@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFD61D',
+    borderColor: '#E8B130',
   },
   centered: {
     justifyContent: 'center',

@@ -224,7 +224,7 @@ const ContactMinistereSimple = ({ navigation }) => {
     }
   };
 
-  const renderContactCard = (icon, title, subtitle, onPress, color = '#26335F') => (
+  const renderContactCard = (icon, title, subtitle, onPress, color = '#472A6F') => (
     <TouchableOpacity
       style={[styles.contactCard, { backgroundColor: dark ? '#2A2A2A' : '#FFFFFF' }]}
       onPress={onPress}
@@ -247,11 +247,11 @@ const ContactMinistereSimple = ({ navigation }) => {
       <View style={[
         styles.formFieldInputWrapper,
         { 
-          borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(38,51,95,0.18)',
+          borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(71, 42, 111,0.18)',
           backgroundColor: dark ? '#1E1E2E' : '#F8F9FF',
         }
       ]}>
-        <MaterialIcons name={icon} size={20} color="#26335F" style={styles.formFieldIcon} />
+        <MaterialIcons name={icon} size={20} color="#472A6F" style={styles.formFieldIcon} />
         <TextInput
           style={[styles.formFieldInput, { color: colors.text }]}
           placeholder={placeholder}
@@ -273,7 +273,7 @@ const ContactMinistereSimple = ({ navigation }) => {
     >
       {/* Header avec gradient */}
       <LinearGradient
-        colors={['#26335F', '#1a2347']}
+        colors={['#472A6F', '#1a2347']}
         style={styles.emailFormGradientHeader}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -303,8 +303,8 @@ const ContactMinistereSimple = ({ navigation }) => {
       >
         {/* Carte du destinataire */}
         <View style={[styles.recipientCard, { backgroundColor: dark ? '#1E1E2E' : '#EEF1FF' }]}>
-          <MaterialIcons name="send" size={18} color="#26335F" />
-          <Text style={[styles.recipientText, { color: '#26335F' }]}>
+          <MaterialIcons name="send" size={18} color="#472A6F" />
+          <Text style={[styles.recipientText, { color: '#472A6F' }]}>
             À : {CONTACT_INFO.email}
           </Text>
         </View>
@@ -341,14 +341,14 @@ const ContactMinistereSimple = ({ navigation }) => {
               styles.formFieldInputWrapper,
               styles.formMessageWrapper,
               { 
-                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(38,51,95,0.18)',
+                borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(71, 42, 111,0.18)',
                 backgroundColor: dark ? '#1E1E2E' : '#F8F9FF',
               }
             ]}>
               <MaterialIcons
                 name="message"
                 size={20}
-                color="#26335F"
+                color="#472A6F"
                 style={[styles.formFieldIcon, { marginTop: 2 }]}
               />
               <TextInput
@@ -383,7 +383,7 @@ const ContactMinistereSimple = ({ navigation }) => {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={['#26335F', '#1a2347']}
+            colors={['#472A6F', '#1a2347']}
             style={styles.sendButtonGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -445,7 +445,7 @@ const ContactMinistereSimple = ({ navigation }) => {
           >
             {/* Image de carte statique ou placeholder */}
             <View style={[styles.mapPlaceholder, { backgroundColor: dark ? '#2A2A2A' : '#F5F5F5' }]}>
-              <MaterialIcons name="map" size={60} color="#26335F" />
+              <MaterialIcons name="map" size={60} color="#472A6F" />
               <Text style={[styles.mapPlaceholderText, { color: colors.text }]}>
               Ministère d'Adoration Geneviève Brou
               </Text>
@@ -577,7 +577,7 @@ const ContactMinistereSimple = ({ navigation }) => {
             🏢 Adresse
           </Text>
           <View style={styles.addressContent}>
-            <MaterialIcons name="location-on" size={24} color="#26335F" />
+            <MaterialIcons name="location-on" size={24} color="#472A6F" />
             <View style={styles.addressText}>
               <Text style={[styles.addressTitle, { color: colors.text }]}>
                 {CONTACT_INFO.name}
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 16,
     right: 16,
-    backgroundColor: 'rgba(38, 51, 95, 0.9)',
+    backgroundColor: 'rgba(71, 42, 111, 0.9)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
   },
   mapActionButton: {
     flex: 1,
-    backgroundColor: '#26335F',
+    backgroundColor: '#472A6F',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 6,
-    shadowColor: '#26335F',
+    shadowColor: '#472A6F',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,

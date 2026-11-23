@@ -32,8 +32,8 @@ const InputModern = (props) => {
         style={[
           styles.inputContainer,
           {
-            borderColor: isFocused ? '#26335F' : 'rgba(38, 51, 95, 0.2)',
-            backgroundColor: isFocused ? 'rgba(38, 51, 95, 0.08)' : 'rgba(38, 51, 95, 0.05)',
+            borderColor: isFocused ? '#472A6F' : 'rgba(71, 42, 111, 0.2)',
+            backgroundColor: isFocused ? 'rgba(71, 42, 111, 0.08)' : 'rgba(71, 42, 111, 0.05)',
           },
           props.containerStyle,
         ]}
@@ -43,7 +43,7 @@ const InputModern = (props) => {
             <MaterialIcons 
               name={props.icon} 
               size={20} 
-              color={isFocused ? '#26335F' : 'rgba(38, 51, 95, 0.6)'} 
+              color={isFocused ? '#472A6F' : 'rgba(71, 42, 111, 0.6)'} 
             />
           </View>
         )}
