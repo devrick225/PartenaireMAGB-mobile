@@ -2,26 +2,30 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
+  Pressable,
   RefreshControl,
   Alert,
-  ActivityIndicator,
-  Modal,
   FlatList,
-  Animated,
-  Platform,
-  useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
 import donationService from '../store/services/donationService';
-import paymentService from '../store/services/paymentService';
-import RefreshableHeader from '../components/RefreshableHeader';
+import {
+  useDS,
+  AppText,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  SegmentedTabs,
+  Card,
+  Badge,
+  Button,
+  EmptyState,
+  LoadingState,
+  formatAmount as dsFormatAmount,
+  formatDate,
+} from '../design/components';
+import { cardShadow, radius, spacing } from '../design/tokens';
 
 interface RecurringDonationsScreenProps {
   navigation: any;
@@ -61,56 +65,16 @@ interface OccurrenceItem {
   occurrence: number;
 }
 
-interface RecurringFilters {
-  status?: 'active' | 'inactive' | 'all';
-  donorType?: string;
-  frequency?: string;
-  amountRange?: 'low' | 'medium' | 'high' | 'all';
-}
+
 
 const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ navigation }) => {
-  const { dark, colors } = useTheme();
-  const { height: screenHeight } = useWindowDimensions();
-
-  // Options de filtres
-  const statusFilterOptions = [
-    { value: 'all', label: 'Tous les statuts' },
-    { value: 'active', label: 'Actifs' },
-    { value: 'inactive', label: 'Inactifs' },
-  ];
-
-  const donorTypeFilterOptions = [
-    { value: '', label: 'Tous les types' },
-    { value: 'homme', label: 'Homme' },
-    { value: 'femme', label: 'Femme' },
-    { value: 'entreprise', label: 'Entreprise' },
-  ];
-
-  const frequencyFilterOptions = [
-    { value: '', label: 'Toutes les fréquences' },
-    { value: 'monthly', label: 'Mensuelle' },
-    { value: 'quarterly', label: 'Trimestrielle' },
-    { value: 'semiannual', label: 'Semestrielle' },
-    { value: 'one_time', label: 'Ponctuel' },
-  ];
-
-  const amountRangeOptions = [
-    { value: 'all', label: 'Tous les montants' },
-    { value: 'low', label: 'Moins de 10 000 XOF' },
-    { value: 'medium', label: '10 000 - 50 000 XOF' },
-    { value: 'high', label: 'Plus de 50 000 XOF' },
-  ];
+  const { c } = useDS();
 
   const [recurringDonations, setRecurringDonations] = useState<RecurringDonation[]>([]);
   const [upcomingOccurrences, setUpcomingOccurrences] = useState<OccurrenceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'active' | 'occurrences'>('active');
-  const [selectedDonation, setSelectedDonation] = useState<RecurringDonation | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [filters, setFilters] = useState<RecurringFilters>({});
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [fabScale] = useState(new Animated.Value(1));
 
   useEffect(() => {
     loadRecurringDonations();
@@ -289,11 +253,7 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
     );
   };
 
-  const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('fr-FR', {
-      minimumFractionDigits: 0,
-    }).format(amount) + ' ' + currency;
-  };
+  const formatAmount = (amount: number, currency: string) => dsFormatAmount(amount, currency);
 
   const formatCategory = (category: string) => {
     const categories: { [key: string]: string } = {
@@ -327,1147 +287,190 @@ const RecurringDonationsScreen: React.FC<RecurringDonationsScreenProps> = ({ nav
     return interval === 1 ? `Tous les ${unit}s` : `Tous les ${interval} ${unit}s`;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming': return colors.primary;
-      case 'due': return '#FF9800';
-      case 'overdue': return '#F44336';
-      case 'paid': return '#4CAF50';
-      case 'failed': return '#F44336';
-      default: return colors.text;
-    }
+
+  // Libellé et ton d'une échéance
+  const OCCURRENCE_STATUS: Record<OccurrenceItem['status'], { label: string; tone: 'primary' | 'warning' | 'danger' | 'success' }> = {
+    upcoming: { label: 'À venir', tone: 'primary' },
+    due: { label: 'À payer', tone: 'warning' },
+    overdue: { label: 'En retard', tone: 'danger' },
+    paid: { label: 'Payé', tone: 'success' },
+    failed: { label: 'Échoué', tone: 'danger' },
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'upcoming': return 'À venir';
-      case 'due': return 'À payer';
-      case 'overdue': return 'En retard';
-      case 'paid': return 'Payé';
-      case 'failed': return 'Échoué';
-      default: return status;
-    }
+  const refresh = () => {
+    setIsRefreshing(true);
+    loadRecurringDonations();
   };
 
-  const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => value && value !== '' && value !== 'all').length;
-  };
-
-  const clearFilters = () => {
-    setFilters({});
-    setShowFilterModal(false);
-  };
-
-  const applyFilters = (newFilters: RecurringFilters) => {
-    setFilters(newFilters);
-    setShowFilterModal(false);
-  };
-
-  const handleFabPress = () => {
-    // Animation de pression
-    Animated.sequence([
-      Animated.timing(fabScale, {
-        toValue: 0.9,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fabScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    setShowFilterModal(true);
-  };
-
-  const filterRecurringDonations = (donations: RecurringDonation[]) => {
-    return donations.filter((donation: any) => {
-      // Filtre par statut
-      if (filters.status && filters.status !== 'all') {
-        const isActive = donation.recurring.isActive;
-        if (filters.status === 'active' && !isActive) return false;
-        if (filters.status === 'inactive' && isActive) return false;
-      }
-
-      // Filtre par type de donateur
-      if (filters.donorType && filters.donorType !== '') {
-        const donorType = donation.donorType || donation.donor?.personType || '';
-        if (donorType.toLowerCase() !== filters.donorType.toLowerCase()) return false;
-      }
-
-      // Filtre par fréquence
-      if (filters.frequency && filters.frequency !== '') {
-        if (donation.recurring.frequency !== filters.frequency) return false;
-      }
-
-      // Filtre par montant
-      if (filters.amountRange && filters.amountRange !== 'all') {
-        const amount = donation.amount;
-        switch (filters.amountRange) {
-          case 'low':
-            if (amount >= 10000) return false;
-            break;
-          case 'medium':
-            if (amount < 10000 || amount > 50000) return false;
-            break;
-          case 'high':
-            if (amount <= 50000) return false;
-            break;
-        }
-      }
-
-      return true;
-    });
-  };
-
-  const filterOccurrences = (occurrences: OccurrenceItem[]) => {
-    return occurrences.filter(occurrence => {
-      // Filtre par montant
-      if (filters.amountRange && filters.amountRange !== 'all') {
-        const amount = occurrence.amount;
-        switch (filters.amountRange) {
-          case 'low':
-            if (amount >= 10000) return false;
-            break;
-          case 'medium':
-            if (amount < 10000 || amount > 50000) return false;
-            break;
-          case 'high':
-            if (amount <= 50000) return false;
-            break;
-        }
-      }
-
-      return true;
-    });
-  };
+  const activeDonations = recurringDonations.filter(d => d.recurring.isActive);
+  const pendingOccurrences = upcomingOccurrences.filter(o => o.status !== 'paid');
+  const monthlyTotal = activeDonations
+    .filter(d => d.recurring.frequency === 'monthly' && (!d.currency || d.currency === 'XOF'))
+    .reduce((sum, d) => sum + (d.amount || 0), 0);
 
   const renderRecurringDonationCard = ({ item }: { item: RecurringDonation }) => (
-    <TouchableOpacity
-      style={[styles.donationCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-      onPress={() => {
-        setSelectedDonation(item);
-        setShowDetailModal(true);
-      }}
+    <Pressable
+      onPress={() => navigation.navigate('DonationDetail', { donationId: item._id })}
+      accessibilityRole="button"
+      accessibilityLabel={`Don récurrent de ${item.formattedAmount}, ${formatFrequency(item.recurring.frequency, item.recurring.interval)}`}
+      style={({ pressed }) => [styles.card, cardShadow, { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.9 : 1 }]}
     >
-      <View style={styles.cardHeader}>
-        <View style={styles.categoryContainer}>
-          <MaterialIcons
-            name="repeat"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={[styles.categoryText, { color: colors.primary }]}>
-            {formatCategory(item.category)}
-          </Text>
+      <View style={styles.cardTop}>
+        <View style={[styles.iconTile, { backgroundColor: c.primarySoft }]}>
+          <Ionicons name="repeat" size={22} color={c.primary} />
         </View>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: item.recurring.isActive ? '#4CAF50' : '#F44336' }
-        ]}>
-          <Text style={styles.statusText}>
-            {item.recurring.isActive ? 'Actif' : 'Inactif'}
-          </Text>
+        <View style={styles.flex}>
+          <AppText variant="subtitle" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            {item.formattedAmount}
+          </AppText>
+          <AppText variant="small" color={c.mutedForeground} numberOfLines={1}>
+            {formatCategory(item.category)} · {formatFrequency(item.recurring.frequency, item.recurring.interval).toLowerCase()}
+          </AppText>
         </View>
+        <Badge label={item.recurring.isActive ? 'Actif' : 'Arrêté'} tone={item.recurring.isActive ? 'success' : 'neutral'} />
       </View>
 
-      <Text style={[styles.amountText, { color: colors.text }]}>
-        {item.formattedAmount}
-      </Text>
-
-      <Text style={[styles.frequencyText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-        {formatFrequency(item.recurring.frequency, item.recurring.interval)}
-      </Text>
-
-      <View style={styles.progressContainer}>
-        <View style={styles.progressInfo}>
-          <Text style={[styles.progressLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Exécutions
-          </Text>
-          <Text style={[styles.progressValue, { color: colors.text }]}>
+      <View style={[styles.stats, { borderTopColor: c.border }]}>
+        <View style={styles.flex}>
+          <AppText variant="caption" color={c.mutedForeground}>Échéances réglées</AppText>
+          <AppText variant="bodyStrong">
             {item.recurring.totalExecutions || 0}
-            {item.recurring.maxOccurrences ? `/${item.recurring.maxOccurrences}` : ''}
-          </Text>
+            {item.recurring.maxOccurrences ? ` / ${item.recurring.maxOccurrences}` : ''}
+          </AppText>
         </View>
-
-        <View style={styles.progressInfo}>
-          <Text style={[styles.progressLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Prochain paiement
-          </Text>
-          <Text style={[styles.progressValue, { color: colors.primary }]}>
-            {item.recurring.nextPaymentDate ? new Date(item.recurring.nextPaymentDate).toLocaleDateString('fr-FR') : '—'}
-          </Text>
+        <View style={styles.flex}>
+          <AppText variant="caption" color={c.mutedForeground}>Prochaine échéance</AppText>
+          <AppText variant="bodyStrong" color={c.primary}>
+            {formatDate(item.recurring.nextPaymentDate)}
+          </AppText>
         </View>
       </View>
-    </TouchableOpacity>
+
+      {item.recurring.isActive ? (
+        <Button
+          title="Arrêter ce don"
+          variant="outline"
+          icon="stop-circle-outline"
+          onPress={() => handleStopRecurring(item)}
+          style={{ marginTop: spacing.md, minHeight: 44 }}
+        />
+      ) : null}
+    </Pressable>
   );
 
-  const renderOccurrenceCard = ({ item }: { item: OccurrenceItem }) => (
-    <View style={[styles.occurrenceCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-      <View style={styles.occurrenceHeader}>
-        <View style={styles.occurrenceInfo}>
-          <Text style={[styles.occurrenceCategory, { color: colors.text }]}>
-            {formatCategory(item.category)} #{item.occurrence}
-          </Text>
-          <Text style={[styles.occurrenceAmount, { color: colors.primary }]}>
-            {formatAmount(item.amount, item.currency)}
-          </Text>
-        </View>
-
-        <View style={[styles.occurrenceStatus, { borderColor: getStatusColor(item.status) }]}>
-          <Text style={[styles.occurrenceStatusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.occurrenceDetails}>
-        <View style={styles.occurrenceDate}>
-          <MaterialIcons name="schedule" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.occurrenceDateText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            {new Date(item.dueDate).toLocaleDateString('fr-FR')}
-          </Text>
-        </View>
-
-        {(item.status === 'due' || item.status === 'overdue') && (
-          <TouchableOpacity
-            style={[styles.payButton, { backgroundColor: colors.primary }]}
-            onPress={() => handlePayOccurrence(item)}
-          >
-            <MaterialIcons name="payment" size={16} color="#FFFFFF" />
-            <Text style={styles.payButtonText}>Payer</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-
-  const renderDetailModal = () => {
-
+  const renderOccurrenceCard = ({ item }: { item: OccurrenceItem }) => {
+    const st = OCCURRENCE_STATUS[item.status];
+    const payable = item.status === 'due' || item.status === 'overdue';
     return (
-      <Modal
-        visible={showDetailModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowDetailModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Détails du don récurrent
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => setShowDetailModal(false)}
-                style={styles.modalCloseButton}
-              >
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              {selectedDonation ? (
-                <View style={[styles.detailCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-                  <Text style={[styles.detailTitle, { color: colors.text }]}>
-                    Informations générales
-                  </Text>
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Catégorie
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {formatCategory(selectedDonation.category || '')}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Montant
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.primary }]}>
-                      {selectedDonation.formattedAmount || formatAmount(selectedDonation.amount || 0, selectedDonation.currency || 'XOF')}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Fréquence
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {selectedDonation.recurring ? formatFrequency(selectedDonation.recurring.frequency || 'monthly', selectedDonation.recurring.interval || 1) : 'Non spécifiée'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Date de début
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {selectedDonation.recurring?.startDate ? new Date(selectedDonation.recurring.startDate).toLocaleDateString('fr-FR') : 'Non spécifiée'}
-                    </Text>
-                  </View>
-
-                  {selectedDonation.recurring?.endDate && (
-                    <View style={styles.detailRow}>
-                      <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                        Date de fin
-                      </Text>
-                      <Text style={[styles.detailValue, { color: colors.text }]}>
-                        {new Date(selectedDonation.recurring.endDate).toLocaleDateString('fr-FR')}
-                      </Text>
-                    </View>
-                  )}
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Exécutions
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {selectedDonation.recurring?.totalExecutions || 0}
-                      {selectedDonation.recurring?.maxOccurrences ? `/${selectedDonation.recurring.maxOccurrences}` : ' (illimité)'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Prochain paiement
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.primary }]}>
-                      {selectedDonation.recurring?.nextPaymentDate ? new Date(selectedDonation.recurring.nextPaymentDate).toLocaleDateString('fr-FR') : 'Non programmé'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Statut
-                    </Text>
-                    <Text style={[styles.detailValue, { color: selectedDonation.recurring?.isActive ? '#4CAF50' : '#F44336' }]}>
-                      {selectedDonation.recurring?.isActive ? 'Actif' : 'Inactif'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.editButton, { borderColor: colors.primary }]}
-                      onPress={() => {
-                        setShowDetailModal(false);
-                        navigation.navigate('DonationDetail', { donationId: selectedDonation._id });
-                      }}
-                    >
-                      <MaterialIcons name="edit" size={20} color={colors.primary} />
-                      <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-                        Modifier
-                      </Text>
-                    </TouchableOpacity>
-
-                    {selectedDonation.recurring?.isActive && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.stopButton]}
-                        onPress={() => {
-                          setShowDetailModal(false);
-                          handleStopRecurring(selectedDonation);
-                        }}
-                      >
-                        <MaterialIcons name="stop" size={20} color="#F44336" />
-                        <Text style={[styles.actionButtonText, { color: '#F44336' }]}>
-                          Arrêter
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              ) : (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                  <MaterialIcons name="error" size={48} color={dark ? COLORS.grayTie : COLORS.gray} />
-                  <Text style={[styles.detailTitle, { color: colors.text, textAlign: 'center', marginTop: 16 }]}>
-                    Aucune donnée disponible
-                  </Text>
-                  <Text style={[styles.detailLabel, { color: dark ? COLORS.grayTie : COLORS.gray, textAlign: 'center', marginTop: 8 }]}>
-                    Impossible de charger les détails de ce don récurrent.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
+      <View style={[styles.card, cardShadow, { backgroundColor: c.card, borderColor: c.border }]}>
+        <View style={styles.cardTop}>
+          <View style={[styles.dateTile, { backgroundColor: c.primarySoft }]}>
+            <AppText variant="subtitle" color={c.primary}>{new Date(item.dueDate).getDate()}</AppText>
+            <AppText variant="caption" color={c.primary}>
+              {new Date(item.dueDate).toLocaleDateString('fr-FR', { month: 'short' })}
+            </AppText>
           </View>
+          <View style={styles.flex}>
+            <AppText variant="bodyStrong" numberOfLines={1}>{formatAmount(item.amount, item.currency)}</AppText>
+            <AppText variant="small" color={c.mutedForeground} numberOfLines={1}>
+              {formatCategory(item.category)} · échéance n°{item.occurrence}
+            </AppText>
+          </View>
+          <Badge label={st.label} tone={st.tone} />
         </View>
-      </Modal>
+        {payable ? (
+          <Button title="Payer cette échéance" icon="card-outline" onPress={() => handlePayOccurrence(item)} style={{ marginTop: spacing.md }} />
+        ) : null}
+      </View>
     );
   };
 
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowFilterModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.filterModalContent, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Filtres</Text>
-            <TouchableOpacity
-              onPress={() => setShowFilterModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
+  const header = (
+    <>
+      <HeroHeader
+        eyebrow="Mes dons"
+        eyebrowIcon="repeat"
+        title="Dons récurrents"
+        subtitle="Vos engagements et leurs prochaines échéances."
+        onBack={() => navigation.goBack()}
+        right={<IconButton icon={isRefreshing ? 'hourglass-outline' : 'refresh'} tone="hero" accessibilityLabel="Actualiser" onPress={refresh} />}
+      >
+        {!isLoading ? (
+          <View style={styles.chips}>
+            <HeroChip icon="checkmark-circle" label={`${activeDonations.length} actif${activeDonations.length > 1 ? 's' : ''}`} />
+            {monthlyTotal > 0 ? <HeroChip icon="calendar" label={`${dsFormatAmount(monthlyTotal)} / mois`} /> : null}
           </View>
-
-          <ScrollView
-            style={[styles.filterScrollView, { maxHeight: screenHeight * 0.52 }]}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.filterScrollContent}
-          >
-            {/* Filtre par statut */}
-            <View style={styles.filterSection}>
-              <Text style={[styles.filterSectionTitle, { color: colors.text }]}>Statut</Text>
-              <View style={styles.filterOptions}>
-                {statusFilterOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.filterOption,
-                      {
-                        backgroundColor: (filters.status === option.value) || (option.value === 'all' && !filters.status)
-                          ? colors.primary + '20'
-                          : 'transparent',
-                        borderColor: (filters.status === option.value) || (option.value === 'all' && !filters.status)
-                          ? colors.primary
-                          : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                      },
-                    ]}
-                    onPress={() => setFilters(prev => ({
-                      ...prev,
-                      status: option.value === 'all' ? undefined : option.value as any
-                    }))}
-                  >
-                    <Text style={[styles.filterOptionText, { color: colors.text }]}>
-                      {option.label}
-                    </Text>
-                    {((filters.status === option.value) || (option.value === 'all' && !filters.status)) && (
-                      <MaterialIcons name="check" size={16} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Filtre par type de donateur */}
-            <View style={styles.filterSection}>
-              <Text style={[styles.filterSectionTitle, { color: colors.text }]}>Catégorie</Text>
-              <View style={styles.filterChips}>
-                {donorTypeFilterOptions.map((option) => {
-                  const isSelected = (filters.donorType === option.value) || (option.value === '' && !filters.donorType);
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.filterChip,
-                        {
-                          backgroundColor: isSelected ? colors.primary : 'transparent',
-                          borderColor: isSelected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                        },
-                      ]}
-                      onPress={() => setFilters(prev => ({
-                        ...prev,
-                        donorType: option.value === '' ? undefined : option.value
-                      }))}
-                    >
-                      <Text style={[styles.filterChipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Filtre par fréquence */}
-            <View style={styles.filterSection}>
-              <Text style={[styles.filterSectionTitle, { color: colors.text }]}>Fréquence</Text>
-              <View style={styles.filterChips}>
-                {frequencyFilterOptions.map((option) => {
-                  const isSelected = (filters.frequency === option.value) || (option.value === '' && !filters.frequency);
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.filterChip,
-                        {
-                          backgroundColor: isSelected ? colors.primary : 'transparent',
-                          borderColor: isSelected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                        },
-                      ]}
-                      onPress={() => setFilters(prev => ({
-                        ...prev,
-                        frequency: option.value === '' ? undefined : option.value
-                      }))}
-                    >
-                      <Text style={[styles.filterChipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Filtre par montant */}
-            <View style={styles.filterSection}>
-              <Text style={[styles.filterSectionTitle, { color: colors.text }]}>Montant</Text>
-              <View style={styles.filterOptions}>
-                {amountRangeOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.filterOption,
-                      {
-                        backgroundColor: (filters.amountRange === option.value) || (option.value === 'all' && !filters.amountRange)
-                          ? colors.primary + '20'
-                          : 'transparent',
-                        borderColor: (filters.amountRange === option.value) || (option.value === 'all' && !filters.amountRange)
-                          ? colors.primary
-                          : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                      },
-                    ]}
-                    onPress={() => setFilters(prev => ({
-                      ...prev,
-                      amountRange: option.value === 'all' ? undefined : option.value as any
-                    }))}
-                  >
-                    <Text style={[styles.filterOptionText, { color: colors.text }]}>
-                      {option.label}
-                    </Text>
-                    {((filters.amountRange === option.value) || (option.value === 'all' && !filters.amountRange)) && (
-                      <MaterialIcons name="check" size={16} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-
-          <View style={styles.filterModalButtons}>
-            <TouchableOpacity
-              style={[styles.clearButton, { borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={clearFilters}
-            >
-              <Text style={[styles.clearButtonText, { color: colors.text }]}>Effacer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.primary }]}
-              onPress={() => applyFilters(filters)}
-            >
-              <Text style={styles.applyButtonText}>Appliquer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        ) : null}
+      </HeroHeader>
+      <View style={styles.headerBody}>
+        <SegmentedTabs
+          value={selectedTab}
+          onChange={setSelectedTab}
+          options={[
+            { key: 'active', label: `Engagements (${activeDonations.length})`, icon: 'repeat' },
+            { key: 'occurrences', label: `Échéances (${pendingOccurrences.length})`, icon: 'calendar-outline' },
+          ]}
+        />
+        {selectedTab === 'active' ? (
+          <Button
+            title="Nouveau don récurrent"
+            variant="gold"
+            icon="add-circle-outline"
+            onPress={() => navigation.navigate('CreateDonation', { initialType: 'recurring' })}
+          />
+        ) : null}
       </View>
-    </Modal>
+    </>
   );
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>
-            Chargement des dons récurrents...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const isActiveTab = selectedTab === 'active';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <RefreshableHeader
-        title="Dons récurrents"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={true}
-        onRefreshPress={() => {
-          setIsRefreshing(true);
-          loadRecurringDonations();
-        }}
-        isRefreshing={isRefreshing}
+    <View style={[styles.flex, { backgroundColor: c.background }]}>
+      <FlatList<any>
+        data={isLoading ? [] : isActiveTab ? activeDonations : upcomingOccurrences}
+        keyExtractor={(item: any) => (isActiveTab ? item._id : item.id)}
+        renderItem={isActiveTab ? (renderRecurringDonationCard as any) : (renderOccurrenceCard as any)}
+        ListHeaderComponent={header}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} colors={[c.primary]} tintColor={c.primary} />}
+        ListEmptyComponent={
+          isLoading ? (
+            <LoadingState message="Chargement des dons récurrents…" />
+          ) : (
+            <View style={styles.pad}>
+              <Card>
+                <EmptyState
+                  icon={isActiveTab ? 'repeat' : 'calendar-outline'}
+                  title={isActiveTab ? 'Aucun don récurrent actif' : 'Aucune échéance à venir'}
+                  message={
+                    isActiveTab
+                      ? 'Programmez un don mensuel, trimestriel ou semestriel pour soutenir le ministère dans la durée.'
+                      : 'Vos prochaines échéances apparaîtront ici.'
+                  }
+                />
+              </Card>
+            </View>
+          )
+        }
       />
-
-      {/* Tab Navigation */}
-      <View style={[styles.tabContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            selectedTab === 'active' && { backgroundColor: colors.primary + '20' }
-          ]}
-          onPress={() => setSelectedTab('active')}
-        >
-          <Text style={[
-            styles.tabText,
-            { color: selectedTab === 'active' ? colors.primary : colors.text }
-          ]}>
-            Dons actifs ({recurringDonations.filter(d => d.recurring.isActive).length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            selectedTab === 'occurrences' && { backgroundColor: colors.primary + '20' }
-          ]}
-          onPress={() => setSelectedTab('occurrences')}
-        >
-          <Text style={[
-            styles.tabText,
-            { color: selectedTab === 'occurrences' ? colors.primary : colors.text }
-          ]}>
-            Occurrences ({upcomingOccurrences.filter(o => o.status !== 'paid').length})
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      {selectedTab === 'active' ? (
-        <FlatList
-          data={filterRecurringDonations(recurringDonations.filter(d => d.recurring.isActive))}
-          keyExtractor={(item) => item._id}
-          renderItem={renderRecurringDonationCard}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={() => {
-                setIsRefreshing(true);
-                loadRecurringDonations();
-              }}
-              colors={[colors.primary]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MaterialIcons
-                name="repeat"
-                size={64}
-                color={dark ? COLORS.grayTie : COLORS.gray}
-              />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                {getActiveFiltersCount() > 0 ? 'Aucun résultat' : 'Aucun don récurrent actif'}
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                {getActiveFiltersCount() > 0
-                  ? 'Aucun don ne correspond à vos filtres.'
-                  : 'Créez votre premier don récurrent pour automatiser vos contributions'
-                }
-              </Text>
-              {getActiveFiltersCount() > 0 ? (
-                <TouchableOpacity
-                  style={[styles.clearFiltersButton, { backgroundColor: colors.primary }]}
-                  onPress={clearFilters}
-                >
-                  <Text style={styles.clearFiltersButtonText}>Effacer les filtres</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.createButton, { backgroundColor: colors.primary }]}
-                  onPress={() => navigation.navigate('CreateDonation', {
-                    initialType: 'recurring'
-                  })}
-                >
-                  <MaterialIcons name="add" size={20} color="#FFFFFF" />
-                  <Text style={styles.createButtonText}>Créer un don récurrent</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-      ) : (
-        <FlatList
-          data={filterOccurrences(upcomingOccurrences)}
-          keyExtractor={(item) => item.id}
-          renderItem={renderOccurrenceCard}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={() => {
-                setIsRefreshing(true);
-                loadRecurringDonations();
-              }}
-              colors={[colors.primary]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MaterialIcons
-                name="repeat"
-                size={64}
-                color={dark ? COLORS.grayTie : COLORS.gray}
-              />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                {getActiveFiltersCount() > 0 ? 'Aucun résultat' : 'Aucune occurrence à venir'}
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                {getActiveFiltersCount() > 0
-                  ? 'Aucune occurrence ne correspond à vos filtres.'
-                  : 'Vos prochains paiements apparaîtront ici'
-                }
-              </Text>
-              {getActiveFiltersCount() > 0 && (
-                <TouchableOpacity
-                  style={[styles.clearFiltersButton, { backgroundColor: colors.primary }]}
-                  onPress={clearFilters}
-                >
-                  <Text style={styles.clearFiltersButtonText}>Effacer les filtres</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-      )}
-
-      {renderDetailModal()}
-      {renderFilterModal()}
-
-      {/* Floating Action Button pour les filtres */}
-      <Animated.View
-        style={[
-          styles.floatingButton,
-          {
-            backgroundColor: colors.primary,
-            shadowColor: colors.primary,
-            transform: [{ scale: fabScale }],
-          }
-        ]}
-      >
-        <TouchableOpacity
-          onPress={handleFabPress}
-          activeOpacity={0.8}
-          style={styles.floatingButtonTouchable}
-        >
-          <MaterialIcons name="filter-list" size={24} color="#FFFFFF" />
-          {getActiveFiltersCount() > 0 && (
-            <View style={styles.floatingButtonBadge}>
-              <Text style={styles.floatingButtonBadgeText}>
-                {getActiveFiltersCount()}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 12,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 11,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  listContainer: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  donationCard: {
-    padding: 20,
-    marginBottom: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  amountText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  frequencyText: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressInfo: {
-    flex: 1,
-  },
-  progressLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  progressValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  occurrenceCard: {
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  occurrenceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  occurrenceInfo: {
-    flex: 1,
-  },
-  occurrenceCategory: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  occurrenceAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  occurrenceStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  occurrenceStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  occurrenceDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  occurrenceDate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  occurrenceDateText: {
-    fontSize: 14,
-  },
-  payButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 4,
-  },
-  payButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-    marginTop: 8,
-  },
-  createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: '80%',
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalBody: {
-    flex: 1,
-  },
-  detailCard: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  detailTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  detailLabel: {
-    fontSize: 14,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 16,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    padding: 20,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  editButton: {
-    borderWidth: 1,
-  },
-  stopButton: {
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  floatingButton: {
-    position: 'absolute',
-    bottom: Platform.OS === 'android' ? 72 : 34,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    zIndex: 1000,
-  },
-  floatingButtonTouchable: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 28,
-  },
-  floatingButtonBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#FF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  floatingButtonBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  filterModalContent: {
-    maxHeight: '90%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 0,
-  },
-  filterScrollView: {
-    marginBottom: 8,
-  },
-  filterScrollContent: {
-    paddingVertical: 8,
-  },
-  filterSection: {
-    marginBottom: 24,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  filterOptions: {
-    gap: 8,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  filterOptionText: {
-    fontSize: 14,
-  },
-  filterChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 20,
-    borderWidth: 1.5,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  filterModalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'android' ? 24 : 20,
-    paddingHorizontal: 0,
-    backgroundColor: 'transparent',
-  },
-  clearButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  clearButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  applyButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  clearFiltersButton: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  clearFiltersButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  flex: { flex: 1 },
+  listContent: { paddingBottom: spacing.xxl },
+  headerBody: { paddingHorizontal: spacing.lg, marginTop: -spacing.lg, marginBottom: spacing.lg, gap: spacing.md },
+  pad: { paddingHorizontal: spacing.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  card: { marginHorizontal: spacing.lg, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  iconTile: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  dateTile: { width: 52, height: 52, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  stats: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
 });
 
-export default RecurringDonationsScreen; 
+export default RecurringDonationsScreen;

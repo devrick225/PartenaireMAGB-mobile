@@ -3,18 +3,34 @@ import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  Card,
+  Section,
+  Row,
+  InfoRow,
+  Badge,
+  StatusBadge,
+  Button,
+  LoadingState,
+  EmptyState,
+  formatAmount,
+  formatDate,
+  statusInfo,
+  IconName,
+} from '../design/components';
+import { spacing } from '../design/tokens';
 import donationService, { Donation } from '../store/services/donationService';
 import paymentService, { Payment } from '../store/services/paymentService';
 import { showApiError } from '../store/services/apiClient';
@@ -33,7 +49,7 @@ interface DonationDetailScreenProps {
 }
 
 const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation, route }) => {
-  const { dark, colors } = useTheme();
+  const { c } = useDS();
   const { donationId } = route.params;
   
   const [donation, setDonation] = useState<Donation | null>(null);
@@ -592,946 +608,247 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+
+  const getNextPaymentDate = () =>
+    donation?.recurring?.nextPaymentDate ? formatDate(donation.recurring.nextPaymentDate) : null;
+
+  const FREQUENCY_LABELS: Record<string, string> = {
+    daily: 'Quotidienne',
+    weekly: 'Hebdomadaire',
+    monthly: 'Mensuelle',
+    quarterly: 'Trimestrielle',
+    yearly: 'Annuelle',
   };
 
-  const getNextPaymentDate = () => {
-    if (!donation?.recurring?.nextPaymentDate) return null;
-    return formatDate(donation.recurring.nextPaymentDate);
-  };
+  const providerLabel = (method?: string) =>
+    method === 'moneyfusion' ? 'MoneyFusion' : method === 'geniuspay' ? 'GeniusPay' : method || 'Non défini';
+
+  const hero = (
+    <HeroHeader
+      eyebrow="Détail du don"
+      eyebrowIcon="heart-outline"
+      title={donation ? formatAmount(donation.amount, donation.currency) : 'Don'}
+      subtitle={donation ? `${donationService.formatCategory(donation.category)} · ${formatDate(donation.createdAt, true)}` : undefined}
+      onBack={() => navigation.goBack()}
+      right={donation ? <IconButton icon="share-outline" tone="hero" accessibilityLabel="Partager ce don" onPress={handleShare} /> : undefined}
+    >
+      {donation ? (
+        <View style={styles.chips}>
+          <HeroChip icon={statusInfo(donation.status).icon} label={statusInfo(donation.status).label} />
+          <HeroChip icon={donation.type === 'recurring' ? 'repeat' : 'flash-outline'} label={donation.type === 'recurring' ? 'Récurrent' : 'Ponctuel'} />
+        </View>
+      ) : null}
+    </HeroHeader>
+  );
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>
-          Chargement des détails...
-        </Text>
-      </SafeAreaView>
+      <Screen hero={hero}>
+        <Card>
+          <LoadingState message="Chargement du don…" />
+        </Card>
+      </Screen>
     );
   }
 
   if (!donation) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <MaterialIcons name="error-outline" size={64} color={dark ? COLORS.grayTie : COLORS.gray} />
-        <Text style={[styles.errorText, { color: colors.text }]}>
-          Don introuvable
-        </Text>
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Retour</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <Screen hero={hero}>
+        <Card>
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Don introuvable"
+            message="Ce don n'existe plus ou n'est pas accessible."
+            action={<Button title="Retour" variant="outline" onPress={() => navigation.goBack()} />}
+          />
+        </Card>
+      </Screen>
     );
   }
 
+  // Bandeau d'action quand aucun paiement n'est associé au don
+  const noPaymentBanner = (() => {
+    if (payment) return null;
+    const map: Record<string, { tone: 'success' | 'warning' | 'danger' | 'info'; icon: IconName; title: string; text: string; action: string; onPress: () => void; loading: boolean }> = {
+      completed: {
+        tone: 'success',
+        icon: 'checkmark-circle-outline',
+        title: 'Don complété',
+        text: 'Aucun paiement n\'est rattaché à ce don. Vérifiez pour synchroniser les données.',
+        action: 'Vérifier le statut',
+        onPress: handleVerifyPayment,
+        loading: isVerifyLoading,
+      },
+      pending: {
+        tone: 'info',
+        icon: 'hourglass-outline',
+        title: 'En attente de paiement',
+        text: `Le paiement via ${providerLabel(donation.paymentMethod)} n'a pas encore été lancé.`,
+        action: 'Payer maintenant',
+        onPress: handleInitiatePayment,
+        loading: isInitiateLoading,
+      },
+      failed: {
+        tone: 'danger',
+        icon: 'close-circle-outline',
+        title: 'Paiement échoué',
+        text: 'Vérifiez le statut ou relancez le paiement.',
+        action: 'Réessayer le paiement',
+        onPress: handleInitiatePayment,
+        loading: isInitiateLoading,
+      },
+    };
+    const b = map[donation.status] ?? {
+      tone: 'warning' as const,
+      icon: 'information-circle-outline' as IconName,
+      title: 'Aucun paiement associé',
+      text: 'Vérifiez le statut de ce don.',
+      action: 'Vérifier',
+      onPress: handleInitiatePayment,
+      loading: isInitiateLoading,
+    };
+    const fg = b.tone === 'success' ? c.success : b.tone === 'danger' ? c.destructive : b.tone === 'info' ? c.info : c.warning;
+    const bg = b.tone === 'success' ? c.successSoft : b.tone === 'danger' ? c.destructiveSoft : b.tone === 'info' ? c.infoSoft : c.warningSoft;
+    return (
+      <Card style={{ backgroundColor: bg, borderColor: fg, gap: spacing.md }}>
+        <View style={styles.bannerTop}>
+          <Ionicons name={b.icon} size={24} color={fg} />
+          <View style={styles.flex}>
+            <AppText variant="bodyStrong" color={fg}>{b.title}</AppText>
+            <AppText variant="small" color={fg}>{b.text}</AppText>
+          </View>
+        </View>
+        <Button title={b.loading ? 'Traitement…' : b.action} onPress={b.onPress} loading={b.loading} />
+      </Card>
+    );
+  })();
+
+  const canVerify =
+    (payment && ['pending', 'processing', 'initialized', 'failed'].includes(payment.status)) ||
+    (!payment && ['pending', 'completed', 'failed'].includes(donation.status));
+
+  const recurring = donation.type === 'recurring' ? donation.recurring : undefined;
+  const nextPayment = getNextPaymentDate();
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.headerButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Détails du don</Text>
-        <TouchableOpacity
-          onPress={handleShare}
-          style={[styles.headerButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <MaterialIcons name="share" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+    <Screen hero={hero}>
+      {noPaymentBanner}
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Alerte pour don sans paiement selon le statut */}
-        {!payment && donation && (
-          <View style={[
-            styles.verificationAlert, 
-            { 
-              backgroundColor: donation.status === 'completed' ? '#E8F5E8' : 
-                              donation.status === 'pending' ? '#E3F2FD' : 
-                              donation.status === 'failed' ? '#FFEBEE' : '#FFF3E0'
-            }
-          ]}>
-            <View style={styles.verificationAlertContent}>
-              <MaterialIcons 
-                name={
-                  donation.status === 'completed' ? 'check-circle' :
-                  donation.status === 'pending' ? 'hourglass-empty' :
-                  donation.status === 'failed' ? 'error' : 'info'
-                } 
-                size={24} 
-                color={
-                  donation.status === 'completed' ? '#2E7D32' :
-                  donation.status === 'pending' ? '#1976D2' :
-                  donation.status === 'failed' ? '#C62828' : '#F57C00'
-                }
-              />
-              <View style={styles.verificationAlertText}>
-                <Text style={[
-                  styles.verificationAlertTitle, 
-                  { 
-                    color: donation.status === 'completed' ? '#1B5E20' :
-                           donation.status === 'pending' ? '#0D47A1' :
-                           donation.status === 'failed' ? '#B71C1C' : '#E65100'
-                  }
-                ]}>
-                  {donation.status === 'completed' ? 'Don complété sans paiement associé' :
-                   donation.status === 'pending' ? 'Don en attente de paiement' :
-                   donation.status === 'failed' ? 'Don échoué sans paiement' :
-                   'Don sans paiement associé'}
-                </Text>
-                <Text style={[
-                  styles.verificationAlertSubtitle, 
-                  { 
-                    color: donation.status === 'completed' ? '#2E7D32' :
-                           donation.status === 'pending' ? '#1565C0' :
-                           donation.status === 'failed' ? '#C62828' : '#F57C00'
-                  }
-                ]}>
-                  {donation.status === 'completed' ? 'Vérifier pour synchroniser les données de paiement' :
-                   donation.status === 'pending' ? `Le paiement via ${donation?.paymentMethod === 'moneyfusion' ? 'MoneyFusion' : donation?.paymentMethod === 'geniuspay' ? 'GeniusPay' : donation?.paymentMethod} n'a pas encore été initialisé` :
-                   donation.status === 'failed' ? 'Vérifier le statut ou réessayer le paiement' :
-                   'Vérifier le statut de ce don'}
-                </Text>
-              </View>
-              <MaterialIcons 
-                name={donation.status === 'completed' ? 'sync' : 'refresh'} 
-                size={20} 
-                color={
-                  donation.status === 'completed' ? '#2E7D32' :
-                  donation.status === 'pending' ? '#1976D2' :
-                  donation.status === 'failed' ? '#C62828' : '#F57C00'
-                }
-              />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.verificationAlertButton, 
-                { 
-                  backgroundColor: donation.status === 'completed' ? '#2E7D32' :
-                                  donation.status === 'pending' ? '#1976D2' :
-                                  donation.status === 'failed' ? '#C62828' : '#F57C00'
-                }
-              ]}
-              onPress={
-                donation.status === 'completed' 
-                  ? handleVerifyPayment
-                  : handleInitiatePayment
-              }
-              disabled={donation.status === 'completed' ? isVerifyLoading : isInitiateLoading}
-            >
-              {(donation.status === 'completed' ? isVerifyLoading : isInitiateLoading) ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <MaterialIcons 
-                  name={
-                    donation.status === 'pending' ? 'payment' :
-                    donation.status === 'failed' ? 'refresh' :
-                    donation.status === 'completed' ? 'sync' : 'help'
-                  } 
-                  size={16} 
-                  color="#FFFFFF" 
-                />
-              )}
-              <Text style={styles.verificationAlertButtonText}>
-                {(donation.status === 'completed' ? isVerifyLoading : isInitiateLoading) ? 'Traitement...' :
-                 donation.status === 'pending' ? 'Initier le paiement' :
-                 donation.status === 'failed' ? 'Réessayer le paiement' :
-                 donation.status === 'completed' ? 'Vérifier le statut' : 
-                 'Action'}
-              </Text>
-            </TouchableOpacity>
+      <Card>
+        <AppText variant="overline" color={c.mutedForeground} style={styles.cardTitle}>Informations</AppText>
+        <InfoRow label="Catégorie" value={donationService.formatCategory(donation.category)} />
+        <InfoRow label="Type" value={donation.type === 'one_time' ? 'Don ponctuel' : 'Don récurrent'} />
+        <InfoRow label="Créé le" value={formatDate(donation.createdAt, true)} />
+        <InfoRow label="Statut" value={<StatusBadge status={donation.status} />} />
+        <InfoRow
+          label="Reçu"
+          value={donation.receipt?.number ? `n°${donation.receipt.number}` : 'Après paiement'}
+          last={!donation.isAnonymous}
+        />
+        {donation.isAnonymous ? <InfoRow label="Anonymat" value="Don anonyme" last /> : null}
+      </Card>
+
+      {donation.message ? (
+        <Card>
+          <AppText variant="overline" color={c.mutedForeground} style={styles.cardTitle}>Message</AppText>
+          <AppText variant="body" style={{ fontStyle: 'italic' }}>« {donation.message} »</AppText>
+        </Card>
+      ) : null}
+
+      {recurring ? (
+        <Card>
+          <View style={styles.cardHeader}>
+            <AppText variant="overline" color={c.mutedForeground}>Récurrence</AppText>
+            <Badge label={recurring.isActive ? 'Active' : 'Arrêtée'} tone={recurring.isActive ? 'success' : 'neutral'} />
           </View>
-        )}
-
-
-
-        {/* Montant principal */}
-        <View style={[styles.amountCard, { backgroundColor: colors.primary }]}>
-          <Text
-            style={styles.amountValue}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.5}
-          >
-            {donationService.formatAmount(donation.amount, donation.currency)}
-          </Text>
-          <View style={[styles.statusBadge, { backgroundColor: donationService.getStatusColor(donation.status) }]}>
-            <Text style={styles.statusText} numberOfLines={1}>
-              {donationService.formatStatus(donation.status)}
-            </Text>
-          </View>
-          <Text style={styles.amountSubtext} numberOfLines={1}>
-            {donationService.formatCategory(donation.category)}
-          </Text>
-          <Text style={styles.receiptNumber} numberOfLines={1}>
-            {donation.receipt?.number ? `Reçu : ${donation.receipt.number}` : 'Reçu disponible après paiement'}
-          </Text>
-        </View>
-
-        {/* Informations générales */}
-        <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Informations générales
-          </Text>
-          
-          <View style={styles.infoRow}>
-            <MaterialIcons name="category" size={20} color={colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Catégorie
-              </Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>
-                {donationService.formatCategory(donation.category)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <MaterialIcons name="schedule" size={20} color={colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Type
-              </Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>
-                {donation.type === 'one_time' ? 'Don unique' : 'Don récurrent'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Date de création
-              </Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>
-                {formatDate(donation.createdAt)}
-              </Text>
-            </View>
-          </View>
-
-          {donation.isAnonymous && (
-            <View style={styles.infoRow}>
-              <MaterialIcons name="visibility-off" size={20} color={colors.primary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Anonymat
-                </Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>
-                  Don anonyme
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Message personnel */}
-        {donation.message && (
-          <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              Message personnel
-            </Text>
-            <Text style={[styles.messageText, { color: colors.text }]}>
-              "{donation.message}"
-            </Text>
-          </View>
-        )}
-
-        {/* Informations de récurrence */}
-        {donation.type === 'recurring' && donation.recurring && (
-          <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>
-                Récurrence
-              </Text>
-              {donation.recurring.isActive && (
-                <View style={[styles.activeBadge, { backgroundColor: COLORS.success + '20' }]}>
-                  <Text style={[styles.activeBadgeText, { color: COLORS.success }]}>
-                    Actif
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.infoRow}>
-              <MaterialIcons name="repeat" size={20} color={colors.primary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Fréquence
-                </Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {donation.recurring.frequency === 'daily' ? 'Quotidien' :
-                   donation.recurring.frequency === 'weekly' ? 'Hebdomadaire' :
-                   donation.recurring.frequency === 'monthly' ? 'Mensuel' :
-                   donation.recurring.frequency === 'quarterly' ? 'Trimestriel' :
-                   donation.recurring.frequency === 'yearly' ? 'Annuel' : donation.recurring.frequency}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.infoRow}>
-              <MaterialIcons name="event" size={20} color={colors.primary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Date de début
-                </Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {formatDate(donation.recurring.startDate)}
-                </Text>
-              </View>
-            </View>
-
-            {getNextPaymentDate() && (
-              <View style={styles.infoRow}>
-                <MaterialIcons name="event-available" size={20} color={colors.primary} />
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Prochain paiement
-                  </Text>
-                  <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {getNextPaymentDate()}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.infoRow}>
-              <MaterialIcons name="timeline" size={20} color={colors.primary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Occurrences
-                </Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {`${donation.recurring.currentOccurrence || 1}${donation.recurring.maxOccurrences ? ` / ${donation.recurring.maxOccurrences}` : ''}`}
-                </Text>
-              </View>
-            </View>
-
-            {donation.recurring.isActive && (
-              <TouchableOpacity
-                style={[styles.cancelButton, { backgroundColor: COLORS.error + '20' }]}
-                onPress={handleCancelRecurring}
-                disabled={isVerifyLoading}
-              >
-                <MaterialIcons name="cancel" size={20} color={COLORS.error} />
-                <Text style={[styles.cancelButtonText, { color: COLORS.error }]}>
-                  Annuler la récurrence
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Informations de paiement */}
-        <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Paiement
-          </Text>
-
-          {payment ? (
-            <>
-              <View style={styles.infoRow}>
-                <MaterialIcons 
-                  name={paymentService.getProviderIcon(payment.provider) as any} 
-                  size={20} 
-                  color={colors.primary} 
-                />
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Méthode
-                  </Text>
-                  <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {paymentService.formatProvider(payment.provider)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoRow}>
-                <MaterialIcons name="info" size={20} color={colors.primary} />
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Statut
-                  </Text>
-                  <View style={styles.paymentStatusContainer}>
-                    <View style={[styles.paymentStatusBadge, { backgroundColor: paymentService.getStatusColor(payment.status) + '20' }]}>
-                      <Text style={[styles.paymentStatusText, { color: paymentService.getStatusColor(payment.status) }]}>
-                        {paymentService.formatStatus(payment.status)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {false && payment?.fees && (
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="account-balance" size={20} color={colors.primary} />
-                  <View style={styles.infoContent}>
-                    <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      Frais
-                    </Text>
-                    <Text style={[styles.infoValue, { color: colors.text }]}>
-                      {paymentService.formatAmount(payment?.fees?.processingFee || 0, payment?.fees?.currency || 'XOF')}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {(['pending', 'processing', 'initialized'].includes(payment.status)) && (
-                <TouchableOpacity
-                  style={[styles.verifyButton, { backgroundColor: colors.primary + '20' }]}
-                  onPress={handleVerifyPayment}
-                  disabled={isVerifyLoading}
-                >
-                  {isVerifyLoading ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <MaterialIcons name="refresh" size={20} color={colors.primary} />
-                  )}
-                  <Text style={[styles.verifyButtonText, { color: colors.primary }]}>
-                    {isVerifyLoading ? 'Vérification...' : 'Vérifier le paiement'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
-          ) : (
-            <>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="payment" size={20} color={colors.primary} />
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Méthode prévue
-                  </Text>
-                  <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {donation?.paymentMethod === 'moneyfusion' ? 'MoneyFusion' : donation?.paymentMethod === 'geniuspay' ? 'GeniusPay' : donation?.paymentMethod || 'Non définie'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoRow}>
-                <MaterialIcons 
-                  name={
-                    donation?.status === 'completed' ? 'check-circle' :
-                    donation?.status === 'pending' ? 'hourglass-empty' :
-                    donation?.status === 'failed' ? 'error' : 'help'
-                  } 
-                  size={20} 
-                  color={
-                    donation?.status === 'completed' ? COLORS.success :
-                    donation?.status === 'pending' ? '#FF9800' :
-                    donation?.status === 'failed' ? COLORS.error : colors.primary
-                  } 
-                />
-                <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Statut
-                  </Text>
-                  <View style={styles.paymentStatusContainer}>
-                    <View style={[
-                      styles.paymentStatusBadge, 
-                      { 
-                        backgroundColor: (
-                          donation?.status === 'completed' ? COLORS.success :
-                          donation?.status === 'pending' ? '#FF9800' :
-                          donation?.status === 'failed' ? COLORS.error : colors.primary
-                        ) + '20' 
-                      }
-                    ]}>
-                      <Text style={[
-                        styles.paymentStatusText, 
-                        { 
-                          color: donation?.status === 'completed' ? COLORS.success :
-                                 donation?.status === 'pending' ? '#FF9800' :
-                                 donation?.status === 'failed' ? COLORS.error : colors.primary
-                        }
-                      ]}>
-                        {donation?.status === 'completed' ? 'Complété sans paiement' :
-                         donation?.status === 'pending' ? 'En attente d\'initialisation' :
-                         donation?.status === 'failed' ? 'Échec sans paiement' :
-                         'Statut inconnu'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.verifyButton, { backgroundColor: colors.primary + '20' }]}
-                onPress={handleInitiatePayment}
-                disabled={isInitiateLoading}
-              >
-                {isInitiateLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <MaterialIcons 
-                    name={
-                      donation?.status === 'pending' ? 'payment' :
-                      donation?.status === 'failed' ? 'refresh' :
-                      donation?.status === 'completed' ? 'sync' : 'help'
-                    } 
-                    size={20} 
-                    color={colors.primary} 
-                  />
-                )}
-                <Text style={[styles.verifyButtonText, { color: colors.primary }]}>
-                  {isInitiateLoading ? 'Traitement...' :
-                   donation?.status === 'pending' ? 'Initier le paiement' :
-                   donation?.status === 'failed' ? 'Réessayer le paiement' :
-                   donation?.status === 'completed' ? 'Vérifier le statut' : 
-                   'Action'}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
-        {/* Actions */}
-        <View style={[styles.card, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Actions
-          </Text>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleDownloadReceipt}
-            disabled={isDownloadingReceipt}
-          >
-            {isDownloadingReceipt ? (
-              <ActivityIndicator size={24} color={colors.primary} />
-            ) : (
-              <MaterialIcons name="receipt" size={24} color={colors.primary} />
-            )}
-            <View style={styles.actionContent}>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>
-                Télécharger le reçu
-              </Text>
-              <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Reçu fiscal pour vos impôts
-              </Text>
-            </View>
-            {!isDownloadingReceipt && (
-              <MaterialIcons name="chevron-right" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleShare}
-          >
-            <MaterialIcons name="share" size={24} color={colors.primary} />
-            <View style={styles.actionContent}>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>
-                Partager
-              </Text>
-              <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Partager ce don avec vos proches
-              </Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-          </TouchableOpacity>
-
-          {/* Action de vérification du paiement ou don */}
-          {(
-            (payment && (['pending', 'processing', 'initialized', 'failed'].includes(payment.status))) ||
-            (!payment && donation && ['pending', 'completed', 'failed'].includes(donation.status))
-          ) && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleVerifyPayment}
+          <InfoRow label="Fréquence" value={FREQUENCY_LABELS[recurring.frequency] ?? recurring.frequency} />
+          <InfoRow label="Début" value={formatDate(recurring.startDate)} />
+          {nextPayment ? <InfoRow label="Prochaine échéance" value={nextPayment} /> : null}
+          <InfoRow
+            label="Échéances"
+            value={`${recurring.currentOccurrence || 1}${recurring.maxOccurrences ? ` / ${recurring.maxOccurrences}` : ''}`}
+            last
+          />
+          {recurring.isActive ? (
+            <Button
+              title="Arrêter la récurrence"
+              variant="outline"
+              icon="stop-circle-outline"
+              onPress={handleCancelRecurring}
               disabled={isVerifyLoading}
-            >
-              {isVerifyLoading ? (
-                <ActivityIndicator size={24} color={colors.primary} />
-              ) : (
-                <MaterialIcons name="refresh" size={24} color={colors.primary} />
-              )}
-              <View style={styles.actionContent}>
-                <Text style={[styles.actionTitle, { color: colors.text }]}>
-                  {isVerifyLoading ? 'Vérification en cours...' : 
-                   payment ? 'Vérifier le paiement' : 'Vérifier le don'}
-                </Text>
-                <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  {payment ? 
-                    `Mettre à jour le statut auprès de ${paymentService.formatProvider(payment.provider)}` :
-                    `Synchroniser le statut du don${donation?.paymentMethod ? ` et créer le paiement ${donation.paymentMethod}` : ''}`
-                  }
-                </Text>
-              </View>
-              {!isVerifyLoading && (
-                <MaterialIcons name="chevron-right" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-              )}
-            </TouchableOpacity>
-          )}
+              style={{ marginTop: spacing.md }}
+            />
+          ) : null}
+        </Card>
+      ) : null}
 
-          {/* Bouton d'action selon le statut du don */}
-          {donation?.status === 'pending' && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleInitiatePayment}
-              disabled={isInitiateLoading}
-            >
-              {isInitiateLoading ? (
-                <ActivityIndicator size={24} color={colors.primary} />
-              ) : (
-                <MaterialIcons name="payment" size={24} color={colors.primary} />
-              )}
-              <View style={styles.actionContent}>
-                <Text style={[styles.actionTitle, { color: colors.text }]}>
-                  {isInitiateLoading ? 'Préparation du paiement...' : 'Payer maintenant'}
-                </Text>
-                <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Aller directement à la page de paiement pour ce don
-                </Text>
-              </View>
-              {!isInitiateLoading && (
-                <MaterialIcons name="chevron-right" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-              )}
-            </TouchableOpacity>
-          )}
+      <Card>
+        <AppText variant="overline" color={c.mutedForeground} style={styles.cardTitle}>Paiement</AppText>
+        {payment ? (
+          <>
+            <InfoRow label="Moyen de paiement" value={paymentService.formatProvider(payment.provider)} />
+            <InfoRow label="Statut" value={<StatusBadge status={payment.status} />} last />
+            {['pending', 'processing', 'initialized'].includes(payment.status) ? (
+              <Button
+                title={isVerifyLoading ? 'Vérification…' : 'Vérifier le paiement'}
+                icon="refresh"
+                variant="outline"
+                onPress={handleVerifyPayment}
+                loading={isVerifyLoading}
+                style={{ marginTop: spacing.md }}
+              />
+            ) : null}
+          </>
+        ) : (
+          <>
+            <InfoRow label="Moyen prévu" value={providerLabel(donation.paymentMethod)} />
+            <InfoRow label="Paiement" value="Non lancé" last />
+          </>
+        )}
+      </Card>
 
-          {donation?.status === 'failed' && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleInitiatePayment}
-              disabled={isInitiateLoading}
-            >
-              {isInitiateLoading ? (
-                <ActivityIndicator size={24} color={colors.primary} />
-              ) : (
-                <MaterialIcons name="refresh" size={24} color={colors.primary} />
-              )}
-              <View style={styles.actionContent}>
-                <Text style={[styles.actionTitle, { color: colors.text }]}>
-                  {isInitiateLoading ? 'Création en cours...' : 'Réessayer le paiement'}
-                </Text>
-                <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Créer un nouveau don avec les mêmes données
-                </Text>
-              </View>
-              {!isInitiateLoading && (
-                <MaterialIcons name="chevron-right" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Toujours afficher le bouton "Nouveau don" */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('CreateDonation')}
-          >
-            <MaterialIcons name="add" size={24} color={colors.primary} />
-            <View style={styles.actionContent}>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>
-                Nouveau don
-              </Text>
-              <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Faire un autre don
-              </Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Suppression de la section "Document" qui redirigeait vers l'écran Documents */}
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-    </SafeAreaView>
+      <Section title="Actions">
+        <Row
+          icon="document-text-outline"
+          label="Télécharger le reçu"
+          sublabel={donation.status === 'completed' ? 'Reçu fiscal au format PDF' : 'Disponible une fois le don payé'}
+          onPress={isDownloadingReceipt ? undefined : handleDownloadReceipt}
+          right={isDownloadingReceipt ? <ActivityIndicator color={c.primary} /> : undefined}
+          chevron={!isDownloadingReceipt}
+        />
+        <Row icon="share-social-outline" label="Partager" sublabel="Partager ce don avec vos proches" onPress={handleShare} chevron />
+        {canVerify ? (
+          <Row
+            icon="sync-outline"
+            label={isVerifyLoading ? 'Vérification en cours…' : payment ? 'Vérifier le paiement' : 'Vérifier le don'}
+            sublabel={payment ? `Mettre à jour le statut auprès de ${paymentService.formatProvider(payment.provider)}` : 'Synchroniser le statut du don'}
+            onPress={isVerifyLoading ? undefined : handleVerifyPayment}
+            right={isVerifyLoading ? <ActivityIndicator color={c.primary} /> : undefined}
+            chevron={!isVerifyLoading}
+          />
+        ) : null}
+        {donation.status === 'pending' || donation.status === 'failed' ? (
+          <Row
+            icon={donation.status === 'failed' ? 'refresh' : 'card-outline'}
+            label={isInitiateLoading ? 'Préparation du paiement…' : donation.status === 'failed' ? 'Réessayer le paiement' : 'Payer maintenant'}
+            sublabel={donation.status === 'failed' ? 'Créer un nouveau don avec les mêmes informations' : 'Ouvrir la page de paiement de ce don'}
+            onPress={isInitiateLoading ? undefined : handleInitiatePayment}
+            right={isInitiateLoading ? <ActivityIndicator color={c.primary} /> : undefined}
+            chevron={!isInitiateLoading}
+          />
+        ) : null}
+        <Row icon="add-circle-outline" label="Nouveau don" sublabel="Faire un autre don" onPress={() => navigation.navigate('CreateDonation')} chevron last />
+      </Section>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  errorText: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginVertical: 16,
-  },
-  backButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  amountCard: {
-    margin: 20,
-    marginBottom: 16,
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  amountValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    width: '100%',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  amountSubtext: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  receiptNumber: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  card: {
-    margin: 20,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  activeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  activeBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  infoLabel: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  messageText: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    lineHeight: 24,
-  },
-  cancelButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    gap: 8,
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  paymentStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  paymentStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  paymentStatusText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  verifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    gap: 8,
-  },
-  verifyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  actionContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  actionSubtitle: {
-    fontSize: 12,
-  },
-  bottomPadding: {
-    height: 20,
-  },
-  verificationAlert: {
-    margin: 20,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  verificationAlertContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  verificationAlertText: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  verificationAlertTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  verificationAlertSubtitle: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  verificationAlertButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  verificationAlertButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  actionSection: {
-    margin: 20,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionSectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
+  flex: { flex: 1 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  cardTitle: { marginBottom: spacing.xs },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  bannerTop: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
 });
 
-export default DonationDetailScreen; 
+export default DonationDetailScreen;
