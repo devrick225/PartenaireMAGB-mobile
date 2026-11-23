@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View,
+  Pressable,
   Text,
   StyleSheet,
   ScrollView,
@@ -12,25 +13,21 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient, { showApiError } from '../store/services/apiClient';
 import { useOtpClipboard } from '../hooks/useOtpClipboard';
 
-import { IconButton } from '../design/components';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AuthScreen, AppText, Button, TextField, CodeInput } from '../design/components';
+import { spacing } from '../design/tokens';
+
 interface ResetPasswordWithSmsCodeScreenProps {
   navigation: any;
   route: any;
 }
 
 const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenProps> = ({ navigation, route }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const { phone } = route.params;
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -47,7 +44,7 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const codeInputRefs = useRef<TextInput[]>([]);
+  const codeInputRefs = useRef<any[]>([]);
 
   const handleCodeChange = (text: string, index: number) => {
     const digits = text.replace(/\D/g, '');
@@ -180,365 +177,85 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
     }
   };
 
+  const eye = (visible: boolean, toggle: () => void) => (
+    <Pressable onPress={toggle} hitSlop={10} accessibilityRole="button" accessibilityLabel={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
+      <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.mutedForeground} />
+    </Pressable>
+  );
+  const CRITERIA = [
+    { label: 'Au moins 8 caractères', ok: newPassword.length >= 8 },
+    { label: 'Une majuscule et une minuscule', ok: /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) },
+    { label: 'Au moins un chiffre', ok: /\d/.test(newPassword) },
+  ];
+
   return (
-    <SafeAreaView style={[styles.area, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Header avec bouton retour */}
-          <View style={styles.header}>
-            <IconButton icon="chevron-back" onPress={handleBackToLogin} accessibilityLabel="Retour" />
+    <AuthScreen
+      title="Nouveau mot de passe"
+      subtitle={`Saisissez le code envoyé au ${formatPhoneDisplay(phone)} et choisissez un nouveau mot de passe.`}
+      icon="key-outline"
+      onBack={handleBackToLogin}
+      footer={
+        <View style={{ gap: spacing.xs }}>
+          <Button title="Demander un nouveau code SMS" variant="ghost" icon="refresh" onPress={handleRequestNewCode} disabled={isLoading} />
+          <Button title="Retour à la connexion" variant="ghost" onPress={handleBackToLogin} />
+        </View>
+      }
+    >
+      <View style={{ gap: 6 }}>
+        <AppText variant="smallStrong">Code de vérification</AppText>
+        <CodeInput
+          code={code}
+          onChangeDigit={handleCodeChange}
+          onKeyPress={(key, index) => { if (key === 'Backspace') handleBackspace(index); }}
+          inputRefs={codeInputRefs as any}
+          editable={!isLoading}
+        />
+      </View>
+      <TextField
+        label="Nouveau mot de passe"
+        icon="lock-closed-outline"
+        placeholder="Au moins 8 caractères"
+        value={newPassword}
+        onChangeText={setNewPassword}
+        secureTextEntry={!showNewPassword}
+        autoCapitalize="none"
+        autoCorrect={false}
+        textContentType="newPassword"
+        autoComplete="new-password"
+        editable={!isLoading}
+        right={eye(showNewPassword, () => setShowNewPassword(!showNewPassword))}
+      />
+      <TextField
+        label="Confirmer le mot de passe"
+        icon="lock-closed-outline"
+        placeholder="Retapez le mot de passe"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry={!showConfirmPassword}
+        autoCapitalize="none"
+        autoCorrect={false}
+        textContentType="newPassword"
+        autoComplete="new-password"
+        editable={!isLoading}
+        error={confirmPassword && confirmPassword !== newPassword ? 'Les mots de passe ne correspondent pas.' : undefined}
+        right={eye(showConfirmPassword, () => setShowConfirmPassword(!showConfirmPassword))}
+      />
+      <View style={{ gap: 6 }}>
+        {CRITERIA.map(cr => (
+          <View key={cr.label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Ionicons name={cr.ok ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={cr.ok ? c.success : c.mutedForeground} />
+            <AppText variant="small" color={cr.ok ? c.success : c.mutedForeground}>{cr.label}</AppText>
           </View>
-
-          {/* Illustration */}
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={dark ? illustrations.passwordSuccessDark : illustrations.newPassword}
-              resizeMode="contain"
-              style={styles.illustration}
-            />
-          </View>
-
-          {/* Titre et description */}
-          <Text style={[styles.title, { color: c.foreground }]}>
-            Code SMS reçu
-          </Text>
-          
-          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
-            Entrez le code de vérification envoyé au {formatPhoneDisplay(phone)} et votre nouveau mot de passe
-          </Text>
-
-          {/* Code de vérification */}
-          <View style={styles.codeContainer}>
-            <Text style={[styles.codeLabel, { color: c.foreground }]}>
-              Code de vérification
-            </Text>
-            <View style={styles.codeInputsContainer}>
-              {code.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => {
-                    if (ref) codeInputRefs.current[index] = ref;
-                  }}
-                  style={[
-                    styles.codeInput,
-                    {
-                      backgroundColor: c.card,
-                      borderColor: digit ? COLORS.primary : (c.border),
-                      color: c.foreground,
-                    }
-                  ]}
-                  value={digit}
-                  onChangeText={(text) => handleCodeChange(text, index)}
-                  onKeyPress={({ nativeEvent }) => {
-                    if (nativeEvent.key === 'Backspace') {
-                      handleBackspace(index);
-                    }
-                  }}
-                  keyboardType="number-pad"
-                  // Le 1er champ accepte 6 chiffres : permet le collage et le remplissage auto iOS
-                  maxLength={index === 0 ? 6 : 1}
-                  textContentType={index === 0 ? 'oneTimeCode' : 'none'}
-                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                  selectTextOnFocus
-                  textAlign="center"
-                  editable={!isLoading}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Nouveau mot de passe */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: c.foreground }]}>
-              Nouveau mot de passe
-            </Text>
-            <View style={[styles.inputWrapper, { 
-              backgroundColor: c.muted,
-              borderColor: c.border 
-            }]}>
-              <MaterialIcons 
-                name="lock" 
-                size={20} 
-                color={c.mutedForeground} 
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { 
-                  color: c.foreground 
-                }]}
-                placeholder="Nouveau mot de passe"
-                placeholderTextColor={c.mutedForeground}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry={!showNewPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
-                <Ionicons 
-                  name={showNewPassword ? "eye-off" : "eye"} 
-                  size={20} 
-                  color={c.mutedForeground} 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Confirmer le mot de passe */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: c.foreground }]}>
-              Confirmer le mot de passe
-            </Text>
-            <View style={[styles.inputWrapper, { 
-              backgroundColor: c.muted,
-              borderColor: c.border 
-            }]}>
-              <MaterialIcons 
-                name="lock" 
-                size={20} 
-                color={c.mutedForeground} 
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { 
-                  color: c.foreground 
-                }]}
-                placeholder="Confirmer le mot de passe"
-                placeholderTextColor={c.mutedForeground}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                <Ionicons 
-                  name={showConfirmPassword ? "eye-off" : "eye"} 
-                  size={20} 
-                  color={c.mutedForeground} 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Exigences du mot de passe */}
-          <View style={styles.requirementsContainer}>
-            <Text style={[styles.requirementsTitle, { color: c.mutedForeground }]}>
-              Le mot de passe doit contenir :
-            </Text>
-            <Text style={[styles.requirement, { color: c.mutedForeground }]}>
-              • Au moins 8 caractères
-            </Text>
-            <Text style={[styles.requirement, { color: c.mutedForeground }]}>
-              • Une lettre majuscule et une minuscule
-            </Text>
-            <Text style={[styles.requirement, { color: c.mutedForeground }]}>
-              • Au moins un chiffre
-            </Text>
-          </View>
-
-          {/* Bouton de réinitialisation */}
-          <TouchableOpacity
-            style={[
-              styles.button,
-              { 
-                backgroundColor: COLORS.primary,
-                opacity: (code.join('').length !== 6 || !newPassword || !confirmPassword || isLoading) ? 0.7 : 1 
-              }
-            ]}
-            onPress={handleResetPassword}
-            disabled={code.join('').length !== 6 || !newPassword || !confirmPassword || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.white} size="small" />
-            ) : (
-              <Text style={styles.buttonText}>Réinitialiser le mot de passe</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Lien pour nouveau code */}
-          <TouchableOpacity
-            style={styles.newCodeContainer}
-            onPress={handleRequestNewCode}
-            disabled={isLoading}
-          >
-            <Text style={[styles.newCodeText, { color: COLORS.primary }]}>
-              Demander un nouveau code SMS
-            </Text>
-          </TouchableOpacity>
-
-          {/* Lien retour connexion */}
-          <TouchableOpacity
-            style={styles.backToLoginContainer}
-            onPress={handleBackToLogin}
-          >
-            <Text style={[styles.backToLoginText, { color: COLORS.primary }]}>
-              Retour à la connexion
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        ))}
+      </View>
+      <Button
+        title="Réinitialiser le mot de passe"
+        onPress={handleResetPassword}
+        loading={isLoading}
+        disabled={code.join('').length !== 6 || !newPassword || !confirmPassword}
+      />
+    </AuthScreen>
   );
 };
-
-const styles = StyleSheet.create({
-  area: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.greyscale500,
-  },
-  illustrationContainer: {
-    alignItems: 'center',
-    marginVertical: 32,
-  },
-  illustration: {
-    width: SIZES.width * 0.6,
-    height: 160,
-  },
-  title: {
-    fontSize: 24,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    color: COLORS.black,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: 'regular',
-    color: COLORS.grayscale700,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 32,
-    paddingHorizontal: 8,
-  },
-  codeContainer: {
-    marginBottom: 24,
-  },
-  codeLabel: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    color: COLORS.black,
-    marginBottom: 12,
-  },
-  codeInputsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  codeInput: {
-    width: 48,
-    height: 56,
-    borderWidth: 2,
-    borderRadius: 12,
-    textAlign: 'center',
-    fontSize: 18,
-    fontFamily: 'semiBold',
-    backgroundColor: COLORS.white,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    color: COLORS.black,
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: COLORS.greyscale500,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'regular',
-    color: COLORS.black,
-  },
-  requirementsContainer: {
-    marginBottom: 24,
-    paddingHorizontal: 16,
-  },
-  requirementsTitle: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    color: COLORS.grayscale700,
-    marginBottom: 8,
-  },
-  requirement: {
-    fontSize: 12,
-    fontFamily: 'regular',
-    color: COLORS.grayscale700,
-    marginBottom: 4,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 32,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  newCodeContainer: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  newCodeText: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    color: COLORS.primary,
-  },
-  backToLoginContainer: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  backToLoginText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    color: COLORS.primary,
-  },
-});
 
 export default ResetPasswordWithSmsCodeScreen;
