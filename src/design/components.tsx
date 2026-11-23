@@ -333,7 +333,10 @@ export function StatCard({ icon, label, value, unit, tone = 'primary', tinted, s
   const t = toneColors(c, tone);
   if (tinted) {
     return (
-      <View style={[styles.tintedStat, { backgroundColor: t.bg }, style]} accessible accessibilityLabel={`${label} : ${value}`}>
+      <View style={[styles.tintedStat, cardShadow, { backgroundColor: c.card }, style]} accessible accessibilityLabel={`${label} : ${value}`}>
+        {/* Teinte posée sur un fond opaque : les teintes sont semi-transparentes et laisseraient
+            voir le bandeau violet quand la carte le chevauche */}
+        <View pointerEvents="none" style={[styles.tintFill, { backgroundColor: t.bg }]} />
         {/* Structure fixe (icône / chiffre / libellé sur une ligne) : toutes les cartes d'une rangée ont la même taille */}
         <View style={styles.tintedIcon}>{icon ? <Ionicons name={icon} size={20} color={t.fg} /> : null}</View>
         <AppText variant="subtitle" color={t.fg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.tintedValue}>
@@ -853,7 +856,8 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xs, marginBottom: 6 },
   listRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 56, gap: spacing.md },
   iconTile: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  tintedStat: { flex: 1, flexBasis: 0, minHeight: 92, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  tintedStat: { flex: 1, flexBasis: 0, overflow: 'hidden', minHeight: 92, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  tintFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.lg },
   tintedIcon: { height: 22, alignItems: 'center', justifyContent: 'center' },
   tintedValue: { marginTop: 2, alignSelf: 'stretch', textAlign: 'center' },
   tintedLabel: { alignSelf: 'stretch', textAlign: 'center' },
