@@ -1,5 +1,8 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
+import { showError, showSuccess } from '../store/slices/notificationSlice';
 import {
   View,
   Text,
@@ -30,43 +33,70 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
   const { colors, dark } = useTheme();
   const showOnlyDonations = route?.params?.showOnlyDonations || false;
   
+  const dispatch = useDispatch();
+  const PAGE_SIZE = 20;
+
   const [donations, setDonations] = useState<Donation[]>([]);
   const [recurringDonations, setRecurringDonations] = useState<Donation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'all' | 'recurring'>('all');
+  // Pagination par onglet (le backend renvoie les dons page par page : seuls les 10 premiers s'affichaient)
+  const [pageInfo, setPageInfo] = useState({ page: 1, pages: 1, totalDocs: 0 });
+  const requestIdRef = useRef(0);
 
-  const loadDonations = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+  const loadDonations = useCallback(async (isRefresh = false, page = 1) => {
+    const requestId = ++requestIdRef.current; // ignorer les réponses d'un onglet quitté entre-temps
+    if (page > 1) setIsLoadingMore(true);
+    else if (isRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
 
     try {
-      if (selectedTab === 'all') {
-        const response = await donationService.getDonationHistory();
-        const allDonations = response.data.data.donations || [];
-        
-        // Si showOnlyDonations est true, filtrer pour exclure les dons récurrents
-        if (showOnlyDonations) {
-          const filteredDonations = allDonations.filter((donation: Donation) => donation.type !== 'recurring');
-          setDonations(filteredDonations);
-        } else {
-          setDonations(allDonations);
-        }
-      } else {
-        const response = await donationService.getRecurringDonations();
-        setRecurringDonations(response.data.data.donations || []);
-      }
+      const response = selectedTab === 'all' || showOnlyDonations
+        ? await donationService.getDonationHistory({
+            page,
+            limit: PAGE_SIZE,
+            // « Mes donations » : filtrage côté serveur (sinon une page de 10 pouvait sembler vide)
+            ...(showOnlyDonations ? { type: 'one_time' } : {}),
+          } as any)
+        : await donationService.getRecurringDonations({ page, limit: PAGE_SIZE });
+
+      if (requestId !== requestIdRef.current) return;
+      const list: Donation[] = response.data.data.donations || [];
+      const pagination = response.data.data.pagination;
+      const setList = selectedTab === 'all' || showOnlyDonations ? setDonations : setRecurringDonations;
+
+      setList(prev => {
+        if (page === 1) return list;
+        const ids = new Set(prev.map(d => d._id));
+        return [...prev, ...list.filter(d => !ids.has(d._id))];
+      });
+      setPageInfo({
+        page,
+        pages: pagination?.pages ?? 1,
+        totalDocs: pagination?.totalDocs ?? list.length,
+      });
     } catch (error) {
-      logger.error('Erreur chargement dons:', error);
-      Alert.alert('Erreur', 'Impossible de charger l\'historique des dons');
+      logger.error('Erreur chargement dons:', (error as any)?.message);
+      if (requestId === requestIdRef.current) {
+        dispatch(showError({ title: 'Erreur', message: 'Impossible de charger l\'historique des dons' }) as any);
+      }
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        setIsRefreshing(false);
+        setHasLoaded(true);
+      }
     }
-  }, [selectedTab, showOnlyDonations]);
+  }, [selectedTab, showOnlyDonations, dispatch]);
+
+  const handleLoadMore = () => {
+    if (isLoading || isLoadingMore || isRefreshing) return;
+    if (pageInfo.page < pageInfo.pages) loadDonations(false, pageInfo.page + 1);
+  };
 
   const handleCancelRecurring = async (donationId: string) => {
     Alert.alert(
@@ -81,11 +111,11 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
             try {
               setIsLoading(true);
               await donationService.cancelRecurringDonation(donationId, 'Annulé par l\'utilisateur');
-              Alert.alert('Succès', 'Le don récurrent a été annulé');
+              dispatch(showSuccess({ title: 'Don récurrent annulé', message: 'Aucune nouvelle échéance ne sera générée.' }) as any);
               loadDonations(true);
-            } catch (error) {
-              logger.error('Erreur annulation don récurrent:', error);
-              Alert.alert('Erreur', 'Impossible d\'annuler le don récurrent');
+            } catch (error: any) {
+              logger.error('Erreur annulation don récurrent:', error?.message);
+              dispatch(showError({ title: 'Erreur', message: error?.response?.data?.error || 'Impossible d\'annuler le don récurrent' }) as any);
             } finally {
               setIsLoading(false);
             }
@@ -95,9 +125,12 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
     );
   };
 
-  useEffect(() => {
-    loadDonations(true);
-  }, [selectedTab, showOnlyDonations, loadDonations]);
+  // Recharge à l'ouverture, au changement d'onglet et à chaque retour sur l'écran
+  useFocusEffect(
+    useCallback(() => {
+      loadDonations(false, 1);
+    }, [loadDonations])
+  );
 
   const renderDonationItem = ({ item }: { item: Donation }) => (
     <TouchableOpacity
@@ -121,13 +154,13 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
           >
             {donationService.formatAmount(item.amount, item.currency)}
           </Text>
-          <Text style={[styles.donationCategory, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.donationCategory, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
             {donationService.formatCategory(item.category)}
           </Text>
         </View>
         <View style={styles.donationMeta}>
           <View style={[styles.statusBadge, { backgroundColor: donationService.getStatusColor(item.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: donationService.getStatusColor(item.status) }]}>
+            <Text style={[styles.statusText, { color: donationService.getStatusColor(item.status) }]} numberOfLines={1}>
               {donationService.formatStatus(item.status)}
             </Text>
           </View>
@@ -155,7 +188,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
         <View style={styles.donationDetailRow}>
           <MaterialIcons name="receipt" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
           <Text style={[styles.donationDetailText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Reçu #{item.receipt.number}
+            {item.receipt?.number ? `Reçu #${item.receipt.number}` : 'Reçu disponible après paiement'}
           </Text>
         </View>
         <View style={styles.donationDetailRow}>
@@ -204,7 +237,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
   const currentDonations = showOnlyDonations ? donations : (selectedTab === 'all' ? donations : recurringDonations);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
         <TouchableOpacity
@@ -213,7 +246,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
         >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
           {showOnlyDonations ? 'Mes Donations' : 'Historique des dons'}
         </Text>
         <MenuRefreshIcon
@@ -237,7 +270,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
                   : (dark ? COLORS.dark2 : COLORS.white),
               },
             ]}
-            onPress={() => setSelectedTab('all')}
+            onPress={() => { if (selectedTab !== 'all') { setHasLoaded(false); setSelectedTab('all'); } }}
           >
             <Text
               style={[
@@ -261,7 +294,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
                   : (dark ? COLORS.dark2 : COLORS.white),
               },
             ]}
-            onPress={() => setSelectedTab('recurring')}
+            onPress={() => { if (selectedTab !== 'recurring') { setHasLoaded(false); setSelectedTab('recurring'); } }}
           >
             <Text
               style={[
@@ -286,6 +319,18 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
+        ListHeaderComponent={
+          hasLoaded && pageInfo.totalDocs > 0 ? (
+            <Text style={[styles.countText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              {pageInfo.totalDocs} don{pageInfo.totalDocs > 1 ? 's' : ''}
+            </Text>
+          ) : null
+        }
+        ListFooterComponent={
+          isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} /> : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -295,7 +340,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
           />
         }
         ListEmptyComponent={
-          !isLoading ? (
+          hasLoaded && !isLoading ? (
             <View style={styles.emptyState}>
               <MaterialIcons name="history" size={64} color={dark ? COLORS.grayTie : COLORS.gray} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
@@ -309,6 +354,13 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
                     : 'Vous n\'avez pas de don récurrent'
                 }
               </Text>
+              <TouchableOpacity
+                style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate('CreateDonation', selectedTab === 'recurring' && !showOnlyDonations ? { initialType: 'recurring' } : undefined)}
+              >
+                <MaterialIcons name="add" size={18} color="#FFFFFF" />
+                <Text style={styles.emptyButtonText}>Faire un don</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.loadingContainer}>
@@ -322,6 +374,24 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
 };
 
 const styles = StyleSheet.create({
+  countText: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
   },
@@ -345,6 +415,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 8,
     fontSize: 20,
     fontWeight: 'bold',
   },

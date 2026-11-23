@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import logger from '../utils/logger';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   Share,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import donationService, { Donation } from '../store/services/donationService';
 import paymentService, { Payment } from '../store/services/paymentService';
-import documentsService from '../store/services/documentsService';
 import { showApiError } from '../store/services/apiClient';
+import documentsService from '../store/services/documentsService';
 import Constants from 'expo-constants';
-import logger from '../utils/logger';
 
 interface DonationDetailScreenProps {
   navigation: any;
@@ -41,19 +42,13 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
   const [isInitiateLoading, setIsInitiateLoading] = useState(false);
   const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
-  // La vérification retry peut prendre jusqu'à ~12s ; si l'utilisateur quitte
-  // l'écran avant la fin, on arrête les tentatives au lieu d'afficher une
-  // Alert sur un écran que l'utilisateur a déjà quitté.
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    loadDonationDetails();
-  }, [donationId]);
+  // Recharge à l'ouverture et au retour sur l'écran (ex: après la page de paiement)
+  useFocusEffect(
+    useCallback(() => {
+      loadDonationDetails(donation !== null);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [donationId])
+  );
 
   // Fonction pour sélectionner le bon paiement en cas de multiples
   const selectBestPayment = (payments: Payment[], donation: Donation): Payment | null => {
@@ -112,9 +107,11 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
     }
   };
 
-  const loadDonationDetails = async () => {
+  const loadDonationDetails = async (silent = false): Promise<{ donation: Donation | null; payment: Payment | null }> => {
+    let loadedDonation: Donation | null = null;
+    let loadedPayment: Payment | null = null;
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       
       // Charger les détails du don
       const donationResponse = await donationService.getDonationById(donationId);
@@ -122,10 +119,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
       if (donationResponse.data.success) {
         const donationData = donationResponse.data.data.donation;
         setDonation(donationData);
-        
+        loadedDonation = donationData;
 
-        logger.log('donationData', donationData);
-        
         // Stratégie intelligente pour gérer les paiements multiples
         let selectedPayment = null;
         
@@ -154,8 +149,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
              selectedPayment = selectBestPayment(allPayments, donationData);
             
             if (selectedPayment) {
-              logger.log(`✅ Paiement sélectionné: ${selectedPayment._id} (statut: ${selectedPayment.status})`);
               setPayment(selectedPayment);
+              loadedPayment = selectedPayment;
             } else {
               logger.log('❌ Aucun paiement sélectionné par la logique intelligente');
               setPayment(null);
@@ -175,7 +170,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               const paymentResponse = await paymentService.getPaymentById(donationData.payment._id);
               if (paymentResponse.data.success) {
                 setPayment(paymentResponse.data.data.payment);
-                logger.log('✅ Fallback réussi via ID direct');
+                loadedPayment = paymentResponse.data.data.payment;
               } else {
                 setPayment(null);
               }
@@ -190,12 +185,15 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
         }
       }
     } catch (error: any) {
-      logger.error('Erreur chargement don:', error);
-      Alert.alert('Erreur', 'Impossible de charger les détails du don');
-      navigation.goBack();
+      logger.error('Erreur chargement don:', error?.message);
+      if (!silent) {
+        Alert.alert('Erreur', 'Impossible de charger les détails du don');
+        navigation.goBack();
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
+    return { donation: loadedDonation, payment: loadedPayment };
   };
 
   const handleCancelRecurring = async () => {
@@ -213,8 +211,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
             try {
               setIsVerifyLoading(true);
               await donationService.cancelRecurringDonation(donationId, 'Annulé par l\'utilisateur');
-              Alert.alert('Succès', 'Don récurrent annulé avec succès');
-              await loadDonationDetails();
+              Alert.alert('Don récurrent annulé', 'Aucune nouvelle échéance ne sera générée.');
+              await loadDonationDetails(true);
             } catch (error: any) {
               showApiError(error, 'Erreur lors de l\'annulation du don récurrent');
             } finally {
@@ -243,7 +241,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
 
       // Ouvrir avec viewer natif si dispo, sinon partager (surtout en Expo Go)
       try {
-        if (Constants.appOwnership === 'expo') {
+        if (Constants.executionEnvironment === 'storeClient') { // Expo Go : pas de module natif file-viewer
           await documentsService.shareFile(result.filePath, 'pdf');
         } else {
           const { default: FileViewer } = await import('react-native-file-viewer');
@@ -264,7 +262,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
     if (!donation) return;
 
     try {
-      const message = `J'ai fait un don de ${donationService.formatAmount(donation.amount, donation.currency)} pour ${donationService.formatCategory(donation.category)} via PARTENAIRE MAGB. Reçu: ${donation.receipt.number}`;
+      const receiptPart = donation.receipt?.number ? ` Reçu : ${donation.receipt.number}` : '';
+      const message = `J'ai fait un don de ${donationService.formatAmount(donation.amount, donation.currency)} (${donationService.formatCategory(donation.category)}) via PARTENAIRE MAGB.${receiptPart}`;
       
       await Share.share({
         message,
@@ -301,8 +300,9 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                 logger.log(`📋 ${allPayments.length} paiement(s) existant(s) trouvé(s)`);
                 
                                  // Chercher un paiement réutilisable (pending, failed, ou processing récent)
-                 const reusablePayments = allPayments.filter((p: Payment) => 
-                   ['pending', 'failed', 'processing', 'initialized'].includes(p.status)
+                 // Un paiement échoué n'est pas « réutilisable » tel quel : son lien n'est plus valide
+                 const reusablePayments = allPayments.filter((p: Payment) =>
+                   ['pending', 'processing', 'initialized'].includes(p.status)
                  );
                  
                  if (reusablePayments.length > 0) {
@@ -330,8 +330,9 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
           if (existingPayment && donation.type !== 'recurring') {
             logger.log(`♻️ Réutilisation du paiement existant: ${existingPayment._id}`);
             
-            // Vérifier si le paiement existant a une URL valide
-            if (existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl || existingPayment.geniuspay?.paymentUrl) {
+            // Réutiliser le lien seulement s'il est récent (les liens MoneyFusion expirent)
+            const linkAgeMinutes = (Date.now() - new Date(existingPayment.createdAt).getTime()) / 60000;
+            if ((existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl || existingPayment.geniuspay?.paymentUrl) && linkAgeMinutes < 30) {
               const paymentUrl = existingPayment.moneyfusion?.paymentUrl || existingPayment.fusionpay?.paymentUrl || existingPayment.geniuspay?.paymentUrl;
               logger.log('✅ URL de paiement existante trouvée, réutilisation directe');
               
@@ -361,8 +362,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                         // Fallback: créer un nouveau paiement
                         const newPaymentData = {
                           donationId: donation._id,
-                          provider: ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
-                          paymentMethod: donation.paymentMethod,
+                          provider: !donation.paymentMethod ? 'moneyfusion' : ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
+                          paymentMethod: donation.paymentMethod || 'moneyfusion',
                         };
                         const newPaymentResponse = await donationService.initializePayment(newPaymentData);
                         if (newPaymentResponse.data.success) {
@@ -388,8 +389,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               // Le paiement existe mais sans URL valide, en recréer une
               const paymentData = {
                 donationId: donation._id,
-                provider: ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
-                paymentMethod: donation.paymentMethod,
+                provider: !donation.paymentMethod ? 'moneyfusion' : ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
+                paymentMethod: donation.paymentMethod || 'moneyfusion',
                 existingPaymentId: existingPayment._id, // Indiquer qu'il faut mettre à jour ce paiement
               };
               paymentResponse = await donationService.initializePayment(paymentData);
@@ -399,24 +400,25 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
             // Créer un nouveau paiement
             const paymentData = {
               donationId: donation._id,
-              provider: ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
-              paymentMethod: donation.paymentMethod,
+              provider: !donation.paymentMethod ? 'moneyfusion' : ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
+              paymentMethod: donation.paymentMethod || 'moneyfusion',
             };
             paymentResponse = await donationService.initializePayment(paymentData);
           }
 
-          logger.log('📋 Réponse du service de paiement:', paymentResponse.data);
           
           if (paymentResponse.data.success) {
             const paymentInfo = paymentResponse.data.data;
             const paymentUrl = paymentInfo.paymentUrl;
             
-            if (paymentUrl && (donation.paymentMethod === 'moneyfusion' || donation.paymentMethod === 'geniuspay' || donation.paymentMethod.includes('paydunya') || donation.paymentMethod.includes('orange-money') || donation.paymentMethod.includes('wave') || donation.paymentMethod.includes('mtn') || donation.paymentMethod.includes('moov') || donation.paymentMethod.includes('expresso') || donation.paymentMethod.includes('wizall') || donation.paymentMethod.includes('t-money'))) {
-              const providerName = donation.paymentMethod === 'moneyfusion'
+            // Toute URL de paiement renvoyée doit être ouverte (avant, une méthode absente faisait planter .includes)
+            if (paymentUrl) {
+              const method = donation.paymentMethod || 'moneyfusion';
+              const providerName = method === 'moneyfusion'
                 ? 'MoneyFusion'
-                : donation.paymentMethod === 'geniuspay'
+                : method === 'geniuspay'
                   ? 'GeniusPay'
-                  : 'PayDunya';
+                  : method.includes('paydunya') ? 'PayDunya' : 'la page de paiement';
               
               Alert.alert(
                 'Paiement initié',
@@ -459,7 +461,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
           }
         } catch (error: any) {
           logger.error('Erreur initialisation paiement:', error);
-          showApiError(error, 'initialisation du paiement');
+          showApiError(error, 'Une erreur est survenue lors de l\'initialisation du paiement');
           // 409 : le don a déjà été payé entre-temps — recharger pour afficher son vrai statut
           if ((error?.response?.status ?? error?.status) === 409) {
             await loadDonationDetails();
@@ -481,7 +483,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
             type: donation.type,
             message: donation.message,
             isAnonymous: donation.isAnonymous,
-            paymentMethod: donation.paymentMethod,
+            paymentMethod: donation.paymentMethod || 'moneyfusion',
             recurring: donation.recurring
           }
         });
@@ -510,316 +512,77 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
     }
   };
 
+  // Vérification du paiement : le backend interroge l'opérateur et met lui-même à jour
+  // le paiement ET le don ; l'app recharge ensuite et affiche le statut réel.
   const handleVerifyPayment = async () => {
-    if (!donation) return;
+    if (!donation || isVerifyLoading) return;
 
-    const amount = payment?.amount || donation?.amount;
-    const currency = payment?.currency || donation?.currency;
+    try {
+      setIsVerifyLoading(true);
 
-    Alert.alert(
-      'Vérifier le paiement',
-      `Rechercher et vérifier le paiement de ${amount} ${currency} pour ce don ?\n\nLe système effectuera plusieurs tentatives pour laisser le temps aux webhooks de paiement de se traiter.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Vérifier',
-          onPress: async () => {
-            try {
-              setIsVerifyLoading(true);
-              
-              // Système de retry avec délais progressifs pour laisser le temps aux webhooks
-              const verifyWithRetry = async (maxRetries = 3) => {
-                for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                  logger.log(`🔄 Tentative de vérification ${attempt}/${maxRetries}`);
+      // 1. Trouver le paiement à vérifier
+      let paymentToVerify = payment;
+      if (!paymentToVerify) {
+        try {
+          const res = await paymentService.getAllPaymentsByDonationId(donation._id);
+          paymentToVerify = selectBestPayment(res.data?.data?.payments || [], donation);
+        } catch (e) {
+          paymentToVerify = null;
+        }
+      }
 
-                  // Délai progressif : 2s, 4s, 6s
-                  if (attempt > 1) {
-                    const delay = attempt * 2000;
-                    logger.log(`⏳ Attente de ${delay/1000}s pour laisser le temps aux webhooks...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                  }
+      if (!paymentToVerify) {
+        Alert.alert(
+          'Aucun paiement',
+          'Aucun paiement n\'a encore été lancé pour ce don.',
+          [
+            { text: 'Fermer', style: 'cancel' },
+            ...(donation.status === 'pending' ? [{ text: 'Payer maintenant', onPress: handleInitiatePayment }] : []),
+          ]
+        );
+        return;
+      }
 
-                  if (!isMountedRef.current) {
-                    logger.log('Écran démonté, arrêt des tentatives de vérification');
-                    return false;
-                  }
+      // 2. Demander au backend de vérifier auprès de l'opérateur
+      let serverMessage = '';
+      try {
+        const verifyResponse = await paymentService.verifyPayment(paymentToVerify._id);
+        serverMessage = verifyResponse.data?.message || '';
+      } catch (e: any) {
+        serverMessage = e?.response?.data?.error || e?.response?.data?.message || '';
+      }
 
-                  try {
-                    // Recharger d'abord les détails de la donation pour avoir les dernières infos
-                    await loadDonationDetails();
-                    
-                    // Recherche intelligente de tous les paiements
-                    const allPaymentsResponse = await paymentService.getAllPaymentsByDonationId(donation._id);
-                    
-                    if (allPaymentsResponse.data.success && allPaymentsResponse.data.data.payments) {
-                      const allPayments = allPaymentsResponse.data.data.payments;
-                      logger.log(`📋 Tentative ${attempt}: ${allPayments.length} paiement(s) trouvé(s)`);
-                      
-                      if (allPayments.length === 0) {
-                        if (attempt === maxRetries) {
-                          // Dernière tentative échouée
-                          Alert.alert(
-                            'Aucun paiement trouvé',
-                            `Aucun paiement n'est associé à ce don après ${maxRetries} tentatives.\n\nStatut du don: ${donationService.formatStatus(donation.status)}\n\nLes webhooks de paiement peuvent prendre jusqu'à quelques minutes. Voulez-vous réessayer ou initialiser un nouveau paiement ?`,
-                            [
-                              { text: 'Réessayer', onPress: () => handleVerifyPayment() },
-                              { text: 'Annuler', style: 'cancel' },
-                              {
-                                text: 'Nouveau paiement',
-                                onPress: handleInitiatePayment,
-                              },
-                            ]
-                          );
-                          return false;
-                        }
-                        // Continuer les tentatives
-                        continue;
-                      }
-                      
-                      // Sélectionner le meilleur paiement pour vérification
-                      const paymentToVerify = selectBestPayment(allPayments, donation);
-                      
-                      if (!paymentToVerify) {
-                        if (attempt === maxRetries) {
-                          Alert.alert(
-                            'Aucun paiement approprié',
-                            'Aucun paiement approprié trouvé pour cette donation.',
-                            [{ text: 'OK' }]
-                          );
-                          return false;
-                        }
-                        continue;
-                      }
-                      
-                      logger.log(`✅ Paiement sélectionné (tentative ${attempt}): ${paymentToVerify._id} (statut: ${paymentToVerify.status})`);
-                      
-                      // Vérifier le paiement sélectionné
-                      const verifyResponse = await paymentService.verifyPayment(paymentToVerify._id);
-                      logger.log('Réponse vérification paiement:', verifyResponse.data);
-                      
-                      // Gérer la structure de réponse
-                      let result, paymentData;
-                      
-                      if (verifyResponse.data.statut !== undefined) {
-                        // Structure MoneyFusion directe
-                        result = verifyResponse.data;
-                        paymentData = result.data;
-                        logger.log('Structure MoneyFusion détectée:', paymentData);
-                      } else if (verifyResponse.data.success && verifyResponse.data.data) {
-                        // Structure API standard avec success: true
-                        result = verifyResponse.data.data;
-                        paymentData = result.data || result;
-                        logger.log('Structure API standard détectée:', paymentData);
-                      } else {
-                        logger.warn('Structure de réponse inconnue:', verifyResponse.data);
-                        if (attempt === maxRetries) {
-                          throw new Error('Structure de réponse invalide');
-                        }
-                        continue;
-                      }
-                      
-                      // Mettre à jour le statut de la donation si nécessaire
-                      if (donation?._id && paymentData?.statut) {
-                        try {
-                          await donationService.updateDonationStatusFromPayment(
-                            donation._id, 
-                            paymentData.statut
-                          );
-                          logger.log('Statut du don mis à jour:', paymentData.statut);
-                        } catch (error) {
-                          logger.warn('Impossible de mettre à jour le statut du don:', error);
-                        }
-                      }
-                      
-                      // Recharger les détails après mise à jour
-                      await loadDonationDetails();
-                      
-                      // Afficher le résultat
-                      const statusMessage = paymentData?.statut === 'paid'
-                        ? '✅ Paiement confirmé et validé'
-                        : paymentData?.statut === 'failed' 
-                          ? '❌ Paiement échoué'
-                          : paymentData?.statut === 'pending'
-                            ? '⏳ Paiement en cours de traitement'
-                            : `📊 Statut: ${paymentData?.statut || 'inconnu'}`;
-                      
-                      let message = statusMessage;
-                      
-                      if (paymentData?.Montant) {
-                        message += `\n💰 Montant: ${paymentData.Montant} F CFA`;
-                      }
-                      if (paymentData?.frais) {
-                        message += `\n💳 Frais: ${paymentData.frais} F CFA`;
-                      }
-                      if (paymentData?.moyen) {
-                        message += `\n📱 Moyen: ${paymentData.moyen}`;
-                      }
-                      if (paymentData?.createdAt) {
-                        message += `\n🕒 Date: ${new Date(paymentData.createdAt).toLocaleString('fr-FR')}`;
-                      }
-                      
-                      if (attempt > 1) {
-                        message += `\n\n🔄 Trouvé à la tentative ${attempt}`;
-                      }
-                      
-                      Alert.alert(
-                        'Vérification terminée',
-                        message,
-                        [{ text: 'OK' }]
-                      );
-                      
-                      return true; // Succès
-                      
-                    } else {
-                      logger.log(`❌ Tentative ${attempt}: Aucun paiement trouvé`);
-                      if (attempt === maxRetries) {
-                        // Fallback vers recherche classique en dernier recours
-                        try {
-                          logger.log('🔄 Dernier recours: recherche classique');
-                          const classicResponse = await paymentService.getPaymentByDonationId(donation._id);
-                          
-                          if (classicResponse.data.success && classicResponse.data.data.payment) {
-                            logger.log('✅ Fallback réussi, paiement trouvé');
-                            if (isMountedRef.current) setPayment(classicResponse.data.data.payment);
-                            await loadDonationDetails();
-                            // Redéclencher la vérification maintenant qu'on a un paiement
-                            setTimeout(() => handleVerifyPayment(), 500);
-                            return true;
-                          }
-                        } catch (fallbackError) {
-                          logger.log('❌ Fallback échoué aussi');
-                        }
-                        
-                        Alert.alert(
-                          'Aucun paiement trouvé',
-                          `Aucun paiement n'est associé à ce don après ${maxRetries} tentatives.\n\nStatut du don: ${donationService.formatStatus(donation.status)}\n\nLes webhooks de paiement peuvent prendre jusqu'à quelques minutes. Voulez-vous réessayer ou initialiser un nouveau paiement ?`,
-                          [
-                            { text: 'Réessayer', onPress: () => handleVerifyPayment() },
-                            { text: 'Annuler', style: 'cancel' },
-                            {
-                              text: 'Nouveau paiement',
-                              onPress: handleInitiatePayment,
-                            },
-                          ]
-                        );
-                        return false;
-                      }
-                    }
-                  } catch (attemptError: any) {
-                    logger.log(`❌ Erreur tentative ${attempt}:`, attemptError);
-                    if (attempt === maxRetries) {
-                      throw attemptError;
-                    }
-                  }
-                }
-                return false;
-              };
-              
-              // Si on a déjà un paiement, vérifier directement sinon utiliser le système de retry
-              if (payment) {
-                // Cas 1: Payment déjà chargé - vérification directe
-                logger.log('Vérification du paiement existant:', payment._id);
-                const response = await paymentService.verifyPayment(payment._id);
-                
-                logger.log('Réponse complète de vérification:', response);
-                logger.log('Données de vérification:', response.data);
-                
-                // Gérer la structure MoneyFusion: {statut, message, data}
-                let result, paymentData;
+      // 3. Recharger et afficher le statut réel enregistré
+      const { donation: fresh } = await loadDonationDetails(true);
+      const status = fresh?.status || donation.status;
 
-                
-                if (response.data.statut !== undefined) {
-                  // Structure MoneyFusion directe
-                  result = response.data;
-                  paymentData = result.data;
-                  logger.log('Structure MoneyFusion détectée:', paymentData);
-                } else if (response.data.success && response.data.data) {
-                  // Structure API standard avec success: true
-                  result = response.data.data;
-                  paymentData = result.data || result;
-                  logger.log('Structure API standard détectée:', paymentData);
-                } else {
-                  // Structure inconnue
-                  logger.warn('Structure de réponse inconnue:', response.data);
-                  throw new Error('Structure de réponse invalide');
-                }
-                
-                // Mettre à jour le statut de la donation basé sur le statut du paiement
-                if (donation?._id && paymentData?.statut) {
-                  try {
-                    await donationService.updateDonationStatusFromPayment(
-                      donation._id, 
-                      paymentData.statut
-                    );
-                    logger.log('Statut du don mis à jour:', paymentData.statut);
-                  } catch (error) {
-                    logger.warn('Impossible de mettre à jour le statut du don:', error);
-                  }
-                }
-                
-                // Recharger les détails après mise à jour
-                await loadDonationDetails();
-                
-                const statusMessage = paymentData?.statut === 'paid' 
-                  ? '✅ Paiement confirmé avec succès !'
-                  : paymentData?.statut === 'failed' 
-                  ? '❌ Paiement échoué (vérifié)'
-                  : paymentData?.statut === 'pending'
-                  ? '⏳ Paiement toujours en attente'
-                  : `📋 Statut actuel: ${paymentData?.statut || 'inconnu'}`;
-                
-                let message = statusMessage;
-                if (result.message) {
-                  message += `\n\n${result.message}`;
-                }
-                
-                // Informations détaillées du paiement
-                if (paymentData?.numeroTransaction) {
-                  message += `\n🔢 Transaction: ${paymentData.numeroTransaction}`;
-                }
-                if (paymentData?.Montant) {
-                  message += `\n💰 Montant: ${paymentData.Montant} F CFA`;
-                }
-                if (paymentData?.frais) {
-                  message += `\n💳 Frais: ${paymentData.frais} F CFA`;
-                }
-                if (paymentData?.moyen) {
-                  message += `\n📱 Moyen: ${paymentData.moyen}`;
-                }
-                if (paymentData?.createdAt) {
-                  message += `\n🕒 Date: ${new Date(paymentData.createdAt).toLocaleString('fr-FR')}`;
-                }
-                
-                if (isMountedRef.current) {
-                  Alert.alert(
-                    'Vérification terminée',
-                    message,
-                    [{ text: 'OK' }]
-                  );
-                }
-              } else {
-                // Cas 2: Pas de payment chargé - utiliser le système de retry
-                await verifyWithRetry();
-              }
-            } catch (error: any) {
-              logger.error('❌ Erreur verification paiement:', error);
-              if (isMountedRef.current) {
-                Alert.alert(
-                  'Erreur de vérification',
-                  `Impossible de vérifier le paiement: ${error.message}\n\nLes webhooks de paiement peuvent prendre quelques minutes. Voulez-vous réessayer ?`,
-                  [
-                    { text: 'Réessayer', onPress: () => handleVerifyPayment() },
-                    { text: 'Annuler', style: 'cancel' }
-                  ]
-                );
-              }
-            } finally {
-              if (isMountedRef.current) setIsVerifyLoading(false);
-            }
-          },
-        },
-      ]
-    );
+      if (status === 'completed') {
+        Alert.alert('Paiement confirmé ✅', 'Merci ! Votre don est validé et votre reçu est disponible.');
+      } else if (status === 'failed' || status === 'cancelled') {
+        Alert.alert(
+          'Paiement non abouti',
+          'Le paiement n\'a pas été effectué. Vous pouvez réessayer.',
+          [
+            { text: 'Fermer', style: 'cancel' },
+            { text: 'Réessayer', onPress: handleInitiatePayment },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Paiement en attente',
+          `${serverMessage ? serverMessage + '\n\n' : ''}Si vous venez de payer, la confirmation de l'opérateur peut prendre quelques minutes. Elle est aussi vérifiée automatiquement.`,
+          [
+            { text: 'OK', style: 'cancel' },
+            { text: 'Revérifier', onPress: () => setTimeout(handleVerifyPayment, 300) },
+          ]
+        );
+      }
+    } catch (error: any) {
+      logger.error('Erreur vérification paiement:', error?.message);
+      Alert.alert('Erreur', 'Impossible de vérifier le paiement pour le moment. Réessayez dans quelques instants.');
+    } finally {
+      setIsVerifyLoading(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -866,7 +629,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -1008,7 +771,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
             {donationService.formatCategory(donation.category)}
           </Text>
           <Text style={styles.receiptNumber} numberOfLines={1}>
-            Reçu: {donation.receipt.number}
+            {donation.receipt?.number ? `Reçu : ${donation.receipt.number}` : 'Reçu disponible après paiement'}
           </Text>
         </View>
 
@@ -1104,7 +867,8 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                   Fréquence
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {donation.recurring.frequency === 'weekly' ? 'Hebdomadaire' :
+                  {donation.recurring.frequency === 'daily' ? 'Quotidien' :
+                   donation.recurring.frequency === 'weekly' ? 'Hebdomadaire' :
                    donation.recurring.frequency === 'monthly' ? 'Mensuel' :
                    donation.recurring.frequency === 'quarterly' ? 'Trimestriel' :
                    donation.recurring.frequency === 'yearly' ? 'Annuel' : donation.recurring.frequency}
@@ -1419,7 +1183,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               )}
               <View style={styles.actionContent}>
                 <Text style={[styles.actionTitle, { color: colors.text }]}>
-                  {isInitiateLoading ? 'Initiation en cours...' : 'Initier le paiement'}
+                  {isInitiateLoading ? 'Préparation du paiement...' : 'Payer maintenant'}
                 </Text>
                 <Text style={[styles.actionSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
                   Aller directement à la page de paiement pour ce don

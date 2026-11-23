@@ -252,7 +252,7 @@ const PaymentWebViewScreen: React.FC<PaymentWebViewScreenProps> = ({ navigation,
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onLoadStart={() => setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
-        onError={(syntheticEvent) => {
+        onError={(syntheticEvent: any) => {
           const { nativeEvent } = syntheticEvent;
           logger.error('WebView error:', nativeEvent.description);
           Alert.alert(
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   },
   webview: { flex: 1 },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',

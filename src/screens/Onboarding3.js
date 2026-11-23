@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ImageBackground } from 'react-native';
+import { View, Text, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PageContainer from '../components/PageContainer';
 import DotsView from '../components/DotsView';
@@ -18,11 +18,11 @@ const Onboarding3 = ({ navigation }) => {
     }]}>
       <PageContainer>
         <View style={Onboarding1Styles.contentContainer}>
-        <ImageBackground
+        <Image
             source={images.onboarding3}
             style={Onboarding1Styles.backgroundImage}
             resizeMode="cover"
-          ></ImageBackground>
+            />
 
           {/* Section Contenu Fixe */}
           <View style={[Onboarding1Styles.buttonContainer, {

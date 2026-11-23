@@ -13,9 +13,10 @@ import {
   Modal,
   FlatList,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import BirthDatePicker from '../components/BirthDatePicker';
+import { showApiError } from '../store/services/apiClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -24,7 +25,6 @@ import { COLORS } from '../constants';
 import userService from '../store/services/userService';
 import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
-import { showApiError } from '../store/services/apiClient';
 
 interface Country {
   code: string;
@@ -92,6 +92,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
   
   // Date picker
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     loadProfile();
@@ -183,13 +184,44 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
     return new Date(year, month - 1, day);
   };
 
-  // Gestionnaire pour le changement de date (conservé pour compatibilité)
-  const handleDateChange = (_event: any, _selectedDate?: Date) => {
-    setShowDatePicker(false);
+  // Gestionnaire pour le changement de date
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    // Android : la boîte de dialogue se ferme d'elle-même ; iOS : on garde la roue ouverte
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (event?.type === 'dismissed') return;
+    if (selectedDate) {
+      setSelectedDate(selectedDate);
+      const formattedDate = formatDateDisplay(selectedDate);
+      setProfile({...profile, dateOfBirth: formattedDate});
+    }
   };
 
-  // Fonction pour ouvrir le BirthDatePicker
+  // Fonction pour ouvrir le DatePicker
   const openDatePicker = () => {
+    if (profile.dateOfBirth && profile.dateOfBirth !== 'NaN-NaN-NaN') {
+      // Essayer de parser en DD-MM-YYYY d'abord, puis en YYYY-MM-DD
+      try {
+        const parsedDate = parseDateDisplay(profile.dateOfBirth);
+        if (parsedDate.getFullYear() > 1900) {
+          setSelectedDate(parsedDate);
+        } else {
+          setSelectedDate(new Date());
+        }
+      } catch {
+        try {
+          const parsedDate = parseDateBackend(profile.dateOfBirth);
+          if (parsedDate.getFullYear() > 1900) {
+            setSelectedDate(parsedDate);
+          } else {
+            setSelectedDate(new Date());
+          }
+        } catch {
+          setSelectedDate(new Date());
+        }
+      }
+    } else {
+      setSelectedDate(new Date());
+    }
     setShowDatePicker(true);
   };
 
@@ -273,6 +305,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     try {
       setIsSaving(true);
       
@@ -299,12 +332,19 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         }
       }
       
+      // Téléphone : ne pas rajouter l'indicatif s'il est déjà présent (ex: numéro d'un autre pays que la CI)
+      const rawPhone = (profile.phone || '').replace(/\s/g, '');
+      const fullPhone = rawPhone.startsWith('+') || !selectedCountry
+        ? rawPhone
+        : `${selectedCountry.callingCode}${rawPhone}`;
+
       // Construire le payload selon le format demandé
       const payload = {
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        email: profile.email,
-        phone: selectedCountry ? `${selectedCountry.callingCode}${profile.phone}` : profile.phone,
+        firstName: profile.firstName.trim(),
+        lastName: profile.lastName.trim(),
+        phone: fullPhone,
+        city: (profile.city || '').trim(),
+        country: selectedCountry?.code || profile.country,
         dateOfBirth: backendDateOfBirth,
         gender: profile.gender,
         maritalStatus: profile.maritalStatus,
@@ -331,21 +371,39 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       const response = await userService.updateProfile(payload);
       
       if (response.data?.success) {
+        // Utiliser ce que le serveur a réellement enregistré (dont le statut de vérification du téléphone)
+        const saved = response.data.data?.user || {};
+        const phoneChanged = !!saved.phone && saved.phone !== user?.phone;
         dispatch(updateUser({
-          ...user,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          phone: selectedCountry ? `${selectedCountry.callingCode}${profile.phone}` : profile.phone,
-          country: profile.country,
-          city: profile.city,
+          firstName: saved.firstName ?? profile.firstName,
+          lastName: saved.lastName ?? profile.lastName,
+          phone: saved.phone ?? fullPhone,
+          country: saved.country ?? profile.country,
+          city: saved.city ?? profile.city,
+          ...(typeof saved.isPhoneVerified === 'boolean' ? { isPhoneVerified: saved.isPhoneVerified } : {}),
         }));
-        
-        Alert.alert('Succès', 'Profil mis à jour avec succès');
+
         navigation.goBack();
+        if (phoneChanged && saved.isPhoneVerified === false) {
+          Alert.alert(
+            'Profil mis à jour',
+            'Votre nouveau numéro doit être vérifié avant votre prochain don.',
+            [
+              { text: 'Plus tard', style: 'cancel' },
+              { text: 'Vérifier', onPress: () => navigation.navigate('PhoneVerification') },
+            ]
+          );
+        } else {
+          Alert.alert('Profil mis à jour', 'Vos modifications ont été enregistrées.');
+        }
       }
     } catch (error: any) {
-      logger.error('Erreur mise à jour profil:', error);
-      showApiError(error, 'Impossible de mettre à jour le profil');
+      logger.error('Erreur mise à jour profil:', error?.message);
+      const details = error.response?.data?.details;
+      Alert.alert(
+        'Erreur',
+        (Array.isArray(details) && details[0]?.msg) || error.response?.data?.error || 'Impossible de mettre à jour le profil'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -357,7 +415,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
     onChange: (text: string) => void,
     placeholder: string = '',
     keyboardType: 'default' | 'numeric' | 'email-address' | 'phone-pad' = 'default',
-    icon?: string
+    icon?: string,
+    options: { editable?: boolean; hint?: string; autoCapitalize?: 'none' | 'words' | 'sentences' } = {}
   ) => (
     <View style={styles.inputContainer}>
       <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
@@ -380,9 +439,16 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         placeholder={placeholder}
           placeholderTextColor={dark ? COLORS.grayTie : COLORS.grayscale400}
         keyboardType={keyboardType}
-          autoCapitalize="none"
+          autoCapitalize={options.autoCapitalize ?? 'none'}
+          editable={options.editable !== false}
       />
+        {options.editable === false && (
+          <Ionicons name="lock-closed-outline" size={16} color={dark ? COLORS.grayTie : COLORS.grayscale400} />
+        )}
       </View>
+      {!!options.hint && (
+        <Text style={{ fontSize: 12, marginTop: 4, color: dark ? COLORS.grayTie : COLORS.gray }}>{options.hint}</Text>
+      )}
     </View>
   );
 
@@ -533,7 +599,13 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {/* Section Avatar */}
         <View style={[styles.avatarSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
           <View style={styles.avatarContainer}>
@@ -592,7 +664,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               (text) => setProfile({...profile, email: text}),
               'votre@email.com',
               'email-address',
-              'mail-outline'
+              'mail-outline',
+              { editable: false, hint: 'L\'email ne peut pas être modifié depuis l\'application. Contactez le support si besoin.' }
           )}
             
             {renderPhoneInput()}
@@ -605,7 +678,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               (text) => setProfile({...profile, city: text}),
               'Votre ville',
               'default',
-              'location-outline'
+              'location-outline',
+              { autoCapitalize: 'words' }
             )}
           </View>
         </View>
@@ -843,17 +917,42 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
-      {/* BirthDatePicker — sélecteur Année → Mois → Jour */}
-      <BirthDatePicker
-        visible={showDatePicker}
-        value={profile.dateOfBirth}
-        onConfirm={(date) => {
-          setProfile({ ...profile, dateOfBirth: date });
-          setShowDatePicker(false);
-        }}
-        onCancel={() => setShowDatePicker(false)}
-      />
+      {/* Date Picker */}
+      {showDatePicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+          minimumDate={new Date(1900, 0, 1)}
+        />
+      )}
+      {Platform.OS === 'ios' && (
+        <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
+            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
+                <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text }}>Date de naissance</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>OK</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="spinner"
+                locale="fr-FR"
+                themeVariant={dark ? 'dark' : 'light'}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+                minimumDate={new Date(1900, 0, 1)}
+              />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
 
       {/* Country Selector Modal */}
       <Modal

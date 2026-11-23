@@ -12,6 +12,7 @@ import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import RefreshableHeader from '../components/RefreshableHeader';
+import openLink from '../utils/openLink';
 
 interface MissionsScreenProps {
   navigation: any;
@@ -22,9 +23,9 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
 
   const handleContact = (type: 'phone' | 'email') => {
     if (type === 'phone') {
-      Linking.openURL('tel:+2250768306162');
+      openLink('tel:+2250768306162');
     } else if (type === 'email') {
-      Linking.openURL('mailto:partenaireadorationgene.brou@gmail.com');
+      openLink('mailto:partenaireadorationgene.brou@gmail.com');
     }
   };
 

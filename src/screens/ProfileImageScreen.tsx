@@ -106,7 +106,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'], // MediaTypeOptions est déprécié
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -128,7 +128,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
     // covers iOS without a runtime gate here.
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'], // MediaTypeOptions est déprécié
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,

@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -15,7 +16,6 @@ import { COLORS } from '../constants';
 import { useDeepLinking } from '../hooks/useDeepLinking';
 import donationService from '../store/services/donationService';
 import paymentService from '../store/services/paymentService';
-import { showApiError } from '../store/services/apiClient';
 
 interface PaymentVerificationScreenProps {
   navigation: any;
@@ -51,21 +51,6 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
     details?: any;
   } | null>(null);
 
-  // La vérification retry peut prendre jusqu'à ~9s ; si l'utilisateur quitte
-  // l'écran avant la fin, on évite un setState sur un composant démonté.
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-  const setVerificationResultSafe = useCallback((result: typeof verificationResult) => {
-    if (isMountedRef.current) setVerificationResult(result);
-  }, []);
-  const setIsLoadingSafe = useCallback((loading: boolean) => {
-    if (isMountedRef.current) setIsLoading(loading);
-  }, []);
-
   const getPaymentParams = useCallback(() => {
     if (route?.params) {
       return {
@@ -81,7 +66,25 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
     return null;
   }, [route?.params, lastDeepLink, parsePaymentDeepLink]);
 
+  // La vérification retry peut prendre jusqu'à ~9s ; si l'utilisateur quitte
+  // l'écran avant la fin, on évite un setState sur un composant démonté.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  const setVerificationResultSafe = useCallback((result: typeof verificationResult) => {
+    if (isMountedRef.current) setVerificationResult(result);
+  }, []);
+  const setIsLoadingSafe = useCallback((loading: boolean) => {
+    if (isMountedRef.current) setIsLoading(loading);
+  }, []);
+
+  const verifyingRef = useRef(false);
   const verifyPayment = useCallback(async () => {
+    // Retour d'app + lien de retour peuvent arriver en même temps : une seule vérification à la fois
+    if (verifyingRef.current) return;
     const params = getPaymentParams();
     
     if (!params) {
@@ -89,8 +92,9 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
       return;
     }
 
+    verifyingRef.current = true;
     setIsLoadingSafe(true);
-    
+
     try {
       let response;
       
@@ -334,23 +338,26 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
             message: 'Donation non trouvée',
           });
         }
+      } else if (params.paymentId) {
+        // Pas de don dans le lien de retour : vérifier directement le paiement
+        const verifyResponse = await paymentService.verifyPayment(params.paymentId);
+        const realStatus = verifyResponse.data?.data?.statut || verifyResponse.data?.data?.status;
+        const isSuccess = ['paid', 'completed'].includes(realStatus);
+        setVerificationResultSafe({
+          success: isSuccess,
+          message: isSuccess
+            ? '✅ Paiement confirmé'
+            : ['pending', 'processing', 'initialized'].includes(realStatus)
+              ? '⏳ Paiement en cours de traitement'
+              : '❌ Paiement non abouti',
+          details: { status: realStatus },
+        });
       } else {
-        // Vérification globale des paiements
-        response = await donationService.verifyAllPayments();
-        
-        if (response.data.success) {
-          const stats = response.data.data;
-          setVerificationResultSafe({
-            success: true,
-            message: `Vérification terminée: ${stats.completed} paiements complétés`,
-            details: stats,
-          });
-        } else {
-          setVerificationResultSafe({
-            success: false,
-            message: response.data.errors || 'Échec de la vérification',
-          });
-        }
+        // Avant : vérification globale réservée aux admins (refusée pour un fidèle)
+        setVerificationResultSafe({
+          success: false,
+          message: 'Impossible d\'identifier ce paiement. Retrouvez son statut dans « Mes dons ».',
+        });
       }
     } catch (error: any) {
       // Network Error = backend en veille ou problème réseau — ne pas afficher comme un échec de paiement
@@ -363,21 +370,37 @@ const PaymentVerificationScreen: React.FC<PaymentVerificationScreenProps> = ({
       setVerificationResultSafe({
         success: false,
         message: isNetworkError
-          ? '⚠️ Impossible de contacter le serveur.\n\nLe serveur est peut-être en train de démarrer (jusqu\'à 60s). Appuie sur "Vérifier à nouveau".'
+          ? '⚠️ Impossible de contacter le serveur.\n\nLe serveur est peut-être en train de démarrer (jusqu\'à 60s). Appuyez sur « Vérifier à nouveau ».'
           : (error?.appError?.message || error.response?.data?.error || 'Erreur lors de la vérification'),
       });
     } finally {
       setIsLoadingSafe(false);
+      verifyingRef.current = false;
     }
   }, [getPaymentParams, lastDeepLink, clearLastDeepLink]);
 
+  // Vérifier à l'ouverture ET à chaque nouveau lien de retour : l'écran est affiché dès
+  // l'ouverture de MoneyFusion, puis le retour de paiement renvoie ici avec de nouveaux paramètres.
+  const paramsKey = `${route?.params?.donationId || ''}|${route?.params?.paymentId || ''}|${route?.params?.transactionId || ''}|${route?.params?.status || ''}`;
   useEffect(() => {
     verifyPayment();
     if (lastDeepLink) {
       clearLastDeepLink();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [paramsKey]);
+
+  // Revérifier quand l'utilisateur revient dans l'app (ex: retour manuel depuis le navigateur)
+  const lastResultRef = useRef(verificationResult);
+  lastResultRef.current = verificationResult;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && !lastResultRef.current?.success) {
+        verifyPayment();
+      }
+    });
+    return () => sub.remove();
+  }, [verifyPayment]);
 
   const handleRetry = useCallback(() => {
     setVerificationResultSafe(null);

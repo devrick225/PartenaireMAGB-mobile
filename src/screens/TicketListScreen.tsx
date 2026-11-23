@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -18,7 +19,8 @@ import { COLORS } from '../constants';
 import MenuRefreshIcon from '../components/MenuRefreshIcon';
 import ticketService, { Ticket, TicketListParams } from '../store/services/ticketService';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor } from '../hooks/useUserPermissions';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { showError } from '../store/slices/notificationSlice';
 import { RootState } from '../store';
 import RefreshableHeader from '../components/RefreshableHeader';
 
@@ -30,6 +32,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
   const { colors, dark } = useTheme();
   const permissions = useUserPermissions();
   const currentUser = useSelector((state: RootState) => state.auth.user);
+  const dispatch = useDispatch();
   
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +55,9 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
   });
   
   const [showFilters, setShowFilters] = useState(false);
+  // Filtres en cours d'édition dans la modale : appliqués seulement sur « Appliquer »
+  const [draftFilters, setDraftFilters] = useState<TicketListParams>(filters);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const statusOptions = [
@@ -62,6 +68,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
     { value: 'waiting_admin', label: 'En attente admin' },
     { value: 'resolved', label: 'Résolu' },
     { value: 'closed', label: 'Fermé' },
+    { value: 'cancelled', label: 'Annulé' },
   ];
 
   const categoryOptions = [
@@ -70,8 +77,11 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
     { value: 'payment', label: 'Problème de paiement' },
     { value: 'account', label: 'Problème de compte' },
     { value: 'donation', label: 'Question sur les dons' },
+    { value: 'bug_report', label: 'Rapport de bug' },
     { value: 'feature_request', label: 'Demande de fonctionnalité' },
     { value: 'general', label: 'Question générale' },
+    { value: 'complaint', label: 'Réclamation' },
+    { value: 'suggestion', label: 'Suggestion' },
   ];
 
   const priorityOptions = [
@@ -91,20 +101,28 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       }
 
       const response = await ticketService.getTickets(params);
-      
+      const newTickets = response.data?.tickets || [];
+
       if (params.page === 1 || isRefresh) {
-        setTickets(response.data.tickets);
+        setTickets(newTickets);
       } else {
-        setTickets(prev => [...prev, ...response.data.tickets]);
+        // Éviter les doublons si onEndReached se déclenche deux fois
+        setTickets(prev => {
+          const ids = new Set(prev.map(t => t._id));
+          return [...prev, ...newTickets.filter(t => !ids.has(t._id))];
+        });
       }
-      
-      setPagination(response.data.pagination);
+
+      if (response.data?.pagination) {
+        setPagination(response.data.pagination);
+      }
     } catch (error: any) {
-      logger.error('Erreur chargement tickets:', error);
-      Alert.alert('Erreur', error.message || 'Impossible de charger les tickets');
+      logger.error('Erreur chargement tickets:', error?.message);
+      dispatch(showError({ title: 'Erreur', message: error.message || 'Impossible de charger les tickets' }) as any);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      setHasLoaded(true);
     }
   }, [filters]);
 
@@ -137,14 +155,19 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
   };
 
   const handleLoadMore = () => {
-    if (pagination.current < pagination.pages && !isLoading) {
+    if (pagination.current < pagination.pages && !isLoading && !isRefreshing) {
       const nextParams = { ...filters, page: pagination.current + 1 };
       loadTickets(nextParams);
     }
   };
 
+  const openFilters = () => {
+    setDraftFilters(filters); // repartir des filtres actuellement appliqués
+    setShowFilters(true);
+  };
+
   const applyFilters = () => {
-    const newFilters = { ...filters, page: 1 };
+    const newFilters = { ...draftFilters, page: 1 };
     setFilters(newFilters);
     loadTickets(newFilters);
     setShowFilters(false);
@@ -159,6 +182,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       priority: ''
     };
     setFilters(resetFilters);
+    setDraftFilters(resetFilters);
     loadTickets(resetFilters);
     setShowFilters(false);
   };
@@ -173,6 +197,16 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       minute: '2-digit'
     });
   };
+
+  // Recherche locale (numéro, sujet, description, nom) sur les tickets déjà chargés
+  const displayedTickets = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return tickets;
+    return tickets.filter(t =>
+      [t.ticketNumber, t.subject, t.description, t.user?.firstName, t.user?.lastName]
+        .some(v => v?.toLowerCase().includes(q))
+    );
+  }, [tickets, searchQuery]);
 
   const getActiveFiltersCount = () => {
     let count = 0;
@@ -287,7 +321,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       <View style={styles.ticketHeader}>
         <View style={styles.ticketNumberContainer}>
           <MaterialIcons name="confirmation-number" size={16} color={colors.primary} />
-          <Text style={[styles.ticketNumber, { color: colors.primary }]}>
+          <Text style={[styles.ticketNumber, { color: colors.primary }]} numberOfLines={1}>
             {item.ticketNumber}
           </Text>
         </View>
@@ -318,7 +352,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       {permissions.canViewAllTickets && item.user && (
         <View style={styles.userInfo}>
           <MaterialIcons name="person" size={14} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.userInfoText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.userInfoText, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
             {item.user.firstName} {item.user.lastName}
           </Text>
         </View>
@@ -389,6 +423,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       onRequestClose={() => setShowFilters(false)}
     >
       <View style={styles.modalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowFilters(false)} />
         <View style={[styles.filterModal, { backgroundColor: colors.background }]}>
           <View style={styles.filterHeader}>
             <Text style={[styles.filterTitle, { color: colors.text }]}>
@@ -402,6 +437,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          <ScrollView style={styles.filterScroll} showsVerticalScrollIndicator={false}>
           {/* Statut */}
           <View style={styles.filterSection}>
             <Text style={[styles.filterLabel, { color: colors.text }]}>Statut</Text>
@@ -412,17 +448,17 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
                   style={[
                     styles.filterOption,
                     {
-                      backgroundColor: filters.status === option.value
+                      backgroundColor: draftFilters.status === option.value
                         ? colors.primary + '20'
                         : (dark ? COLORS.dark3 : COLORS.greyscale300),
                     },
                   ]}
-                  onPress={() => setFilters(prev => ({ ...prev, status: option.value }))}
+                  onPress={() => setDraftFilters(prev => ({ ...prev, status: option.value }))}
                 >
                   <Text style={[
                     styles.filterOptionText,
                     {
-                      color: filters.status === option.value
+                      color: draftFilters.status === option.value
                         ? colors.primary
                         : colors.text,
                     },
@@ -444,17 +480,17 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
                   style={[
                     styles.filterOption,
                     {
-                      backgroundColor: filters.category === option.value
+                      backgroundColor: draftFilters.category === option.value
                         ? colors.primary + '20'
                         : (dark ? COLORS.dark3 : COLORS.greyscale300),
                     },
                   ]}
-                  onPress={() => setFilters(prev => ({ ...prev, category: option.value }))}
+                  onPress={() => setDraftFilters(prev => ({ ...prev, category: option.value }))}
                 >
                   <Text style={[
                     styles.filterOptionText,
                     {
-                      color: filters.category === option.value
+                      color: draftFilters.category === option.value
                         ? colors.primary
                         : colors.text,
                     },
@@ -476,17 +512,17 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
                   style={[
                     styles.filterOption,
                     {
-                      backgroundColor: filters.priority === option.value
+                      backgroundColor: draftFilters.priority === option.value
                         ? colors.primary + '20'
                         : (dark ? COLORS.dark3 : COLORS.greyscale300),
                     },
                   ]}
-                  onPress={() => setFilters(prev => ({ ...prev, priority: option.value }))}
+                  onPress={() => setDraftFilters(prev => ({ ...prev, priority: option.value }))}
                 >
                   <Text style={[
                     styles.filterOptionText,
                     {
-                      color: filters.priority === option.value
+                      color: draftFilters.priority === option.value
                         ? colors.primary
                         : colors.text,
                     },
@@ -497,6 +533,8 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
               ))}
             </View>
           </View>
+
+          </ScrollView>
 
           {/* Boutons d'action */}
           <View style={styles.filterActions}>
@@ -522,7 +560,26 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
     </Modal>
   );
 
-  const renderEmptyState = () => (
+  const renderEmptyState = () => {
+    if (!hasLoaded || (isLoading && tickets.length === 0)) {
+      return (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+    if (searchQuery.trim() && tickets.length > 0) {
+      return (
+        <View style={styles.emptyState}>
+          <MaterialIcons name="search-off" size={64} color={dark ? COLORS.grayTie : COLORS.gray} />
+          <Text style={[styles.emptyStateTitle, { color: colors.text }]}>Aucun résultat</Text>
+          <Text style={[styles.emptyStateText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            Aucun ticket chargé ne correspond à « {searchQuery.trim()} ».
+          </Text>
+        </View>
+      );
+    }
+    return (
     <View style={styles.emptyState}>
       <MaterialIcons name="support-agent" size={80} color={dark ? COLORS.grayTie : COLORS.gray} />
       <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
@@ -545,10 +602,11 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       )}
     </View>
-  );
+    );
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>      
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <RefreshableHeader
         title={permissions.canViewAllTickets ? 'Tous les tickets' : 'Mes Tickets'}
         showBackButton={true}
@@ -582,6 +640,10 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
             placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
           />
         </View>
         <TouchableOpacity
@@ -591,7 +653,8 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
               backgroundColor: getActiveFiltersCount() > 0 ? colors.primary : (dark ? COLORS.dark2 : COLORS.white),
             },
           ]}
-          onPress={() => setShowFilters(true)}
+          onPress={openFilters}
+          accessibilityLabel="Filtrer les tickets"
         >
           <MaterialIcons 
             name="filter-list" 
@@ -607,19 +670,28 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Stats rapides */}
-      <View style={[styles.statsContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.statsContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderBottomColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}>
         <Text style={[styles.statsText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-          {pagination.totalDocs} ticket{pagination.totalDocs > 1 ? 's' : ''} au total
+          {searchQuery.trim()
+            ? `${displayedTickets.length} résultat${displayedTickets.length > 1 ? 's' : ''} sur ${tickets.length} chargé${tickets.length > 1 ? 's' : ''}`
+            : `${pagination.totalDocs} ticket${pagination.totalDocs > 1 ? 's' : ''} au total`}
         </Text>
       </View>
 
       {/* Liste des tickets */}
       <FlatList
-        data={tickets}
+        data={displayedTickets}
         renderItem={renderTicketItem}
         keyExtractor={(item) => item._id}
         style={styles.list}
-        contentContainerStyle={tickets.length === 0 ? styles.listEmpty : styles.listContent}
+        contentContainerStyle={displayedTickets.length === 0 ? styles.listEmpty : styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        ListFooterComponent={
+          isLoading && tickets.length > 0 ? (
+            <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -629,7 +701,7 @@ const TicketListScreen: React.FC<TicketListScreenProps> = ({ navigation }) => {
           />
         }
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.1}
+        onEndReachedThreshold={0.3}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
       />
@@ -876,6 +948,7 @@ const styles = StyleSheet.create({
   },
   ticketMeta: {
     flex: 1,
+    marginRight: 8,
   },
   metaItem: {
     flexDirection: 'row',
@@ -953,7 +1026,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 40,
-    maxHeight: '100%',
+    maxHeight: '85%',
+  },
+  filterScroll: {
+    flexGrow: 0,
   },
   filterHeader: {
     flexDirection: 'row',

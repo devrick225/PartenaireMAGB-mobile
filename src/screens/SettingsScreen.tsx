@@ -14,17 +14,25 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { useSelector, useDispatch } from 'react-redux';
-import useLogout from '../hooks/useLogout';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import userService from '../store/services/userService';
-import donationService from '../store/services/donationService';
-import { showApiError } from '../store/services/apiClient';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor } from '../hooks/useUserPermissions';
 import { logoutUser, updateUser } from '../store/slices/authSlice';
+import useLogout from '../hooks/useLogout';
 import { RootState } from '../store';
+import { showError, showSuccess } from '../store/slices/notificationSlice';
+import {
+  getBiometricSupport,
+  isBiometricEnabled,
+  setBiometricEnabled,
+  disableBiometric,
+  getSavedCredentials,
+  authenticateBiometric,
+} from '../utils/biometricAuth';
 
 interface SettingItem {
   id: string;
@@ -65,13 +73,67 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     theme: 'auto',
   });
   
+  // isLoading : action longue (vérification paiements) -> overlay
+  // isSaving : enregistrement d'une préférence -> pas d'écran bloquant, juste les contrôles désactivés
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  
-  // Charger les préférences de l'utilisateur au démarrage
+
+  // Face ID / Touch ID
+  const [biometric, setBiometric] = useState({ available: false, enrolled: false, label: 'Face ID', enabled: false });
+
+  useEffect(() => {
+    (async () => {
+      const support = await getBiometricSupport();
+      const enabled = await isBiometricEnabled();
+      setBiometric({ ...support, enabled: enabled && support.enrolled });
+    })();
+  }, []);
+
+  const handleToggleBiometric = async (value: boolean) => {
+    if (!value) {
+      await disableBiometric();
+      setBiometric(prev => ({ ...prev, enabled: false }));
+      dispatch(showSuccess({ title: `${biometric.label} désactivé`, message: 'Vous vous connecterez avec votre mot de passe.' }));
+      return;
+    }
+
+    if (!biometric.enrolled) {
+      dispatch(showError({
+        title: `${biometric.label} non configuré`,
+        message: `Configurez ${biometric.label} dans les Réglages de votre téléphone, puis réessayez.`,
+      }));
+      return;
+    }
+
+    try {
+      // Vérifier l'identité avant d'activer
+      const auth = await authenticateBiometric(`Activer ${biometric.label}`);
+      if (!auth.success) {
+        if (!auth.cancelled) {
+          dispatch(showError({ title: 'Échec', message: `Impossible d'activer ${biometric.label}.` }));
+        }
+        return;
+      }
+      await setBiometricEnabled(true);
+      setBiometric(prev => ({ ...prev, enabled: true }));
+
+      const saved = await getSavedCredentials();
+      dispatch(showSuccess({
+        title: `${biometric.label} activé`,
+        message: saved
+          ? `Vous pourrez vous connecter avec ${biometric.label}.`
+          : `${biometric.label} sera disponible après votre prochaine connexion avec mot de passe.`,
+      }));
+    } catch (e) {
+      logger.error('Erreur activation biométrie:', e);
+      dispatch(showError({ title: 'Erreur', message: `Impossible d'activer ${biometric.label}.` }));
+    }
+  };
+
+  // Charger les préférences à l'ouverture (dépend de l'id : updateUser ne relance pas le chargement)
   useEffect(() => {
     if (user) {
-      // Initialiser avec les valeurs de l'utilisateur connecté
       setPreferences(prev => ({
         ...prev,
         language: user.language || 'fr',
@@ -79,22 +141,24 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       }));
       loadUserPreferences();
     }
-  }, [user]);
-  
+  }, [user?.id]);
+
   const loadUserPreferences = async () => {
     try {
-      setIsLoading(true);
       const response = await userService.getUserPreferences();
-      
-      if (response.data?.data) {
-        const userPrefs = response.data.data;
-        setPreferences(userPrefs);
+      const userPrefs = response.data?.data;
+      if (userPrefs) {
+        // Fusion avec les valeurs par défaut : le serveur peut omettre certains champs
+        setPreferences(prev => ({
+          ...prev,
+          ...userPrefs,
+          emailNotifications: { ...prev.emailNotifications, ...(userPrefs.emailNotifications || {}) },
+          smsNotifications: { ...prev.smsNotifications, ...(userPrefs.smsNotifications || {}) },
+        }));
       }
     } catch (error) {
       logger.error('Erreur chargement préférences:', error);
       // Garder les valeurs par défaut en cas d'erreur
-    } finally {
-      setIsLoading(false);
     }
   };
   const [currentSelection, setCurrentSelection] = useState<{
@@ -132,55 +196,41 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   };
 
   const updatePreferences = async (newPreferences: any) => {
-    try {
-      setIsLoading(true);
-      const response = await userService.updateUserPreferences(newPreferences);
-      
-      // Mettre à jour l'état local
-      if (newPreferences.language || newPreferences.currency || newPreferences.theme) {
-        setPreferences(prev => {
-          const updated = { ...prev };
-          if (newPreferences.language) updated.language = newPreferences.language;
-          if (newPreferences.currency) updated.currency = newPreferences.currency;
-          if (newPreferences.theme) updated.theme = newPreferences.theme;
-          return updated;
-        });
-      }
+    const previous = preferences; // pour annuler en cas d'échec
+    // Mise à jour optimiste de l'affichage
+    setPreferences(prev => ({
+      ...prev,
+      ...(newPreferences.language && { language: newPreferences.language }),
+      ...(newPreferences.currency && { currency: newPreferences.currency }),
+      ...(newPreferences.theme && { theme: newPreferences.theme }),
+      ...(newPreferences.emailNotifications && {
+        emailNotifications: { ...prev.emailNotifications, ...newPreferences.emailNotifications },
+      }),
+      ...(newPreferences.smsNotifications && {
+        smsNotifications: { ...prev.smsNotifications, ...newPreferences.smsNotifications },
+      }),
+    }));
 
-      // Mettre à jour le Redux store pour persister les changements
+    try {
+      setIsSaving(true);
+      await userService.updateUserPreferences(newPreferences);
+
+      // Persister langue / devise dans le store Redux
       if (newPreferences.language || newPreferences.currency) {
-        const updatedUser = { ...user };
-        if (newPreferences.language) updatedUser.language = newPreferences.language;
-        if (newPreferences.currency) updatedUser.currency = newPreferences.currency;
-        
-        // Dispatch pour mettre à jour le store
-        dispatch(updateUser(updatedUser) as any);
+        dispatch(updateUser({
+          ...(newPreferences.language && { language: newPreferences.language }),
+          ...(newPreferences.currency && { currency: newPreferences.currency }),
+        }) as any);
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Erreur mise à jour préférences:', error);
-      Alert.alert('Erreur', 'Impossible de mettre à jour les préférences');
-      
-      // En cas d'erreur, on remet l'état précédent pour les toggles
-      if (newPreferences.emailNotifications || newPreferences.smsNotifications) {
-        setPreferences(prev => {
-          const updated = { ...prev };
-          if (newPreferences.emailNotifications) {
-            updated.emailNotifications = {
-              ...prev.emailNotifications,
-              ...newPreferences.emailNotifications,
-            };
-          }
-          if (newPreferences.smsNotifications) {
-            updated.smsNotifications = {
-              ...prev.smsNotifications,
-              ...newPreferences.smsNotifications,
-            };
-          }
-          return updated;
-        });
-      }
+      setPreferences(previous); // retour à l'état d'avant
+      dispatch(showError({
+        title: 'Erreur',
+        message: 'Impossible de mettre à jour les préférences. Réessayez.',
+      }));
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -193,6 +243,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         {
           text: 'Déconnexion',
           style: 'destructive',
+          // logout → RootNavigator bascule automatiquement vers AuthNavigator
           onPress: () => logout(),
         },
       ]
@@ -221,7 +272,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                     if (password) {
                       try {
                         await userService.deleteAccount(password);
-                        navigation.navigate('Login');
+                        dispatch(logoutUser() as any);
                       } catch (error) {
                         Alert.alert('Erreur', 'Impossible de supprimer le compte');
                       }
@@ -237,40 +288,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     );
   };
 
-  const handleVerifyAllPayments = () => {
-    Alert.alert(
-      'Vérification des paiements',
-      'Lancer la vérification de tous les paiements en attente ? Cette opération peut prendre quelques secondes.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Vérifier',
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              const response = await donationService.verifyAllPayments();
-              
-              if (response.data.success) {
-                const stats = response.data.data;
-                Alert.alert(
-                  'Vérification terminée',
-                  `✅ ${stats.completed} paiements complétés\n❌ ${stats.failed} paiements échoués\n🔍 ${stats.checked} paiements rs\n⚠️ ${stats.errors} erreurs`,
-                  [{ text: 'OK' }]
-                );
-              }
-            } catch (error: any) {
-              logger.error('Erreur vérification globale:', error);
-              showApiError(error, 'Erreur lors de la vérification');
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-
   const settingSections = [
     {
       title: 'Notifications',
@@ -283,10 +300,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'toggle' as const,
           value: preferences.emailNotifications.donations,
           onToggle: (value: boolean) => {
-            setPreferences(prev => ({
-              ...prev,
-              emailNotifications: { ...prev.emailNotifications, donations: value },
-            }));
             updatePreferences({ emailNotifications: { donations: value } });
           },
         },
@@ -297,10 +310,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'toggle' as const,
           value: preferences.emailNotifications.reminders,
           onToggle: (value: boolean) => {
-            setPreferences(prev => ({
-              ...prev,
-              emailNotifications: { ...prev.emailNotifications, reminders: value },
-            }));
             updatePreferences({ emailNotifications: { reminders: value } });
           },
         },
@@ -339,68 +348,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         },*/
       ],
     },
-    {
-      title: 'Préférences',
-      icon: 'tune',
-      items: [
-        {
-          id: 'language',
-          title: 'Langue',
-          icon: 'language',
-          type: 'selection' as const,
-          value: languages.find(l => l.value === preferences.language)?.label || 'Français',
-          onPress: () => {
-            showSelectionModal(
-              'Choisir la langue',
-              languages,
-              preferences.language,
-              (value) => {
-                updatePreferences({ language: value });
-                setModalVisible(false);
-              }
-            );
-          },
-        },
-        {
-          id: 'currency',
-          title: 'Devise',
-          icon: 'attach-money',
-          type: 'selection' as const,
-          value: currencies.find(c => c.value === preferences.currency)?.label || 'XOF (Franc CFA)',
-          onPress: () => {
-            showSelectionModal(
-              'Choisir la devise',
-              currencies,
-              preferences.currency,
-              (value) => {
-                updatePreferences({ currency: value });
-                setModalVisible(false);
-              }
-            );
-          },
-        },
-        /*
-        {
-          id: 'theme',
-          title: 'Thème',
-          icon: 'palette',
-          type: 'selection' as const,
-          value: themes.find(t => t.value === preferences.theme)?.label || 'Automatique',
-          onPress: () => {
-            showSelectionModal(
-              'Choisir le thème',
-              themes,
-              preferences.theme,
-              (value) => {
-                updatePreferences({ theme: value });
-                setModalVisible(false);
-              }
-            );
-          },
-        },
-        */
-      ],
-    },
+    // Section « Préférences » (langue, devise) retirée : l'app reste en français / XOF pour l'instant
     {
       title: 'Sécurité',
       icon: 'security',
@@ -412,6 +360,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'navigation' as const,
           onPress: () => navigation.navigate('ChangePassword'),
         },
+        // Interrupteur Face ID / Touch ID (seulement si le téléphone a la biométrie)
+        ...(biometric.available ? [{
+          id: 'biometric_login',
+          title: `Connexion avec ${biometric.label}`,
+          icon: biometric.label === 'Face ID' ? 'face' : 'fingerprint',
+          type: 'toggle' as const,
+          value: biometric.enabled,
+          onToggle: handleToggleBiometric,
+        }] : []),
 
         {
           id: 'privacy_policy',
@@ -459,8 +416,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'navigation' as const,
           onPress: () => navigation.navigate('HelpCenter'),
         },
-        // Afficher "Mes tickets" uniquement pour les admins
-        ...(permissions.canAccessAdminFeatures ? [
+        // « Mes tickets » pour qui ne voit pas déjà « Tous les tickets » (utilisateurs, trésorier)
+        ...(!permissions.canViewAllTickets ? [
           {
             id: 'my_tickets',
             title: 'Mes tickets de support',
@@ -517,13 +474,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           type: 'navigation' as const,
           onPress: () => navigation.navigate('PaymentManagement'),
         }] : []),
-        ...(permissions.canViewPaymentStats ? [{
-          id: 'verify_all_payments',
-          title: 'Vérification rapide',
-          icon: 'sync',
-          type: 'action' as const,
-          onPress: handleVerifyAllPayments,
-        }] : []),
+        // « Vérification rapide » masquée : la tâche cron backend vérifie les paiements en attente toutes les 30 min
         ...(permissions.canViewAllTickets ? [{
           id: 'all_tickets',
           title: 'Tous les tickets',
@@ -535,30 +486,22 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     };
   };
 
-  // Section développement — supprimée
-  const getDevSection = () => null;
-
   // Créer la liste finale des sections
   const finalSections = () => {
-    const sections = [...settingSections];
     const adminSection = getAdminSection();
-    const devSection = getDevSection();
-
-    // Insérer admin avant "Compte"
     if (adminSection && adminSection.items.length > 0) {
-      sections.splice(sections.length - 1, 0, adminSection);
+      // Insérer la section admin avant la section Compte
+      return [...settingSections.slice(0, -1), adminSection, settingSections[settingSections.length - 1]];
     }
-    // Insérer dev en dernier (avant "Compte")
-    if (devSection) {
-      sections.splice(sections.length - 1, 0, devSection);
-    }
-    return sections;
+    return settingSections;
   };
 
+  const sections = finalSections();
+
   const renderSettingItem = (item: SettingItem, sectionIndex: number, itemIndex: number) => {
-    const sections = finalSections();
     const isLastInSection = itemIndex === sections[sectionIndex].items.length - 1;
-    
+    const isToggle = item.type === 'toggle';
+
     return (
       <TouchableOpacity
         key={item.id}
@@ -567,8 +510,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           { borderBottomColor: dark ? COLORS.dark3 : COLORS.greyscale300 },
           isLastInSection && { borderBottomWidth: 0 },
         ]}
-        onPress={item.onPress}
-        disabled={item.type === 'toggle' || isLoading}
+        // Toute la ligne est cliquable, y compris pour les interrupteurs
+        onPress={isToggle ? () => item.onToggle?.(!item.value) : item.onPress}
+        disabled={isLoading || (isToggle && isSaving)}
+        accessibilityRole={isToggle ? 'switch' : 'button'}
+        accessibilityState={isToggle ? { checked: !!item.value } : undefined}
       >
         <View style={styles.settingItemLeft}>
           <MaterialIcons
@@ -578,6 +524,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           />
           <View style={styles.settingItemText}>
             <Text
+              numberOfLines={2}
               style={[
                 styles.settingItemTitle,
                 {
@@ -598,18 +545,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         </View>
         
         <View style={styles.settingItemRight}>
-          {item.type === 'toggle' && (
-            <TouchableOpacity
-              onPress={() => item.onToggle?.(!item.value)}
-              disabled={isLoading}
-              style={styles.checkboxContainer}
-            >
-              <MaterialIcons
-                name={item.value ? 'check-box' : 'check-box-outline-blank'}
-                size={24}
-                color={item.value ? colors.primary : (dark ? COLORS.grayTie : COLORS.gray)}
+          {isToggle && (
+            <Switch
+              value={!!item.value}
+              onValueChange={(v) => item.onToggle?.(v)}
+              disabled={isSaving}
+              trackColor={{ false: dark ? COLORS.dark3 : COLORS.greyscale300, true: colors.primary }}
+              thumbColor={COLORS.white}
+              ios_backgroundColor={dark ? COLORS.dark3 : COLORS.greyscale300}
             />
-            </TouchableOpacity>
           )}
           {(item.type === 'navigation' || item.type === 'selection') && (
             <MaterialIcons
@@ -632,7 +576,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { borderBottomColor: dark ? COLORS.dark3 : 'rgba(0,0,0,0.1)' }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               {currentSelection?.title}
             </Text>
@@ -692,19 +636,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     </Modal>
   );
 
-  if (isLoading) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>
-          Mise à jour en cours...
-        </Text>
-      </View>
-    );
-  }
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
         <TouchableOpacity
@@ -721,26 +654,23 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         {/* Informations utilisateur */}
         <View style={[styles.userSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
           <View style={styles.userInfo}>
-            {user?.avatar ? (
-              <TouchableOpacity
-              style={styles.userInfo}
+            <TouchableOpacity
               onPress={() => navigation.navigate('ProfileImage')}
-            ><Image  
-            source={{ uri: user.avatar }} 
-            style={styles.userAvatarImage}
-          />
-
+              accessibilityRole="button"
+              accessibilityLabel="Modifier la photo de profil"
+            >
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
+              ) : (
+                <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.userAvatarText}>
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
-              
-            ) : (
-            <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
-              <Text style={styles.userAvatarText}>
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </Text>
-            </View>
-            )}
             <View style={styles.userDetails}>
-              <Text style={[styles.userName, { color: colors.text }]}>
+              <Text style={[styles.userName, { color: colors.text }]} numberOfLines={2}>
                 {user?.firstName} {user?.lastName}
               </Text>
 
@@ -768,24 +698,24 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               </View>
 
               <View style={styles.emailContainer}>
-                <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1} ellipsizeMode="middle">
                   {user?.email}
                 </Text>
                 {user?.isEmailVerified && (
                   <View style={styles.verifiedContainer}>
-                    <MaterialIcons name="verified" size={14} color={COLORS.primary} />
+                    <MaterialIcons name="verified" size={16} color="#4CAF50" />
                   </View>
                 )}
               </View>
 
               {user?.phone && (
                 <View style={styles.phoneContainer}>
-                  <Text style={[styles.userPhone, { color: dark ? COLORS.grayTie : COLORS.gray }]}> 
+                  <Text style={[styles.userPhone, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
                     {user.phone}
                   </Text>
                   {user?.isPhoneVerified && (
                     <View style={styles.verifiedContainer}>
-                      <MaterialIcons name="verified" size={14} color={COLORS.primary} />
+                      <MaterialIcons name="verified" size={16} color="#4CAF50" />
                     </View>
                   )}
                 </View>
@@ -803,7 +733,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 {(user as any)?.level && (
                   <View style={styles.levelBadge}>
                     <MaterialIcons name="star" size={14} color={colors.primary} />
-                    <Text style={[styles.userLevelText, { color: colors.primary }]}> 
+                    <Text style={[styles.userLevelText, { color: colors.primary }]}>
                       Niveau {(user as any)?.level || 1}
                     </Text>
                   </View>
@@ -814,7 +744,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Sections de paramètres */}
-        {finalSections().map((section, sectionIndex) => (
+        {sections.map((section, sectionIndex) => (
           <View
             key={section.title}
             style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
@@ -841,7 +771,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         {/* Version de l'app */}
         <View style={styles.versionSection}>
           <Text style={[styles.versionText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-            Version 1.0.0
+            Version {Constants.expoConfig?.version ?? '1.0.0'}
           </Text>
         </View>
 
@@ -849,6 +779,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       </ScrollView>
 
       {renderSelectionModal()}
+
+      {isLoading && (
+        <View style={styles.loadingOverlay} pointerEvents="auto">
+          <View style={[styles.loadingBox, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.text }]}>Traitement en cours...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -960,6 +899,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+    paddingRight: 4,
   },
   phoneContainer: {
     flexDirection: 'row',
@@ -972,6 +912,7 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: 14,
+    flexShrink: 1,
   },
   userPhone: {
     fontSize: 14,
@@ -983,6 +924,8 @@ const styles = StyleSheet.create({
   userLevel: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   userLevelText: {
     fontSize: 12,
@@ -1041,6 +984,7 @@ const styles = StyleSheet.create({
   settingItemRight: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
   },
   versionSection: {
     alignItems: 'center',
@@ -1050,7 +994,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   bottomPadding: {
-    height: 20,
+    height: 40, // espace au-dessus de la barre d'accueil iPhone
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingBox: {
+    paddingVertical: 24,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,

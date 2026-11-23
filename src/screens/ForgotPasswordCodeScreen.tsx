@@ -50,17 +50,11 @@ const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ nav
       });
 
       if (response.data.success) {
+        // Email normalisé (minuscules, sans espaces) transmis à l'écran suivant et pour le renvoi du code
+        navigation.navigate('ResetPasswordWithCodeScreen', { email: email.toLowerCase().trim() });
         Alert.alert(
           'Code envoyé',
-          'Un code de réinitialisation a été envoyé à votre adresse email',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                navigation.navigate('ResetPasswordWithCodeScreen', { email });
-              }
-            }
-          ]
+          'Si cet email est associé à un compte, vous allez recevoir un code (valable 10 minutes). Pensez à vérifier vos spams.'
         );
       }
     } catch (error: any) {
@@ -71,11 +65,10 @@ const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ nav
     }
   };
 
+  // Retour à l'écran précédent (choix email / SMS) plutôt que tout recommencer depuis la connexion
   const handleBackToLogin = () => {
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   return (

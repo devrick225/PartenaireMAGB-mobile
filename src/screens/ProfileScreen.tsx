@@ -13,18 +13,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import useLogout from '../hooks/useLogout';
 import { MaterialIcons, Ionicons, Octicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import userService from '../store/services/userService';
-import { updateUser, logoutUser } from '../store/slices/authSlice';
+import { updateUser } from '../store/slices/authSlice';
+import useLogout from '../hooks/useLogout';
+import { showApiError } from '../store/services/apiClient';
 import { RootState } from '../store';
 import PartnerIdDisplay from '../components/PartnerIdDisplay';
 import RefreshableHeader from '../components/RefreshableHeader';
-import { showApiError } from '../store/services/apiClient';
+import { requestMediaLibraryPermission } from '../utils/permissions';
 
 interface UserProfile {
   user: {
@@ -103,11 +104,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const handleImagePicker = async () => {
     try {
-      // No storage permission needed — expo-image-picker uses the Android
-      // system photo picker on Android 13+, and NSPhotoLibraryUsageDescription
-      // covers iOS without a runtime gate here.
+      const granted = await requestMediaLibraryPermission();
+      if (!granted) return;
+
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'], // MediaTypeOptions est déprécié
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -164,7 +165,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         { text: 'Annuler', style: 'cancel' },
         { 
           text: 'Déconnexion', 
-          // forceLogout → RootNavigator bascule automatiquement vers AuthNavigator
+          // logout → RootNavigator bascule automatiquement vers AuthNavigator
+          // (en cas d'échec réseau, useLogout force la déconnexion locale)
           onPress: () => logout(),
         },
       ]
@@ -179,7 +181,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     });
   };
 
-  const renderInfoItem = (icon: string, label: string, value: string | undefined, verified?: boolean) => (
+  const renderInfoItem = (
+    icon: string,
+    label: string,
+    value: string | undefined,
+    verified?: boolean,
+    onVerify?: () => void
+  ) => (
     <View style={styles.infoItem}>
       <MaterialIcons name={icon as any} size={20} color={colors.primary} />
       <View style={styles.infoContent}>
@@ -188,12 +196,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {value || 'Non renseigné'}
         </Text>
       </View>
-      {verified !== undefined && (
-        <MaterialIcons
-          name={verified ? 'verified' : 'cancel'}
-          size={20}
-          color={verified ? '#4CAF50' : '#FF5722'}
-        />
+      {/* Pas d'icône si le champ est vide (ex: pas de téléphone) */}
+      {verified !== undefined && !!value && (
+        verified ? (
+          <MaterialIcons name="verified" size={20} color="#4CAF50" accessibilityLabel={`${label} vérifié`} />
+        ) : (
+          <TouchableOpacity
+            onPress={onVerify}
+            disabled={!onVerify}
+            style={styles.verifyChip}
+            accessibilityRole="button"
+            accessibilityLabel={`Vérifier ${label.toLowerCase()}`}
+          >
+            <MaterialIcons name="error-outline" size={16} color="#FF5722" />
+            <Text style={styles.verifyChipText}>Vérifier</Text>
+          </TouchableOpacity>
+        )
       )}
     </View>
   );
@@ -329,8 +347,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             Informations personnelles
           </Text>
           
-          {renderInfoItem('email', 'Email', profile?.user?.email, profile?.user?.isEmailVerified)}
-          {renderInfoItem('phone', 'Téléphone', profile?.user?.phone, profile?.user?.isPhoneVerified)}
+          {/* Statut lu dans Redux en priorité : mis à jour dès la vérification, sans recharger le profil */}
+          {renderInfoItem(
+            'email', 'Email',
+            profile?.user?.email ?? user?.email,
+            user?.isEmailVerified ?? profile?.user?.isEmailVerified,
+            () => navigation.navigate('EmailVerification')
+          )}
+          {renderInfoItem(
+            'phone', 'Téléphone',
+            profile?.user?.phone ?? user?.phone,
+            user?.isPhoneVerified ?? profile?.user?.isPhoneVerified,
+            () => navigation.navigate('PhoneVerification')
+          )}
           {renderInfoItem('location-city', 'Ville', profile?.user?.city)}
           {renderInfoItem('public', 'Pays', profile?.user?.country)}
           {renderInfoItem('work', 'Profession', profile?.occupation)}
@@ -410,6 +439,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  verifyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF5722',
+    backgroundColor: '#FF572212',
+  },
+  verifyChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF5722',
+  },
   container: {
     flex: 1,
   },

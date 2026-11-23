@@ -11,13 +11,15 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
-import apiClient, { showApiError } from '../store/services/apiClient';
+import apiClient from '../store/services/apiClient';
 import useUserPermissions from '../hooks/useUserPermissions';
 import { requestMediaLibraryPermission } from '../utils/permissions';
 
@@ -198,6 +200,7 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
   };
 
   const handleSubmit = async () => {
+    if (isLoading) return;
     if (!validateForm()) {
       return;
     }
@@ -207,22 +210,22 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
 
       // Créer le ticket d'abord avec les données de base
       const ticketData = {
-        subject: formData.subject,
-        description: formData.description,
+        subject: formData.subject.trim(),
+        description: formData.description.trim(),
         category: formData.category,
         priority: formData.priority,
       };
 
-      logger.log('🎫 Création du ticket avec:', ticketData);
-
       const response = await apiClient.post('/tickets', ticketData);
 
       if (response.data.success) {
-        const ticketId = response.data.data.ticket.id;
-        logger.log('✅ Ticket créé avec succès, ID:', ticketId);
+        const createdTicket = response.data.data.ticket || {};
+        // Selon la sérialisation, l'identifiant est « _id » ou « id »
+        const ticketId = createdTicket._id || createdTicket.id;
+        let failedUploads = 0;
 
         // Upload des fichiers si présents
-        if (attachments.length > 0) {
+        if (attachments.length > 0 && ticketId) {
           logger.log('📎 Upload de', attachments.length, 'fichiers...');
           
           for (const file of attachments) {
@@ -239,28 +242,36 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
                   'Content-Type': 'multipart/form-data',
                 },
               });
-              logger.log('✅ Fichier uploadé:', file.name);
-            } catch (fileError) {
-              logger.error('❌ Erreur upload fichier:', file.name, fileError);
-              // Continuer même si un fichier échoue
+            } catch (fileError: any) {
+              logger.error('❌ Erreur upload fichier:', file.name, fileError?.message);
+              failedUploads++; // continuer, mais prévenir l'utilisateur
             }
           }
         }
 
+        // Quitter tout de suite le formulaire (évite un second envoi si l'alerte est fermée autrement)
+        navigation.goBack();
         Alert.alert(
           'Demande envoyée !',
-          `Votre ticket a été créé avec succès.\nNuméro: ${response.data.data.ticket.ticketNumber}\n\nNotre équipe vous répondra dans les plus brefs délais.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
+          `Votre ticket${createdTicket.ticketNumber ? ` n°${createdTicket.ticketNumber}` : ''} a été créé.\n\nNotre équipe vous répondra dans les plus brefs délais.` +
+            (failedUploads > 0
+              ? `\n\n⚠️ ${failedUploads} pièce(s) jointe(s) n'ont pas pu être envoyées. Vous pourrez les ajouter depuis le ticket.`
+              : '')
         );
       }
     } catch (error: any) {
-      logger.error('❌ Erreur création ticket:', error);
-      showApiError(error, 'Impossible de créer votre demande. Veuillez réessayer.');
+      logger.error('❌ Erreur création ticket:', error?.message);
+      let errorMessage = 'Impossible de créer votre demande. Veuillez réessayer.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.details) {
+        // Erreurs de validation
+        const validationErrors = error.response.data.details.map((detail: any) => detail.msg).join('\n');
+        errorMessage = `Erreurs de validation:\n${validationErrors}`;
+      }
+      
+      Alert.alert('Erreur', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -464,7 +475,13 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {/* Information */}
         <View style={[styles.infoCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
           <View style={styles.infoHeader}>
@@ -664,6 +681,7 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
           )}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
 
       {renderCategoryModal()}
       {renderPriorityModal()}

@@ -31,6 +31,7 @@ import {
   clearError
 } from '../store/slices/ministrySlice';
 import { Ministry } from '../types/navigation';
+import openLink from '../utils/openLink';
 
 const { width } = Dimensions.get('window');
 
@@ -87,16 +88,7 @@ const MinistryScreen: React.FC = () => {
   };
 
   const handleExternalLink = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Erreur', 'Impossible d\'ouvrir ce lien');
-      }
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'ouvrir ce lien');
-    }
+    await openLink(url);
   };
 
   const handleContactPress = (ministry: Ministry) => {
@@ -108,14 +100,14 @@ const MinistryScreen: React.FC = () => {
     if (phone) {
       contactOptions.push({
         text: `Appeler ${name || 'le contact'}`,
-        onPress: () => Linking.openURL(`tel:${phone}`)
+        onPress: () => { openLink(`tel:${phone}`); }
       });
     }
 
     if (email) {
       contactOptions.push({
         text: `Envoyer un email`,
-        onPress: () => Linking.openURL(`mailto:${email}`)
+        onPress: () => { openLink(`mailto:${email}`); }
       });
     }
 

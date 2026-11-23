@@ -9,14 +9,15 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
-import apiClient from '../store/services/apiClient';
+import apiClient, { showApiError } from '../store/services/apiClient';
 import { useOtpClipboard } from '../hooks/useOtpClipboard';
-import { showApiError } from '../store/services/apiClient';
 
 interface ResetPasswordWithSmsCodeScreenProps {
   navigation: any;
@@ -28,6 +29,13 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
   const { phone } = route.params;
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
+
+  // Auto-remplissage depuis le presse-papier
+  useOtpClipboard({
+    onCodeDetected: (digits) => {
+      setCode(digits);
+    },
+  });
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -36,20 +44,26 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
 
   const codeInputRefs = useRef<TextInput[]>([]);
 
-  // Auto-remplissage depuis le presse-papier
-  useOtpClipboard({
-    onCodeDetected: (digits) => {
-      setCode(digits);
-    },
-  });
-
   const handleCodeChange = (text: string, index: number) => {
+    const digits = text.replace(/\D/g, '');
+
+    // Code collé ou rempli automatiquement par iOS (SMS / email) : répartir les 6 chiffres
+    if (digits.length > 1) {
+      const newCode = [...code];
+      digits.slice(0, 6 - index).split('').forEach((d, i) => { newCode[index + i] = d; });
+      setCode(newCode);
+      const next = Math.min(index + digits.length, 5);
+      codeInputRefs.current[next]?.focus();
+      if (newCode.every(Boolean)) codeInputRefs.current[next]?.blur();
+      return;
+    }
+
     const newCode = [...code];
-    newCode[index] = text;
+    newCode[index] = digits;
     setCode(newCode);
 
     // Auto-focus next input
-    if (text && index < 5) {
+    if (digits && index < 5) {
       codeInputRefs.current[index + 1]?.focus();
     }
   };
@@ -79,7 +93,13 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
     return phone;
   };
 
+
+  // Compte identifié par téléphone : on ne peut pas savoir si le mot de passe mémorisé est le sien.
+  // La prochaine connexion avec mot de passe le remplacera automatiquement.
+  const syncSavedPassword = async () => {};
+
   const handleResetPassword = async () => {
+    if (isLoading) return;
     const enteredCode = code.join('');
     
     if (enteredCode.length !== 6) {
@@ -115,23 +135,10 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
       });
 
       if (response.data.success) {
-        Alert.alert(
-          'Succès',
-          'Votre mot de passe a été réinitialisé avec succès',
-          [
-            {
-              text: 'Se connecter',
-              onPress: () => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Erreur réseau', 'Impossible de réinitialiser le mot de passe. Vérifiez votre connexion.');
+        await syncSavedPassword();
+        // Retour direct à la connexion (l'alerte seule bloquait le parcours si on la fermait sans le bouton)
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        Alert.alert('Mot de passe réinitialisé', 'Connectez-vous avec votre nouveau mot de passe.');
       }
     } catch (error: any) {
       console.error('Erreur reset password SMS:', error);
@@ -149,6 +156,7 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
   };
 
   const handleRequestNewCode = async () => {
+    if (isLoading) return;
     try {
       setIsLoading(true);
       const response = await apiClient.post('/auth/request-password-reset-sms-code', {
@@ -169,10 +177,14 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
 
   return (
     <SafeAreaView style={[styles.area, { backgroundColor: colors.background }]}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Header avec bouton retour */}
           <View style={styles.header}>
@@ -233,8 +245,12 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
                       handleBackspace(index);
                     }
                   }}
-                  keyboardType="numeric"
-                  maxLength={1}
+                  keyboardType="number-pad"
+                  // Le 1er champ accepte 6 chiffres : permet le collage et le remplissage auto iOS
+                  maxLength={index === 0 ? 6 : 1}
+                  textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                  selectTextOnFocus
                   textAlign="center"
                   editable={!isLoading}
                 />
@@ -374,7 +390,7 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

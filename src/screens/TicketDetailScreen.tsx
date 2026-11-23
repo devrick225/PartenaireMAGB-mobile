@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -18,10 +20,18 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import ticketService, { Ticket, TicketComment } from '../store/services/ticketService';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor, UserRole } from '../hooks/useUserPermissions';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { showError, showSuccess } from '../store/slices/notificationSlice';
+import userService from '../store/services/userService';
+
+interface StaffMember {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
 import { RootState } from '../store';
 import RefreshableHeader from '../components/RefreshableHeader';
-import { showApiError } from '../store/services/apiClient';
 
 interface TicketDetailScreenProps {
   navigation: any;
@@ -37,6 +47,9 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   const { ticketId } = route.params;
   const permissions = useUserPermissions();
   const currentUser = useSelector((state: RootState) => state.auth.user);
+  const dispatch = useDispatch();
+  const notifyError = (message: string) => dispatch(showError({ title: 'Erreur', message }) as any);
+  const notifySuccess = (title: string, message = '') => dispatch(showSuccess({ title, message }) as any);
   
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<TicketComment[]>([]);
@@ -45,6 +58,8 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   const [isAddingComment, setIsAddingComment] = useState(false);
   
   const [newComment, setNewComment] = useState('');
+  // Note interne : visible uniquement par le staff, pas d'email envoyé à l'utilisateur
+  const [isInternalComment, setIsInternalComment] = useState(false);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -55,6 +70,39 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   const [ratingComment, setRatingComment] = useState('');
   const [assignToUser, setAssignToUser] = useState('');
   const [escalateReason, setEscalateReason] = useState('');
+  // Action en cours (évite les doubles envois sur assigner / escalader / fermer / évaluer / statut)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Liste des agents (assigner / escalader) au lieu de saisir un ID technique
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+
+  const loadStaff = async () => {
+    if (staff.length > 0 || isLoadingStaff) return;
+    try {
+      setIsLoadingStaff(true);
+      const roles = ['admin', 'moderator', 'support_agent'];
+      const results = await Promise.allSettled(
+        roles.map(role => userService.getAllUsers({ role, limit: 50 } as any))
+      );
+      const members: StaffMember[] = [];
+      results.forEach(r => {
+        if (r.status === 'fulfilled') members.push(...((r.value as any)?.data?.data?.users || []));
+      });
+      // Retirer l'utilisateur courant et les doublons
+      const unique = members.filter((m, i, arr) =>
+        m._id !== currentUser?.id && arr.findIndex(x => x._id === m._id) === i
+      );
+      setStaff(unique);
+    } catch (e) {
+      logger.error('Erreur chargement agents:', e);
+    } finally {
+      setIsLoadingStaff(false);
+    }
+  };
+
+  const openAssignModal = () => { setAssignToUser(''); loadStaff(); setShowAssignModal(true); };
+  const openEscalateModal = () => { setAssignToUser(''); setEscalateReason(''); loadStaff(); setShowEscalateModal(true); };
 
   useEffect(() => {
     loadTicketDetails();
@@ -74,10 +122,12 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       ]);
 
       setTicket(ticketResponse.data.ticket);
-      setComments(commentsResponse.data.comments);
+      setComments(commentsResponse.data.comments || []);
+      setLoadFailed(false);
     } catch (error: any) {
-      logger.error('Erreur chargement détails ticket:', error);
-      showApiError(error, 'Impossible de charger les détails du ticket');
+      logger.error('Erreur chargement détails ticket:', error?.message);
+      setLoadFailed(true);
+      notifyError(error.message || 'Impossible de charger les détails du ticket');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -85,30 +135,28 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   };
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir un commentaire');
-      return;
-    }
+    if (!newComment.trim() || isAddingComment) return;
 
     try {
       setIsAddingComment(true);
       
       await ticketService.addComment(ticketId, {
         comment: newComment.trim(),
-        isInternal: false
+        isInternal: permissions.isSupportRole ? isInternalComment : false
       });
 
+      const wasInternal = isInternalComment;
       setNewComment('');
+      setIsInternalComment(false);
       setShowCommentInput(false);
       
-      // Recharger les commentaires
-      const commentsResponse = await ticketService.getTicketComments(ticketId);
-      setComments(commentsResponse.data.comments);
-      
-      Alert.alert('Succès', 'Commentaire ajouté avec succès');
+      // Recharger ticket + commentaires (un commentaire peut changer le statut, ex: en attente admin)
+      await loadTicketDetails(true);
+      notifySuccess(wasInternal ? 'Note interne ajoutée' : 'Commentaire publié',
+        wasInternal ? 'Visible uniquement par l\'équipe support.' : '');
     } catch (error: any) {
-      logger.error('Erreur ajout commentaire:', error);
-      showApiError(error, 'Impossible d\'ajouter le commentaire');
+      logger.error('Erreur ajout commentaire:', error?.message);
+      notifyError(error.message || 'Impossible d\'ajouter le commentaire');
     } finally {
       setIsAddingComment(false);
     }
@@ -116,36 +164,44 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
 
   const handleAssignTicket = async () => {
     if (!assignToUser.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir l\'ID de l\'utilisateur à assigner');
+      notifyError('Choisissez la personne à qui assigner le ticket');
       return;
     }
+    if (isSubmitting) return;
 
     try {
+      setIsSubmitting(true);
       await ticketService.assignTicket(ticketId, assignToUser.trim());
       setShowAssignModal(false);
       setAssignToUser('');
-      Alert.alert('Succès', 'Ticket assigné avec succès');
-      loadTicketDetails();
+      notifySuccess('Ticket assigné');
+      loadTicketDetails(true);
     } catch (error: any) {
-      showApiError(error, 'Impossible d\'assigner le ticket');
+      notifyError(error.message || 'Impossible d\'assigner le ticket');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEscalateTicket = async () => {
     if (!assignToUser.trim() || !escalateReason.trim()) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      notifyError('Choisissez un responsable et indiquez la raison de l\'escalade');
       return;
     }
+    if (isSubmitting) return;
 
     try {
+      setIsSubmitting(true);
       await ticketService.escalateTicket(ticketId, assignToUser.trim(), escalateReason.trim());
       setShowEscalateModal(false);
       setAssignToUser('');
       setEscalateReason('');
-      Alert.alert('Succès', 'Ticket escaladé avec succès');
-      loadTicketDetails();
+      notifySuccess('Ticket escaladé');
+      loadTicketDetails(true);
     } catch (error: any) {
-      showApiError(error, 'Impossible d\'escalader le ticket');
+      notifyError(error.message || 'Impossible d\'escalader le ticket');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -164,12 +220,16 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         {
           text: 'Confirmer',
           onPress: async () => {
+            if (isSubmitting) return;
             try {
+              setIsSubmitting(true);
               await ticketService.changeTicketStatus(ticketId, newStatus);
-              Alert.alert('Succès', isReopen ? 'Ticket rouvert avec succès' : 'Statut modifié avec succès');
-              loadTicketDetails();
+              notifySuccess(isReopen ? 'Ticket rouvert' : 'Statut modifié');
+              loadTicketDetails(true);
             } catch (error: any) {
-              showApiError(error, 'Impossible de changer le statut');
+              notifyError(error.message || 'Impossible de changer le statut');
+            } finally {
+              setIsSubmitting(false);
             }
           }
         }
@@ -183,18 +243,24 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   };
 
   const confirmCloseTicket = async () => {
+    if (isSubmitting) return;
     try {
+      setIsSubmitting(true);
       await ticketService.closeTicket(ticketId, selectedCloseReason);
       setShowCloseReasonModal(false);
-      Alert.alert('Succès', 'Ticket fermé avec succès');
-      loadTicketDetails();
+      notifySuccess('Ticket fermé');
+      loadTicketDetails(true);
     } catch (error: any) {
-      showApiError(error, 'Impossible de fermer le ticket');
+      notifyError(error.message || 'Impossible de fermer le ticket');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleRateTicket = async () => {
+    if (isSubmitting) return;
     try {
+      setIsSubmitting(true);
       await ticketService.rateTicket(ticketId, {
         score: rating,
         comment: ratingComment.trim() || undefined
@@ -202,10 +268,12 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       
       setShowRatingModal(false);
       setRatingComment('');
-      Alert.alert('Merci !', 'Votre évaluation a été enregistrée');
-      loadTicketDetails();
+      notifySuccess('Merci !', 'Votre évaluation a été enregistrée');
+      loadTicketDetails(true);
     } catch (error: any) {
-      showApiError(error, 'Impossible d\'enregistrer l\'évaluation');
+      notifyError(error.message || 'Impossible d\'enregistrer l\'évaluation');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -619,22 +687,25 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       </View>
 
       {comments.length > 0 ? (
-        comments.map((comment) => (
-          <View key={comment._id || Math.random()} style={styles.commentItem}>
+        comments.map((comment, index) => (
+          <View
+            key={comment._id || `${comment.createdAt}-${index}`}
+            style={[styles.commentItem, comment.isInternal && [styles.internalComment, { backgroundColor: COLORS.warning + '12', borderLeftColor: COLORS.warning }]]}
+          >
             <View style={styles.commentHeader}>
               <View style={styles.commentAuthor}>
                 <MaterialIcons 
-                  name={comment.author.role === 'user' ? 'person' : 'support-agent'} 
+                  name={(comment.author?.role || 'user') === 'user' ? 'person' : 'support-agent'} 
                   size={16} 
-                  color={comment.author.role === 'user' ? colors.primary : COLORS.success} 
+                  color={(comment.author?.role || 'user') === 'user' ? colors.primary : COLORS.success} 
                 />
-                <Text style={[styles.commentAuthorName, { color: colors.text }]}>
-                  {comment.author.firstName} {comment.author.lastName}
+                <Text style={[styles.commentAuthorName, { color: colors.text }]} numberOfLines={1}>
+                  {comment.author ? `${comment.author.firstName ?? ''} ${comment.author.lastName ?? ''}`.trim() : 'Utilisateur supprimé'}
                 </Text>
-                {comment.author.role !== 'user' && (
-                  <View style={[styles.supportBadge, { backgroundColor: getUserRoleColor(comment.author.role as UserRole) + '20' }]}>
-                    <Text style={[styles.supportBadgeText, { color: getUserRoleColor(comment.author.role as UserRole) }]}>
-                      {getUserRoleLabel(comment.author.role as UserRole)}
+                {(comment.author?.role || 'user') !== 'user' && (
+                  <View style={[styles.supportBadge, { backgroundColor: getUserRoleColor((comment.author?.role || 'user') as UserRole) + '20' }]}>
+                    <Text style={[styles.supportBadgeText, { color: getUserRoleColor((comment.author?.role || 'user') as UserRole) }]}>
+                      {getUserRoleLabel((comment.author?.role || 'user') as UserRole)}
                     </Text>
                   </View>
                 )}
@@ -660,12 +731,14 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 {comment.attachments.map((attachment, index) => (
                   <View key={index} style={[styles.attachmentItem, { backgroundColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}>
                     <MaterialIcons name="attachment" size={16} color={colors.primary} />
-                    <Text style={[styles.attachmentName, { color: colors.text }]}>
+                    <Text style={[styles.attachmentName, { color: colors.text }]} numberOfLines={1}>
                       {attachment.filename}
                     </Text>
-                    <Text style={[styles.attachmentSize, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      ({Math.round(attachment.size / 1024)}KB)
-                    </Text>
+                    {!!attachment.size && (
+                      <Text style={[styles.attachmentSize, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                        ({Math.max(1, Math.round(attachment.size / 1024))} Ko)
+                      </Text>
+                    )}
                   </View>
                 ))}
               </View>
@@ -753,7 +826,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               {actions.canAssign && (
                 <TouchableOpacity
                   style={[styles.managementButton, { backgroundColor: colors.primary }]}
-                  onPress={() => setShowAssignModal(true)}
+                  onPress={openAssignModal}
                 >
                   <MaterialIcons name="person-add" size={18} color={COLORS.white} />
                   <Text style={styles.managementButtonText}>Assigner</Text>
@@ -763,7 +836,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               {actions.canEscalate && (
                 <TouchableOpacity
                   style={[styles.managementButton, { backgroundColor: COLORS.warning }]}
-                  onPress={() => setShowEscalateModal(true)}
+                  onPress={openEscalateModal}
                 >
                   <MaterialIcons name="trending-up" size={18} color={COLORS.white} />
                   <Text style={styles.managementButtonText}>Escalader</Text>
@@ -893,7 +966,9 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             onPress={() => setShowCommentInput(true)}
           >
             <MaterialIcons name="comment" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1}>Ajouter un commentaire</Text>
+            <Text style={styles.actionButtonText} numberOfLines={1}>
+              {permissions.isSupportRole ? 'Répondre / note interne' : 'Ajouter un commentaire'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -944,7 +1019,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       transparent={true}
       onRequestClose={() => setShowAssignModal(false)}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.adminModal, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -958,29 +1033,53 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={[
-              styles.adminInput,
-              {
-                backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                color: colors.text,
-                borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
-              },
-            ]}
-            placeholder="ID de l'utilisateur à assigner"
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
-            value={assignToUser}
-            onChangeText={setAssignToUser}
-          />
+
+          <Text style={[styles.staffLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>Assigner à</Text>
+          {isLoadingStaff ? (
+            <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
+          ) : staff.length === 0 ? (
+            <Text style={[styles.staffEmpty, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              Aucun autre membre du support trouvé.
+            </Text>
+          ) : (
+            <ScrollView style={styles.staffList} keyboardShouldPersistTaps="handled">
+              {staff.map(member => {
+                const selected = assignToUser === member._id;
+                return (
+                  <TouchableOpacity
+                    key={member._id}
+                    style={[styles.staffItem, {
+                      borderColor: selected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      backgroundColor: selected ? colors.primary + '15' : 'transparent',
+                    }]}
+                    onPress={() => setAssignToUser(member._id)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.staffName, { color: colors.text }]} numberOfLines={1}>
+                        {member.firstName} {member.lastName}
+                      </Text>
+                      <Text style={[styles.staffRole, { color: getUserRoleColor(member.role as UserRole) }]}>
+                        {getUserRoleLabel(member.role as UserRole)}
+                      </Text>
+                    </View>
+                    {selected && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: colors.primary }]}
+            style={[styles.submitButton, styles.modalSubmit, { backgroundColor: colors.primary, opacity: isSubmitting || !assignToUser ? 0.5 : 1 }]}
             onPress={handleAssignTicket}
+            disabled={isSubmitting || !assignToUser}
           >
-            <Text style={styles.submitButtonText}>Assigner</Text>
+            {isSubmitting ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.submitButtonText}>Assigner</Text>}
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -991,7 +1090,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       transparent={true}
       onRequestClose={() => setShowEscalateModal(false)}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.adminModal, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -1005,20 +1104,43 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={[
-              styles.adminInput,
-              {
-                backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                color: colors.text,
-                borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
-              },
-            ]}
-            placeholder="ID de l'utilisateur supérieur"
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
-            value={assignToUser}
-            onChangeText={setAssignToUser}
-          />
+
+          <Text style={[styles.staffLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>Escalader vers</Text>
+          {isLoadingStaff ? (
+            <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
+          ) : staff.length === 0 ? (
+            <Text style={[styles.staffEmpty, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              Aucun autre membre du support trouvé.
+            </Text>
+          ) : (
+            <ScrollView style={styles.staffList} keyboardShouldPersistTaps="handled">
+              {staff.map(member => {
+                const selected = assignToUser === member._id;
+                return (
+                  <TouchableOpacity
+                    key={member._id}
+                    style={[styles.staffItem, {
+                      borderColor: selected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      backgroundColor: selected ? colors.primary + '15' : 'transparent',
+                    }]}
+                    onPress={() => setAssignToUser(member._id)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.staffName, { color: colors.text }]} numberOfLines={1}>
+                        {member.firstName} {member.lastName}
+                      </Text>
+                      <Text style={[styles.staffRole, { color: getUserRoleColor(member.role as UserRole) }]}>
+                        {getUserRoleLabel(member.role as UserRole)}
+                      </Text>
+                    </View>
+                    {selected && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <TextInput
             style={[
@@ -1039,13 +1161,14 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           />
 
           <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
+            style={[styles.submitButton, styles.modalSubmit, { backgroundColor: COLORS.warning, opacity: isSubmitting || !assignToUser ? 0.5 : 1 }]}
             onPress={handleEscalateTicket}
+            disabled={isSubmitting || !assignToUser}
           >
-            <Text style={styles.submitButtonText}>Escalader</Text>
+            {isSubmitting ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.submitButtonText}>Escalader</Text>}
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -1054,16 +1177,16 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       visible={showCommentInput}
       animationType="slide"
       transparent={true}
-      onRequestClose={() => setShowCommentInput(false)}
+      onRequestClose={() => { setShowCommentInput(false); setIsInternalComment(false); }}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.commentModal, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Ajouter un commentaire
+              {isInternalComment ? 'Ajouter une note interne' : 'Ajouter un commentaire'}
             </Text>
             <TouchableOpacity
-              onPress={() => setShowCommentInput(false)}
+              onPress={() => { setShowCommentInput(false); setIsInternalComment(false); }}
               style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
             >
               <MaterialIcons name="close" size={24} color={colors.text} />
@@ -1079,7 +1202,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
               },
             ]}
-            placeholder="Saisissez votre commentaire..."
+            placeholder={isInternalComment ? 'Note pour l\'équipe support (invisible pour l\'utilisateur)...' : 'Saisissez votre commentaire...'}
             placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
             value={newComment}
             onChangeText={setNewComment}
@@ -1087,13 +1210,42 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             numberOfLines={6}
             textAlignVertical="top"
             maxLength={1000}
+            autoFocus
             editable={ticketService.canUserComment(ticket!, currentUser?.id, currentUser?.role)}
           />
+          <Text style={[styles.charCount, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            {newComment.length}/1000
+          </Text>
+
+          {permissions.isSupportRole && (
+            <TouchableOpacity
+              style={[styles.internalToggle, {
+                borderColor: isInternalComment ? COLORS.warning : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                backgroundColor: isInternalComment ? COLORS.warning + '15' : 'transparent',
+              }]}
+              onPress={() => setIsInternalComment(v => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isInternalComment }}
+            >
+              <MaterialIcons
+                name={isInternalComment ? 'check-box' : 'check-box-outline-blank'}
+                size={22}
+                color={isInternalComment ? COLORS.warning : (dark ? COLORS.grayTie : COLORS.gray)}
+              />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={[styles.internalToggleTitle, { color: colors.text }]}>Note interne</Text>
+                <Text style={[styles.internalToggleHint, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                  Invisible pour l'utilisateur, aucun email envoyé
+                </Text>
+              </View>
+              <MaterialIcons name="lock-outline" size={18} color={isInternalComment ? COLORS.warning : (dark ? COLORS.grayTie : COLORS.gray)} />
+            </TouchableOpacity>
+          )}
 
           <View style={styles.commentActions}>
             <TouchableOpacity
               style={[styles.cancelButton, { backgroundColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}
-              onPress={() => setShowCommentInput(false)}
+              onPress={() => { setShowCommentInput(false); setIsInternalComment(false); }}
             >
               <Text style={[styles.cancelButtonText, { color: colors.text }]}>
                 Annuler
@@ -1103,7 +1255,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               style={[
                 styles.submitButton,
                 {
-                  backgroundColor: colors.primary,
+                  backgroundColor: isInternalComment ? COLORS.warning : colors.primary,
                   opacity: isAddingComment || !newComment.trim() ? 0.5 : 1,
                 },
               ]}
@@ -1113,12 +1265,12 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               {isAddingComment ? (
                 <ActivityIndicator size="small" color={COLORS.white} />
               ) : (
-                <Text style={styles.submitButtonText}>Publier</Text>
+                <Text style={styles.submitButtonText}>{isInternalComment ? 'Ajouter la note' : 'Publier'}</Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -1129,7 +1281,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       transparent={true}
       onRequestClose={() => setShowRatingModal(false)}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.ratingModal, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -1193,11 +1345,14 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           <TouchableOpacity
             style={[styles.submitRatingButton, { backgroundColor: colors.primary }]}
             onPress={handleRateTicket}
+            disabled={isSubmitting}
           >
-            <Text style={styles.submitRatingButtonText}>Envoyer l'évaluation</Text>
+            {isSubmitting
+              ? <ActivityIndicator size="small" color={COLORS.white} />
+              : <Text style={styles.submitRatingButtonText}>Envoyer l'évaluation</Text>}
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -1235,16 +1390,22 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         />
         <View style={styles.errorContainer}>
           <MaterialIcons name="error" size={80} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.errorText, { color: colors.text }]}>            
-            Ticket non trouvé
+          <Text style={[styles.errorText, { color: colors.text }]}>
+            {loadFailed ? 'Impossible de charger le ticket' : 'Ticket non trouvé'}
           </Text>
+          <TouchableOpacity
+            style={[styles.submitButton, styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={() => loadTicketDetails()}
+          >
+            <Text style={styles.submitButtonText}>Réessayer</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>      
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <RefreshableHeader
         title="Détails du ticket"
         showBackButton={true}
@@ -1292,7 +1453,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         transparent={true}
         onRequestClose={() => setShowCloseReasonModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.commentModal, { backgroundColor: colors.background }]}>            
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Motif de fermeture</Text>
@@ -1349,14 +1510,17 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 <Text style={[styles.cancelButtonText, { color: colors.text }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: COLORS.error }]}
+                style={[styles.submitButton, { backgroundColor: COLORS.error, opacity: isSubmitting ? 0.6 : 1 }]}
                 onPress={confirmCloseTicket}
+                disabled={isSubmitting}
               >
-                <Text style={styles.submitButtonText}>Fermer le ticket</Text>
+                {isSubmitting
+                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  : <Text style={styles.submitButtonText} numberOfLines={1}>Fermer le ticket</Text>}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -1807,8 +1971,80 @@ const styles = StyleSheet.create({
   },
   adminModal: {
     width: '90%',
+    maxHeight: '85%',
     borderRadius: 16,
     paddingBottom: 20,
+  },
+  staffLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  staffList: {
+    maxHeight: 260,
+    marginHorizontal: 20,
+  },
+  staffItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  staffName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  staffRole: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  staffEmpty: {
+    marginHorizontal: 20,
+    marginVertical: 16,
+    fontSize: 14,
+  },
+  modalSubmit: {
+    flex: 0,
+    marginHorizontal: 20,
+    marginTop: 16,
+  },
+  retryButton: {
+    flex: 0,
+    marginTop: 20,
+    paddingHorizontal: 32,
+  },
+  internalComment: {
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    paddingLeft: 10,
+  },
+  internalToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  internalToggleTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  internalToggleHint: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  charCount: {
+    alignSelf: 'flex-end',
+    marginRight: 20,
+    marginTop: -12,
+    marginBottom: 8,
+    fontSize: 12,
   },
   adminInput: {
     margin: 20,

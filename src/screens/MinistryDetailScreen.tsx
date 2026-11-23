@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSelector } from '../store/hooks';
 import { selectCurrentMinistry } from '../store/slices/ministrySlice';
 import { Ministry } from '../types/navigation';
+import openLink from '../utils/openLink';
 
 const { width } = Dimensions.get('window');
 
@@ -60,16 +61,7 @@ const MinistryDetailScreen: React.FC = () => {
   const handleExternalLink = async () => {
     if (!ministry.externalLink) return;
 
-    try {
-      const supported = await Linking.canOpenURL(ministry.externalLink);
-      if (supported) {
-        await Linking.openURL(ministry.externalLink);
-      } else {
-        Alert.alert('Erreur', 'Impossible d\'ouvrir ce lien');
-      }
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'ouvrir ce lien');
-    }
+    await openLink(ministry.externalLink);
   };
 
   const handleContactPress = () => {
@@ -81,14 +73,14 @@ const MinistryDetailScreen: React.FC = () => {
     if (phone) {
       contactOptions.push({
         text: `Appeler ${name || 'le contact'}`,
-        onPress: () => Linking.openURL(`tel:${phone}`)
+        onPress: () => { openLink(`tel:${phone}`); }
       });
     }
 
     if (email) {
       contactOptions.push({
         text: `Envoyer un email`,
-        onPress: () => Linking.openURL(`mailto:${email}`)
+        onPress: () => { openLink(`mailto:${email}`); }
       });
     }
 

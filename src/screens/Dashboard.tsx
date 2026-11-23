@@ -108,7 +108,7 @@ const Dashboard: React.FC = () => {
         format: 'jpeg'
       });
 
-      if (result && !result.cancelled && result.base64) {
+      if (result && result.base64) {
         await handleUploadAvatar(result.base64);
       }
     } catch (error) {

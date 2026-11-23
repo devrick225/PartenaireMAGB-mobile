@@ -84,15 +84,23 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
   };
 
   const handleCodeChange = (value: string, index: number) => {
-    if (value.length > 1) return; // Empêcher la saisie de plusieurs caractères
-    
+    const digits = value.replace(/\D/g, '');
     const newCode = [...code];
-    newCode[index] = value;
-    setCode(newCode);
 
-    // Passer au champ suivant automatiquement
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+    if (digits.length > 1) {
+      // Code collé ou rempli automatiquement par iOS depuis le SMS / l'email : répartir les chiffres
+      digits.slice(0, 6 - index).split('').forEach((d, i) => { newCode[index + i] = d; });
+      setCode(newCode);
+      const next = Math.min(index + digits.length, 5);
+      inputRefs.current[next]?.focus();
+    } else {
+      newCode[index] = digits;
+      setCode(newCode);
+
+      // Passer au champ suivant automatiquement
+      if (digits && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
     }
 
     // Vérifier automatiquement si tous les champs sont remplis
@@ -108,6 +116,8 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
   };
 
   const handleVerifyCode = async (verificationCode?: string) => {
+    // Saisie auto du 6e chiffre + appui sur le bouton : éviter deux vérifications simultanées
+    if (isLoading) return;
     const codeToVerify = verificationCode || code.join('');
     
     if (codeToVerify.length !== 6) {
@@ -233,8 +243,12 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
                   value={digit}
                   onChangeText={(value) => handleCodeChange(value, index)}
                   onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-                  keyboardType="numeric"
-                  maxLength={1}
+                  keyboardType="number-pad"
+                  // Le 1er champ accepte 6 chiffres : collage + suggestion « code reçu » d'iOS
+                  maxLength={index === 0 ? 6 : 1}
+                  textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                  selectTextOnFocus
                   textAlign="center"
                   selectTextOnFocus
                   editable={!isLoading}

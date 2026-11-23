@@ -22,7 +22,7 @@ export const launchImagePicker = async (options = {}) => {
     }
 
     const defaultOptions = {
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'], // MediaTypeOptions est déprécié
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -53,7 +53,7 @@ export const launchCamera = async (options = {}) => {
     if (!granted) return null;
 
     const defaultOptions = {
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'], // MediaTypeOptions est déprécié
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,

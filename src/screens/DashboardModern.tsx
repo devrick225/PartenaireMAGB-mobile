@@ -1,5 +1,6 @@
 import logger from '../utils/logger';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -25,12 +26,11 @@ import { COLORS, SIZES } from '../constants';
 import userService from '../store/services/userService';
 import donationService from '../store/services/donationService';
 import { RootState } from '../store';
-import { logoutUser, checkAuthStatus, updateUser } from '../store/slices/authSlice';
-import { showApiError } from '../store/services/apiClient';
+import { checkAuthStatus, updateUser } from '../store/slices/authSlice';
+import useLogout from '../hooks/useLogout';
 import EventModal from '../components/EventModal';
 import { useEventModal } from '../hooks/useEventModal';
 import UserAvatar from '../components/UserAvatar';
-import useLogout from '../hooks/useLogout';
 
 const { width } = Dimensions.get('window');
 
@@ -119,9 +119,18 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  // Au retour sur le tableau de bord (après un don, un paiement…), rafraîchir sans écran de chargement
+  const hasLoadedOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (hasLoadedOnceRef.current) loadDashboardData(true);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
+
+  const loadDashboardData = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const [userStatsResponse, donationStatsResponse, recentDonationsResponse, profileResponse] = await Promise.all([
         userService.getMyStats(),
         donationService.getStats(),
@@ -132,6 +141,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
       setUserStats(userStatsResponse.data.data.stats);
       setDonationStats(donationStatsResponse.data.data.stats);
       setRecentDonations(recentDonationsResponse.data.data.donations || []);
+      hasLoadedOnceRef.current = true;
 
       // Mettre à jour les données utilisateur dans le store Redux si nécessaire
       if (profileResponse.data?.data?.profile?.user) {
@@ -141,10 +151,15 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
         }
       }
     } catch (error: any) {
-      logger.error('Erreur lors du chargement du dashboard:', error);
-      // 401/403 → forceLogout déclenche RootNavigator qui redirige vers AuthNavigator
+      logger.error('Erreur lors du chargement du dashboard:', error?.message);
+      // 401/403 → forceLogout : RootNavigator bascule automatiquement vers AuthNavigator
       if (handleAuthError(error?.response?.status)) return;
-      showApiError(error, 'Impossible de charger le tableau de bord. Vérifiez votre connexion.');
+      if (silent) return; // rafraîchissement en arrière-plan : pas d'alerte
+      Alert.alert(
+        'Erreur',
+        "Impossible de charger le tableau de bord. Vérifiez votre connexion et réessayez.",
+        [{ text: 'Réessayer', onPress: () => loadDashboardData() }, { text: 'OK' }]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +167,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
+    await loadDashboardData(true);
     setRefreshing(false);
   };
 
@@ -164,10 +179,33 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
     setShowDonationTypeModal(true);
   };
 
+  const [isRefreshingVerification, setIsRefreshingVerification] = useState(false);
+
   const handleRefreshVerification = async () => {
+    if (isRefreshingVerification) return;
     try {
-      await dispatch(checkAuthStatus() as any);
-    } catch (_) { }
+      setIsRefreshingVerification(true);
+      const result: any = await (dispatch(checkAuthStatus() as any) as any).unwrap();
+      const freshUser = result?.data?.user;
+      const emailOk = !!freshUser?.isEmailVerified;
+      const phoneOk = !freshUser?.phone || !!freshUser?.isPhoneVerified;
+      if (emailOk && phoneOk) {
+        // Tout est vérifié : on ferme et on enchaîne sur le don
+        setShowVerificationModal(false);
+        setShowDonationTypeModal(true);
+      } else {
+        Alert.alert(
+          'Vérification incomplète',
+          !emailOk && !phoneOk
+            ? 'Votre email et votre téléphone ne sont pas encore vérifiés.'
+            : !emailOk ? 'Votre email n\'est pas encore vérifié.' : 'Votre téléphone n\'est pas encore vérifié.'
+        );
+      }
+    } catch (_) {
+      Alert.alert('Erreur', 'Impossible d\'actualiser. Vérifiez votre connexion.');
+    } finally {
+      setIsRefreshingVerification(false);
+    }
   };
 
   const handleLogout = () => {
@@ -179,7 +217,7 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
         {
           text: 'Déconnexion',
           style: 'destructive',
-          // forceLogout → RootNavigator bascule automatiquement vers AuthNavigator
+          // logout → RootNavigator bascule automatiquement vers AuthNavigator
           onPress: () => logout(),
         },
       ]
@@ -264,23 +302,21 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
       {/* Barre de navigation fixe avec bouton rafraîchissement */}
       <View style={[styles.topNavBar, { backgroundColor: colors.primary }]}>
         <Text style={styles.topNavTitle}>Tableau de bord</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            style={[
-              styles.topNavRefreshBtn,
-              refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
-            ]}
-            onPress={onRefresh}
-            disabled={refreshing}
-            activeOpacity={0.7}
-          >
-            {refreshing ? (
-              <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
-            ) : (
-              <MaterialIcons name="refresh" size={26} color="#FFD61D" />
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[
+            styles.topNavRefreshBtn,
+            refreshing && { backgroundColor: 'rgba(255,214,29,0.25)' },
+          ]}
+          onPress={onRefresh}
+          disabled={refreshing}
+          activeOpacity={0.7}
+        >
+          {refreshing ? (
+            <MaterialIcons name="hourglass-top" size={22} color="#FFD61D" />
+          ) : (
+            <MaterialIcons name="refresh" size={26} color="#FFD61D" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -787,10 +823,13 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
 
               <View style={{ marginTop: 16, gap: 10 }}>
                 <TouchableOpacity
-                  style={[styles.verifyPrimaryButton, { backgroundColor: colors.primary }]}
+                  style={[styles.verifyPrimaryButton, { backgroundColor: colors.primary, opacity: isRefreshingVerification ? 0.7 : 1 }]}
                   onPress={handleRefreshVerification}
+                  disabled={isRefreshingVerification}
                 >
-                  <Text style={styles.verifyPrimaryText}>J'ai vérifié, actualiser</Text>
+                  {isRefreshingVerification
+                    ? <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text style={styles.verifyPrimaryText}>J'ai vérifié, actualiser</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.verifySecondaryButton, { borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
