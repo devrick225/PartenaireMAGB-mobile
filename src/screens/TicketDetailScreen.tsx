@@ -2,22 +2,13 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
+  Pressable,
   Alert,
   ActivityIndicator,
   RefreshControl,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import ticketService, { Ticket, TicketComment } from '../store/services/ticketService';
 import useUserPermissions, { getUserRoleLabel, getUserRoleColor, UserRole } from '../hooks/useUserPermissions';
 import { useSelector, useDispatch } from 'react-redux';
@@ -31,10 +22,26 @@ interface StaffMember {
   role: string;
 }
 import { RootState } from '../store';
-import RefreshableHeader from '../components/RefreshableHeader';
 
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  Card,
+  Badge,
+  Button,
+  ChoiceCard,
+  TextField,
+  InfoRow,
+  EmptyState,
+  LoadingState,
+  Sheet,
+  IconName,
+} from '../design/components';
+import { radius, spacing } from '../design/tokens';
 interface TicketDetailScreenProps {
   navigation: any;
   route: {
@@ -45,9 +52,7 @@ interface TicketDetailScreenProps {
 }
 
 const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, route }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const { ticketId } = route.params;
   const permissions = useUserPermissions();
   const currentUser = useSelector((state: RootState) => state.auth.user);
@@ -281,2016 +286,403 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  type Tone = 'primary' | 'info' | 'warning' | 'success' | 'neutral' | 'danger';
+  const STATUS_TONE: Record<string, Tone> = {
+    open: 'info', in_progress: 'primary', waiting_user: 'warning', waiting_admin: 'warning',
+    resolved: 'success', closed: 'neutral', cancelled: 'neutral',
   };
+  const PRIORITY_TONE: Record<string, Tone> = { low: 'neutral', medium: 'info', high: 'warning', urgent: 'danger' };
+  const RATING_LABELS = ['', 'Très insatisfait', 'Insatisfait', 'Neutre', 'Satisfait', 'Très satisfait'];
+  const CLOSE_REASONS = [
+    { key: 'resolved', label: 'Résolu' },
+    { key: 'duplicate', label: 'Doublon' },
+    { key: 'spam', label: 'Spam' },
+    { key: 'irrelevant', label: 'Non pertinent' },
+    { key: 'user_request', label: 'À la demande de l\'utilisateur' },
+  ];
 
-  const renderTicketHeader = () => (
-    <View style={[styles.ticketHeader, { backgroundColor: c.card }]}>
-      <View style={styles.headerTop}>
-        <View style={styles.ticketNumberContainer}>
-          <MaterialIcons name="confirmation-number" size={20} color={colors.primary} />
-          <Text style={[styles.ticketNumber, { color: colors.primary }]}>
-            {ticket?.ticketNumber}
-          </Text>
-        </View>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: ticketService.getStatusColor(ticket?.status || '') + '20' }
-        ]}>
-          <MaterialIcons 
-            name={ticketService.getStatusIcon(ticket?.status || '') as any}
-            size={16} 
-            color={ticketService.getStatusColor(ticket?.status || '')} 
-          />
-          <Text style={[
-            styles.statusText,
-            { color: ticketService.getStatusColor(ticket?.status || '') }
-          ]}>
-            {ticketService.formatTicketStatus(ticket?.status || '')}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={[styles.ticketSubject, { color: colors.text }]}>
-        {ticket?.subject}
-      </Text>
-
-      <View style={styles.ticketMeta}>
-        <View style={styles.metaRow}>
-          <MaterialIcons 
-            name={ticketService.getCategoryIcon(ticket?.category || '') as any} 
-            size={16} 
-            color={c.mutedForeground} 
-          />
-          <Text style={[styles.metaText, { color: c.mutedForeground }]}>
-            {ticketService.formatTicketCategory(ticket?.category || '')}
-          </Text>
-        </View>
-        <View style={styles.metaRow}>
-          <MaterialIcons 
-            name={ticketService.getPriorityIcon(ticket?.priority || '') as any} 
-            size={16} 
-            color={ticketService.getPriorityColor(ticket?.priority || '')} 
-          />
-          <Text style={[styles.metaText, { color: ticketService.getPriorityColor(ticket?.priority || '') }]}>
-            Priorité {ticketService.formatTicketPriority(ticket?.priority || '')}
-          </Text>
-        </View>
-        <View style={styles.metaRow}>
-          <MaterialIcons name="schedule" size={16} color={c.mutedForeground} />
-          <Text style={[styles.metaText, { color: c.mutedForeground }]}>
-            Créé il y a {ticket ? ticketService.getTicketAge(ticket) : 'N/A'}
-          </Text>
-        </View>
-        {ticket?.updatedAt !== ticket?.createdAt && (
-          <View style={styles.metaRow}>
-            <MaterialIcons name="update" size={16} color={c.mutedForeground} />
-            <Text style={[styles.metaText, { color: c.mutedForeground }]}>
-              Dernière activité il y a {ticket ? ticketService.getLastActivity(ticket) : 'N/A'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Tags si présents */}
-      {ticket?.tags && ticket.tags.length > 0 && (
-        <View style={styles.tagsSection}>
-          <MaterialIcons name="label" size={16} color={colors.primary} />
-          <View style={styles.tagsContainer}>
-            {ticket.tags.map((tag, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={[styles.tagText, { color: colors.primary }]}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Informations utilisateur pour les agents de support */}
-      {permissions.canViewAllTickets && ticket?.user && (
-        <View style={styles.userSection}>
-          <View style={styles.userSectionRow}>
-            <MaterialIcons name="person" size={16} color={colors.primary} />
-            <Text style={[styles.userText, { color: colors.text }]} numberOfLines={1}>
-              Créé par {ticket.user.firstName} {ticket.user.lastName}
-            </Text>
-            {ticket.user.role && (
-              <View style={[styles.userRoleBadge, { backgroundColor: getUserRoleColor(ticket.user.role as UserRole) + '20' }]}>
-                <Text style={[styles.userRoleText, { color: getUserRoleColor(ticket.user.role as UserRole) }]}>
-                  {getUserRoleLabel(ticket.user.role as UserRole)}
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.userEmail, { color: c.mutedForeground }]} numberOfLines={1}>
-            {ticket.user.email}
-          </Text>
-        </View>
-      )}
-
-      {ticket?.assignedTo && (
-        <View style={styles.assignedSection}>
-          <MaterialIcons name="person" size={16} color={colors.primary} />
-          <Text style={[styles.assignedText, { color: colors.primary }]}>
-            Assigné à {ticket.assignedTo.firstName} {ticket.assignedTo.lastName}
-          </Text>
-          {ticket.assignedAt && (
-            <Text style={[styles.assignedDate, { color: c.mutedForeground }]}>
-              le {formatDate(ticket.assignedAt)}
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Alertes de statut */}
-      {ticket && (() => {
-        const statusRules = ticketService.getTicketStatusRules(ticket);
-        
-        if (statusRules.isClosed) {
-          return (
-            <View style={[styles.headerAlert, { backgroundColor: COLORS.gray + '20' }]}>
-              <MaterialIcons name="lock" size={16} color={COLORS.gray} />
-              <Text style={[styles.headerAlertText, { color: COLORS.gray }]}>
-                Ticket fermé {ticket.closeReason ? `(${ticketService.getCloseReasonLabel(ticket.closeReason)})` : ''}
-              </Text>
-            </View>
-          );
-        }
-        
-        if (statusRules.isOverdue) {
-          return (
-            <View style={[styles.headerAlert, { backgroundColor: c.destructive + '20' }]}>
-              <MaterialIcons name="warning" size={16} color={c.destructive} />
-              <Text style={[styles.headerAlertText, { color: c.destructive }]}>
-                Ticket en retard SLA
-              </Text>
-            </View>
-          );
-        }
-        
-        if (statusRules.isEscalated) {
-          return (
-            <View style={[styles.headerAlert, { backgroundColor: c.warning + '20' }]}>
-              <MaterialIcons name="trending-up" size={16} color={c.warning} />
-              <Text style={[styles.headerAlertText, { color: c.warning }]}>
-                Ticket escaladé
-              </Text>
-            </View>
-          );
-        }
-        
-        return null;
-      })()}
+  const SectionTitle = ({ children, icon, color }: { children: string; icon?: IconName; color?: string }) => (
+    <View style={styles.sectionTitle}>
+      {icon ? <Ionicons name={icon} size={16} color={color ?? c.mutedForeground} /> : null}
+      <AppText variant="overline" color={color ?? c.mutedForeground} accessibilityRole="header">{children}</AppText>
     </View>
   );
 
-  const renderDescription = () => (
-    <View style={[styles.section, { backgroundColor: c.card }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
-      <Text style={[styles.description, { color: colors.text }]}>
-        {ticket?.description}
-      </Text>
-    </View>
-  );
-
-  const renderMetrics = () => {
-    if (!ticket?.metrics || (!ticket.metrics.firstResponseTime && !ticket.metrics.resolutionTime && ticket.metrics.responseCount === 0)) {
-      return null;
-    }
-
+  const Notice = ({ tone, icon, text }: { tone: 'success' | 'danger' | 'warning' | 'neutral'; icon: IconName; text: string }) => {
+    const fg = tone === 'success' ? c.success : tone === 'danger' ? c.destructive : tone === 'warning' ? c.warning : c.mutedForeground;
+    const bg = tone === 'success' ? c.successSoft : tone === 'danger' ? c.destructiveSoft : tone === 'warning' ? c.warningSoft : c.muted;
     return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Métriques</Text>
-        <View style={styles.metricsGrid}>
-          {ticket.metrics.firstResponseTime && (
-            <View style={styles.metricItem}>
-              <MaterialIcons name="schedule" size={20} color={colors.primary} />
-              <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
-                Premier réponse
-              </Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {ticketService.formatDuration(ticket.metrics.firstResponseTime)}
-              </Text>
-            </View>
-          )}
-          
-          {ticket.metrics.resolutionTime && (
-            <View style={styles.metricItem}>
-              <MaterialIcons name="check-circle" size={20} color={c.success} />
-              <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
-                Temps de résolution
-              </Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {ticketService.formatDuration(ticket.metrics.resolutionTime)}
-              </Text>
-            </View>
-          )}
-          
-          <View style={styles.metricItem}>
-            <MaterialIcons name="chat" size={20} color={colors.primary} />
-            <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
-              Réponses
-            </Text>
-            <Text style={[styles.metricValue, { color: colors.text }]}>
-              {ticket.metrics.responseCount}
-            </Text>
-          </View>
-          
-          {ticket.metrics.escalationCount > 0 && (
-            <View style={styles.metricItem}>
-              <MaterialIcons name="trending-up" size={20} color={c.warning} />
-              <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
-                Escalades
-              </Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {ticket.metrics.escalationCount}
-              </Text>
-            </View>
-          )}
-        </View>
+      <View style={[styles.notice, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={18} color={fg} />
+        <AppText variant="small" color={fg} style={styles.flex}>{text}</AppText>
       </View>
     );
   };
 
-  const renderSLAInfo = () => {
-    if (!ticket?.sla) return null;
-
-    const slaStatus = ticketService.getSLAStatus(ticket);
-    const hasOverdue = slaStatus.responseOverdue || slaStatus.resolutionOverdue;
-
-    if (!hasOverdue && !slaStatus.responseDeadline && !slaStatus.resolutionDeadline) {
-      return null;
-    }
-
-    return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <View style={styles.slaHeader}>
-          <MaterialIcons 
-            name={hasOverdue ? "warning" : "schedule"} 
-            size={20} 
-            color={hasOverdue ? c.destructive : colors.primary} 
+  // Sélection d'un membre du support (assignation / escalade)
+  const StaffPicker = () =>
+    isLoadingStaff ? (
+      <ActivityIndicator style={{ marginVertical: spacing.lg }} color={c.primary} />
+    ) : staff.length === 0 ? (
+      <AppText variant="small" color={c.mutedForeground}>Aucun autre membre du support trouvé.</AppText>
+    ) : (
+      <View style={{ gap: spacing.sm }}>
+        {staff.map(member => (
+          <ChoiceCard
+            key={member._id}
+            title={`${member.firstName} ${member.lastName}`}
+            description={getUserRoleLabel(member.role as UserRole)}
+            selected={assignToUser === member._id}
+            onPress={() => setAssignToUser(member._id)}
           />
-          <Text style={[styles.sectionTitle, { color: hasOverdue ? c.destructive : colors.text }]}>
-            SLA {hasOverdue ? "(En retard)" : ""}
-          </Text>
-        </View>
-        
-        <View style={styles.slaGrid}>
-          {slaStatus.responseDeadline && (
-            <View style={styles.slaItem}>
-              <Text style={[styles.slaLabel, { color: c.mutedForeground }]}>
-                Deadline réponse
-              </Text>
-              <Text style={[
-                styles.slaValue, 
-                { 
-                  color: slaStatus.responseOverdue ? c.destructive : colors.text 
-                }
-              ]}>
-                {formatDate(slaStatus.responseDeadline.toISOString())}
-              </Text>
-              {slaStatus.responseOverdue && (
-                <Text style={[styles.overdueText, { color: c.destructive }]}>
-                  En retard
-                </Text>
-              )}
-            </View>
-          )}
-
-          {slaStatus.resolutionDeadline && (
-            <View style={styles.slaItem}>
-              <Text style={[styles.slaLabel, { color: c.mutedForeground }]}>
-                Deadline résolution
-              </Text>
-              <Text style={[
-                styles.slaValue, 
-                { 
-                  color: slaStatus.resolutionOverdue ? c.destructive : colors.text 
-                }
-              ]}>
-                {formatDate(slaStatus.resolutionDeadline.toISOString())}
-              </Text>
-              {slaStatus.resolutionOverdue && (
-                <Text style={[styles.overdueText, { color: c.destructive }]}>
-                  En retard
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
+        ))}
       </View>
     );
-  };
 
-  const renderEscalationInfo = () => {
-    if (!ticketService.isTicketEscalated(ticket!)) return null;
-
-    return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <View style={styles.escalationHeader}>
-          <MaterialIcons name="trending-up" size={20} color={c.warning} />
-          <Text style={[styles.sectionTitle, { color: c.warning }]}>
-            Escalade
-          </Text>
-        </View>
-        
-        <View style={styles.escalationInfo}>
-          {ticket?.escalation.escalatedAt && (
-            <Text style={[styles.escalationDate, { color: c.mutedForeground }]}>
-              Escaladé le {formatDate(ticket.escalation.escalatedAt)}
-            </Text>
-          )}
-          
-          {ticket?.escalation.escalatedTo && (
-            <Text style={[styles.escalationUser, { color: colors.text }]}>
-              Escaladé vers : {ticket.escalation.escalatedTo.firstName} {ticket.escalation.escalatedTo.lastName}
-            </Text>
-          )}
-          
-          {ticket?.escalation.escalationReason && (
-            <View style={styles.escalationReason}>
-              <Text style={[styles.escalationReasonLabel, { color: c.mutedForeground }]}>
-                Raison :
-              </Text>
-              <Text style={[styles.escalationReasonText, { color: colors.text }]}>
-                {ticket.escalation.escalationReason}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  const renderContextInfo = () => {
-    if (!ticket) return null;
-
-    const contextInfo = ticketService.getContextInfo(ticket);
-    if (contextInfo.length === 0) return null;
-
-    return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <View style={styles.contextHeader}>
-          <MaterialIcons name="info" size={20} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Informations contextuelles
-          </Text>
-        </View>
-        
-        <View style={styles.contextGrid}>
-          {contextInfo.map((info, index) => (
-            <View key={index} style={styles.contextItem}>
-              <Text style={[styles.contextLabel, { color: c.mutedForeground }]}>
-                {info.label}
-              </Text>
-              <Text style={[styles.contextValue, { color: colors.text }]} numberOfLines={2}>
-                {info.value}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const renderResolution = () => {
-    if (!ticket?.resolution) return null;
-
-    return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <View style={styles.resolutionHeader}>
-          <MaterialIcons name="check-circle" size={20} color={c.success} />
-          <Text style={[styles.sectionTitle, { color: c.success }]}>Résolution</Text>
-        </View>
-        <Text style={[styles.description, { color: colors.text }]}>
-          {ticket.resolution}
-        </Text>
-        {ticket.resolvedBy && (
-          <Text style={[styles.resolvedBy, { color: c.mutedForeground }]}>
-            Résolu par {ticket.resolvedBy.firstName} {ticket.resolvedBy.lastName}
-          </Text>
-        )}
-      </View>
-    );
-  };
-
-  const renderComments = () => (
-    <View style={[styles.section, { backgroundColor: c.card }]}>
-      <View style={styles.commentsHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Commentaires ({comments.length})
-        </Text>
-      </View>
-
-      {comments.length > 0 ? (
-        comments.map((comment, index) => (
-          <View
-            key={comment._id || `${comment.createdAt}-${index}`}
-            style={[styles.commentItem, comment.isInternal && [styles.internalComment, { backgroundColor: c.warning + '12', borderLeftColor: c.warning }]]}
-          >
-            <View style={styles.commentHeader}>
-              <View style={styles.commentAuthor}>
-                <MaterialIcons 
-                  name={(comment.author?.role || 'user') === 'user' ? 'person' : 'support-agent'} 
-                  size={16} 
-                  color={(comment.author?.role || 'user') === 'user' ? colors.primary : c.success} 
-                />
-                <Text style={[styles.commentAuthorName, { color: colors.text }]} numberOfLines={1}>
-                  {comment.author ? `${comment.author.firstName ?? ''} ${comment.author.lastName ?? ''}`.trim() : 'Utilisateur supprimé'}
-                </Text>
-                {(comment.author?.role || 'user') !== 'user' && (
-                  <View style={[styles.supportBadge, { backgroundColor: getUserRoleColor((comment.author?.role || 'user') as UserRole) + '20' }]}>
-                    <Text style={[styles.supportBadgeText, { color: getUserRoleColor((comment.author?.role || 'user') as UserRole) }]}>
-                      {getUserRoleLabel((comment.author?.role || 'user') as UserRole)}
-                    </Text>
-                  </View>
-                )}
-                {comment.isInternal && (
-                  <View style={[styles.internalBadge, { backgroundColor: c.warning + '20' }]}>
-                    <Text style={[styles.internalBadgeText, { color: c.warning }]}>
-                      Interne
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Text style={[styles.commentDate, { color: c.mutedForeground }]}>
-                {formatDate(comment.createdAt)}
-              </Text>
-            </View>
-            <Text style={[styles.commentText, { color: colors.text }]}>
-              {comment.content}
-            </Text>
-            
-            {/* Affichage des pièces jointes du commentaire */}
-            {comment.attachments && comment.attachments.length > 0 && (
-              <View style={styles.commentAttachments}>
-                {comment.attachments.map((attachment, index) => (
-                  <View key={index} style={[styles.attachmentItem, { backgroundColor: c.border }]}>
-                    <MaterialIcons name="attachment" size={16} color={colors.primary} />
-                    <Text style={[styles.attachmentName, { color: colors.text }]} numberOfLines={1}>
-                      {attachment.filename}
-                    </Text>
-                    {!!attachment.size && (
-                      <Text style={[styles.attachmentSize, { color: c.mutedForeground }]}>
-                        ({Math.max(1, Math.round(attachment.size / 1024))} Ko)
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        ))
-      ) : (
-        <Text style={[styles.noComments, { color: c.mutedForeground }]}>
-          Aucun commentaire pour le moment
-        </Text>
-      )}
-    </View>
-  );
-
-  const renderAdminActions = () => {
-    if (!permissions.isSupportRole || !ticket) return null;
-
-    const actions = ticketService.getAvailableActions(ticket, currentUser?.id, currentUser?.role);
-    const isClosed = ticket.status === 'closed';
-    const isCancelled = ticket.status === 'cancelled';
-    const isResolved = ticket.status === 'resolved';
-
-    // États terminaux : pas de section admin
-    if (isClosed || isCancelled) return null;
-
-    // Résolu : pas de changement de statut admin (fermeture gérée par bouton dédié)
-    if (isResolved && !actions.canAssign && !actions.canEscalate) return null;
-
-    // Si aucune action admin disponible
-    if (!actions.canChangeStatus && !actions.canAssign && !actions.canEscalate) return null;
-
-    return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <View style={styles.adminSectionHeader}>
-          <MaterialIcons name="admin-panel-settings" size={22} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
-            Actions administrateur
-          </Text>
-        </View>
-        
-        {/* Changement de statut */}
-        {actions.canChangeStatus && actions.availableStatusTransitions.length > 0 && (
-          <View style={styles.adminActionGroup}>
-            <Text style={[styles.adminActionLabel, { color: c.mutedForeground }]}>
-              Changer le statut
-            </Text>
-            <View style={styles.statusActions}>
-              {actions.availableStatusTransitions.map((transition) => (
-                <TouchableOpacity
-                  key={transition.status}
-                  style={[
-                    styles.statusActionButton,
-                    { 
-                      backgroundColor: ticketService.getStatusColor(transition.status) + '15',
-                      borderWidth: 1,
-                      borderColor: ticketService.getStatusColor(transition.status) + '40',
-                    }
-                  ]}
-                  onPress={() => handleChangeStatus(transition.status)}
-                >
-                  <MaterialIcons 
-                    name={ticketService.getStatusIcon(transition.status) as any} 
-                    size={18} 
-                    color={ticketService.getStatusColor(transition.status)} 
-                  />
-                  <Text style={[
-                    styles.statusActionText, 
-                    { color: ticketService.getStatusColor(transition.status) }
-                  ]} numberOfLines={1}>
-                    {transition.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Actions de gestion (Assigner / Escalader) */}
-        {(actions.canAssign || actions.canEscalate) && (
-          <View style={styles.adminActionGroup}>
-            <Text style={[styles.adminActionLabel, { color: c.mutedForeground }]}>
-              Gestion
-            </Text>
-            <View style={styles.managementActions}>
-              {actions.canAssign && (
-                <TouchableOpacity
-                  style={[styles.managementButton, { backgroundColor: colors.primary }]}
-                  onPress={openAssignModal}
-                >
-                  <MaterialIcons name="person-add" size={18} color={COLORS.white} />
-                  <Text style={styles.managementButtonText}>Assigner</Text>
-                </TouchableOpacity>
-              )}
-
-              {actions.canEscalate && (
-                <TouchableOpacity
-                  style={[styles.managementButton, { backgroundColor: c.warning }]}
-                  onPress={openEscalateModal}
-                >
-                  <MaterialIcons name="trending-up" size={18} color={COLORS.white} />
-                  <Text style={styles.managementButtonText}>Escalader</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Info si déjà escaladé */}
-        {!actions.canEscalate && ticketService.isTicketEscalated(ticket) && (
-          <View style={[styles.restrictionInfo, { backgroundColor: c.warning + '10' }]}>
-            <MaterialIcons name="info" size={16} color={c.warning} />
-            <Text style={[styles.restrictionText, { color: c.warning }]}>
-              Ce ticket est déjà escaladé.
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const renderActions = () => {
-    if (!ticket) return null;
-
-    const actions = ticketService.getAvailableActions(ticket, currentUser?.id, currentUser?.role);
-    const statusRules = ticketService.getTicketStatusRules(ticket);
-
-    // Ticket annulé : aucune action possible
-    if (ticket.status === 'cancelled') {
-      return (
-        <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-          <View style={[styles.statusAlert, { backgroundColor: c.destructive + '20' }]}>
-            <MaterialIcons name="block" size={20} color={c.destructive} />
-            <Text style={[styles.statusAlertText, { color: c.destructive }]}>
-              Ce ticket a été annulé. Aucune action n'est possible.
-            </Text>
-          </View>
-        </View>
-      );
-    }
-
-    // Ticket fermé : seule la réouverture est possible
-    if (ticket.status === 'closed') {
-      return (
-        <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-          <View style={[styles.statusAlert, { backgroundColor: COLORS.gray + '20' }]}>
-            <MaterialIcons name="lock" size={20} color={COLORS.gray} />
-            <Text style={[styles.statusAlertText, { color: COLORS.gray }]}>
-              Ce ticket est fermé.
-            </Text>
-          </View>
-          {actions.canReopen && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={() => handleChangeStatus('in_progress')}
-            >
-              <MaterialIcons name="refresh" size={20} color={COLORS.white} />
-              <Text style={styles.actionButtonText} numberOfLines={1}>Rouvrir le ticket</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      );
-    }
-
-    // Ticket résolu : fermeture + évaluation
-    if (ticket.status === 'resolved') {
-      const hasActions = actions.canClose || actions.canRate;
-      if (!hasActions) return null;
-
-      return (
-        <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-          <View style={[styles.statusAlert, { backgroundColor: c.success + '20' }]}>
-            <MaterialIcons name="check-circle" size={20} color={c.success} />
-            <Text style={[styles.statusAlertText, { color: c.success }]}>
-              Ce ticket a été résolu. Vous pouvez le fermer ou l'évaluer.
-            </Text>
-          </View>
-
-          {actions.canRate && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#FFB300' }]}
-              onPress={() => setShowRatingModal(true)}
-            >
-              <MaterialIcons name="star" size={20} color={COLORS.white} />
-              <Text style={styles.actionButtonText} numberOfLines={1}>Évaluer le support</Text>
-            </TouchableOpacity>
-          )}
-
-          {actions.canClose && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.closeButton]}
-              onPress={handleCloseTicket}
-            >
-              <MaterialIcons name="lock" size={20} color={COLORS.white} />
-              <Text style={styles.actionButtonText} numberOfLines={1}>Fermer le ticket</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      );
-    }
-
-    // Tickets actifs (open, in_progress, waiting_user, waiting_admin)
-    if (!actions.canComment && !actions.canClose) {
-      return null;
-    }
-
-    return (
-      <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-
-        {statusRules.isOverdue && (
-          <View style={[styles.statusAlert, { backgroundColor: c.destructive + '20' }]}>
-            <MaterialIcons name="warning" size={20} color={c.destructive} />
-            <Text style={[styles.statusAlertText, { color: c.destructive }]}>
-              Ce ticket est en retard selon les SLA définis.
-            </Text>
-          </View>
-        )}
-
-        {actions.canComment && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowCommentInput(true)}
-          >
-            <MaterialIcons name="comment" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1}>
-              {permissions.isSupportRole ? 'Répondre / note interne' : 'Ajouter un commentaire'}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {actions.canClose && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.closeButton]}
-            onPress={handleCloseTicket}
-          >
-            <MaterialIcons name="close" size={20} color={COLORS.white} />
-            <Text style={styles.actionButtonText} numberOfLines={1}>Fermer le ticket</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
-  const renderRating = () => {
-    if (!ticket?.rating) return null;
-
-    return (
-      <View style={[styles.section, { backgroundColor: c.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Évaluation client</Text>
-        <View style={styles.ratingDisplay}>
-          <View style={styles.starsContainer}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <MaterialIcons
-                key={star}
-                name="star"
-                size={24}
-                color={star <= ticket.rating!.score ? '#E8B130' : c.border}
-              />
-            ))}
-          </View>
-          {ticket.rating.comment && (
-            <Text style={[styles.ratingCommentText, { color: colors.text }]}>
-              "{ticket.rating.comment}"
-            </Text>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  const renderAssignModal = () => (
-    <Modal
-      visible={showAssignModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowAssignModal(false)}
+  const hero = (
+    <HeroHeader
+      eyebrow={ticket?.ticketNumber ? `Ticket ${ticket.ticketNumber}` : 'Support'}
+      eyebrowIcon="chatbubbles-outline"
+      title={ticket?.subject ?? 'Détail du ticket'}
+      subtitle={ticket ? `Ouvert il y a ${ticketService.getTicketAge(ticket)}` : undefined}
+      onBack={() => navigation.goBack()}
+      right={<IconButton icon={isRefreshing ? 'hourglass-outline' : 'refresh'} tone="hero" accessibilityLabel="Actualiser" onPress={() => loadTicketDetails(true)} />}
     >
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.adminModal, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Assigner le ticket
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowAssignModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-
-          <Text style={[styles.staffLabel, { color: c.mutedForeground }]}>Assigner à</Text>
-          {isLoadingStaff ? (
-            <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
-          ) : staff.length === 0 ? (
-            <Text style={[styles.staffEmpty, { color: c.mutedForeground }]}>
-              Aucun autre membre du support trouvé.
-            </Text>
-          ) : (
-            <ScrollView style={styles.staffList} keyboardShouldPersistTaps="handled">
-              {staff.map(member => {
-                const selected = assignToUser === member._id;
-                return (
-                  <TouchableOpacity
-                    key={member._id}
-                    style={[styles.staffItem, {
-                      borderColor: selected ? colors.primary : (c.border),
-                      backgroundColor: selected ? colors.primary + '15' : 'transparent',
-                    }]}
-                    onPress={() => setAssignToUser(member._id)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.staffName, { color: colors.text }]} numberOfLines={1}>
-                        {member.firstName} {member.lastName}
-                      </Text>
-                      <Text style={[styles.staffRole, { color: getUserRoleColor(member.role as UserRole) }]}>
-                        {getUserRoleLabel(member.role as UserRole)}
-                      </Text>
-                    </View>
-                    {selected && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <TouchableOpacity
-            style={[styles.submitButton, styles.modalSubmit, { backgroundColor: colors.primary, opacity: isSubmitting || !assignToUser ? 0.5 : 1 }]}
-            onPress={handleAssignTicket}
-            disabled={isSubmitting || !assignToUser}
-          >
-            {isSubmitting ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.submitButtonText}>Assigner</Text>}
-          </TouchableOpacity>
+      {ticket ? (
+        <View style={styles.chips}>
+          <HeroChip label={ticketService.formatTicketStatus(ticket.status)} />
+          <HeroChip icon="flag" label={`Priorité ${ticketService.formatTicketPriority(ticket.priority).toLowerCase()}`} />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-
-  const renderEscalateModal = () => (
-    <Modal
-      visible={showEscalateModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowEscalateModal(false)}
-    >
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.adminModal, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Escalader le ticket
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowEscalateModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-
-          <Text style={[styles.staffLabel, { color: c.mutedForeground }]}>Escalader vers</Text>
-          {isLoadingStaff ? (
-            <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
-          ) : staff.length === 0 ? (
-            <Text style={[styles.staffEmpty, { color: c.mutedForeground }]}>
-              Aucun autre membre du support trouvé.
-            </Text>
-          ) : (
-            <ScrollView style={styles.staffList} keyboardShouldPersistTaps="handled">
-              {staff.map(member => {
-                const selected = assignToUser === member._id;
-                return (
-                  <TouchableOpacity
-                    key={member._id}
-                    style={[styles.staffItem, {
-                      borderColor: selected ? colors.primary : (c.border),
-                      backgroundColor: selected ? colors.primary + '15' : 'transparent',
-                    }]}
-                    onPress={() => setAssignToUser(member._id)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.staffName, { color: colors.text }]} numberOfLines={1}>
-                        {member.firstName} {member.lastName}
-                      </Text>
-                      <Text style={[styles.staffRole, { color: getUserRoleColor(member.role as UserRole) }]}>
-                        {getUserRoleLabel(member.role as UserRole)}
-                      </Text>
-                    </View>
-                    {selected && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <TextInput
-            style={[
-              styles.adminTextArea,
-              {
-                backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                color: colors.text,
-                borderColor: c.border,
-              },
-            ]}
-            placeholder="Raison de l'escalade"
-            placeholderTextColor={c.mutedForeground}
-            value={escalateReason}
-            onChangeText={setEscalateReason}
-            multiline={true}
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-
-          <TouchableOpacity
-            style={[styles.submitButton, styles.modalSubmit, { backgroundColor: c.warning, opacity: isSubmitting || !assignToUser ? 0.5 : 1 }]}
-            onPress={handleEscalateTicket}
-            disabled={isSubmitting || !assignToUser}
-          >
-            {isSubmitting ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.submitButtonText}>Escalader</Text>}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-
-  const renderCommentModal = () => (
-    <Modal
-      visible={showCommentInput}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => { setShowCommentInput(false); setIsInternalComment(false); }}
-    >
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.commentModal, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {isInternalComment ? 'Ajouter une note interne' : 'Ajouter un commentaire'}
-            </Text>
-            <TouchableOpacity
-              onPress={() => { setShowCommentInput(false); setIsInternalComment(false); }}
-              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <TextInput
-            style={[
-              styles.commentInput,
-              {
-                backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                color: colors.text,
-                borderColor: c.border,
-              },
-            ]}
-            placeholder={isInternalComment ? 'Note pour l\'équipe support (invisible pour l\'utilisateur)...' : 'Saisissez votre commentaire...'}
-            placeholderTextColor={c.mutedForeground}
-            value={newComment}
-            onChangeText={setNewComment}
-            multiline={true}
-            numberOfLines={6}
-            textAlignVertical="top"
-            maxLength={1000}
-            autoFocus
-            editable={ticketService.canUserComment(ticket!, currentUser?.id, currentUser?.role)}
-          />
-          <Text style={[styles.charCount, { color: c.mutedForeground }]}>
-            {newComment.length}/1000
-          </Text>
-
-          {permissions.isSupportRole && (
-            <TouchableOpacity
-              style={[styles.internalToggle, {
-                borderColor: isInternalComment ? c.warning : (c.border),
-                backgroundColor: isInternalComment ? c.warning + '15' : 'transparent',
-              }]}
-              onPress={() => setIsInternalComment(v => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isInternalComment }}
-            >
-              <MaterialIcons
-                name={isInternalComment ? 'check-box' : 'check-box-outline-blank'}
-                size={22}
-                color={isInternalComment ? c.warning : (c.mutedForeground)}
-              />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={[styles.internalToggleTitle, { color: colors.text }]}>Note interne</Text>
-                <Text style={[styles.internalToggleHint, { color: c.mutedForeground }]}>
-                  Invisible pour l'utilisateur, aucun email envoyé
-                </Text>
-              </View>
-              <MaterialIcons name="lock-outline" size={18} color={isInternalComment ? c.warning : (c.mutedForeground)} />
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.commentActions}>
-            <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: c.border }]}
-              onPress={() => { setShowCommentInput(false); setIsInternalComment(false); }}
-            >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
-                Annuler
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                {
-                  backgroundColor: isInternalComment ? c.warning : colors.primary,
-                  opacity: isAddingComment || !newComment.trim() ? 0.5 : 1,
-                },
-              ]}
-              onPress={handleAddComment}
-              disabled={isAddingComment || !newComment.trim()}
-            >
-              {isAddingComment ? (
-                <ActivityIndicator size="small" color={COLORS.white} />
-              ) : (
-                <Text style={styles.submitButtonText}>{isInternalComment ? 'Ajouter la note' : 'Publier'}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-
-  const renderRatingModal = () => (
-    <Modal
-      visible={showRatingModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowRatingModal(false)}
-    >
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.ratingModal, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Évaluer le support
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowRatingModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={[styles.ratingLabel, { color: colors.text }]}>
-            Comment évaluez-vous le support reçu ?
-          </Text>
-
-          <View style={styles.starsSelector}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setRating(star)}
-                style={styles.starButton}
-              >
-                <MaterialIcons
-                  name="star"
-                  size={32}
-                  color={star <= rating ? '#E8B130' : c.border}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={[styles.ratingDescription, { color: c.mutedForeground }]}>
-            {rating === 1 && "Très insatisfait"}
-            {rating === 2 && "Insatisfait"}
-            {rating === 3 && "Neutre"}
-            {rating === 4 && "Satisfait"}
-            {rating === 5 && "Très satisfait"}
-          </Text>
-
-          <TextInput
-            style={[
-              styles.ratingCommentInput,
-              {
-                backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
-                color: colors.text,
-                borderColor: c.border,
-              },
-            ]}
-            placeholder="Commentaire (optionnel)"
-            placeholderTextColor={c.mutedForeground}
-            value={ratingComment}
-            onChangeText={setRatingComment}
-            multiline={true}
-            numberOfLines={3}
-            textAlignVertical="top"
-            maxLength={500}
-          />
-
-          <TouchableOpacity
-            style={[styles.submitRatingButton, { backgroundColor: colors.primary }]}
-            onPress={handleRateTicket}
-            disabled={isSubmitting}
-          >
-            {isSubmitting
-              ? <ActivityIndicator size="small" color={COLORS.white} />
-              : <Text style={styles.submitRatingButtonText}>Envoyer l'évaluation</Text>}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      ) : null}
+    </HeroHeader>
   );
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>        
-        <RefreshableHeader
-          title="Détails du ticket"
-          showBackButton={true}
-          onBackPress={() => navigation.goBack()}
-          showRefreshButton={true}
-          onRefreshPress={() => loadTicketDetails(true)}
-          isRefreshing={isRefreshing}
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>            
-            Chargement des détails...
-          </Text>
-        </View>
-      </SafeAreaView>
+      <Screen hero={hero}>
+        <Card><LoadingState message="Chargement du ticket…" /></Card>
+      </Screen>
     );
   }
 
   if (!ticket) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>        
-        <RefreshableHeader
-          title="Détails du ticket"
-          showBackButton={true}
-          onBackPress={() => navigation.goBack()}
-          showRefreshButton={true}
-          onRefreshPress={() => loadTicketDetails(true)}
-          isRefreshing={isRefreshing}
-        />
-        <View style={styles.errorContainer}>
-          <MaterialIcons name="error" size={80} color={c.mutedForeground} />
-          <Text style={[styles.errorText, { color: colors.text }]}>
-            {loadFailed ? 'Impossible de charger le ticket' : 'Ticket non trouvé'}
-          </Text>
-          <TouchableOpacity
-            style={[styles.submitButton, styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={() => loadTicketDetails()}
-          >
-            <Text style={styles.submitButtonText}>Réessayer</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <Screen hero={hero}>
+        <Card>
+          <EmptyState
+            icon="alert-circle-outline"
+            title={loadFailed ? 'Impossible de charger le ticket' : 'Ticket introuvable'}
+            action={<Button title="Réessayer" variant="outline" icon="refresh" onPress={() => loadTicketDetails()} />}
+          />
+        </Card>
+      </Screen>
     );
   }
 
+  const statusRules = ticketService.getTicketStatusRules(ticket);
+  const actions = ticketService.getAvailableActions(ticket, currentUser?.id, currentUser?.role);
+  const slaStatus = ticket.sla ? ticketService.getSLAStatus(ticket) : null;
+  const slaOverdue = !!slaStatus && (slaStatus.responseOverdue || slaStatus.resolutionOverdue);
+  const contextInfo = ticketService.getContextInfo(ticket);
+  const hasMetrics = !!ticket.metrics && (!!ticket.metrics.firstResponseTime || !!ticket.metrics.resolutionTime || ticket.metrics.responseCount > 0);
+  const isTerminal = ticket.status === 'closed' || ticket.status === 'cancelled';
+  const showAdmin =
+    permissions.isSupportRole && !isTerminal &&
+    !(ticket.status === 'resolved' && !actions.canAssign && !actions.canEscalate) &&
+    (actions.canChangeStatus || actions.canAssign || actions.canEscalate);
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <RefreshableHeader
-        title="Détails du ticket"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={true}
-        onRefreshPress={() => loadTicketDetails(true)}
-        isRefreshing={isRefreshing}
-      />
+    <Screen
+      hero={hero}
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => loadTicketDetails(true)} colors={[c.primary]} tintColor={c.primary} />}
+    >
+      {/* Alertes d'état */}
+      {statusRules.isClosed ? (
+        <Notice tone="neutral" icon="lock-closed-outline" text={`Ticket fermé${ticket.closeReason ? ` (${ticketService.getCloseReasonLabel(ticket.closeReason)})` : ''}.`} />
+      ) : statusRules.isOverdue ? (
+        <Notice tone="danger" icon="warning-outline" text="Ce ticket a dépassé les délais de traitement prévus." />
+      ) : statusRules.isEscalated ? (
+        <Notice tone="warning" icon="trending-up" text="Ce ticket a été escaladé." />
+      ) : null}
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => loadTicketDetails(true)}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        {renderTicketHeader()}
-        {renderDescription()}
-        {renderMetrics()}
-        {renderSLAInfo()}
-        {renderEscalationInfo()}
-        {renderContextInfo()}
-        {renderResolution()}
-        {renderRating()}
-        {renderComments()}
-        {renderAdminActions()}
-        {renderActions()}
-      </ScrollView>
-
-      {renderCommentModal()}
-      {renderRatingModal()}
-      {renderAssignModal()}
-      {renderEscalateModal()}
-
-      {/* Modal motif de fermeture */}
-      <Modal
-        visible={showCloseReasonModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCloseReasonModal(false)}
-      >
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[styles.commentModal, { backgroundColor: colors.background }]}>            
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Motif de fermeture</Text>
-              <TouchableOpacity
-                onPress={() => setShowCloseReasonModal(false)}
-                style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
-              >
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ padding: 20, gap: 10 }}>
-              {[
-                { key: 'resolved', label: 'Résolu' },
-                { key: 'duplicate', label: 'Doublon' },
-                { key: 'spam', label: 'Spam' },
-                { key: 'irrelevant', label: 'Non pertinent' },
-                { key: 'user_request', label: 'Demande utilisateur' },
-              ].map((opt) => (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 12,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: c.border,
-                    backgroundColor: selectedCloseReason === (opt.key as any) ? colors.primary + '15' : 'transparent',
-                  }}
-                  onPress={() => setSelectedCloseReason(opt.key as any)}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16 }}>{opt.label}</Text>
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      borderWidth: 2,
-                      borderColor: selectedCloseReason === (opt.key as any) ? colors.primary : (c.border),
-                      backgroundColor: selectedCloseReason === (opt.key as any) ? colors.primary : 'transparent',
-                    }}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 20 }}>
-              <TouchableOpacity
-                style={[styles.cancelButton, { backgroundColor: c.border }]}
-                onPress={() => setShowCloseReasonModal(false)}
-              >
-                <Text style={[styles.cancelButtonText, { color: colors.text }]}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: c.destructive, opacity: isSubmitting ? 0.6 : 1 }]}
-                onPress={confirmCloseTicket}
-                disabled={isSubmitting}
-              >
-                {isSubmitting
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
-                  : <Text style={styles.submitButtonText} numberOfLines={1}>Fermer le ticket</Text>}
-              </TouchableOpacity>
-            </View>
+      {/* Informations */}
+      <Card>
+        <SectionTitle>Informations</SectionTitle>
+        <InfoRow label="Statut" value={<Badge label={ticketService.formatTicketStatus(ticket.status)} tone={STATUS_TONE[ticket.status] ?? 'neutral'} />} />
+        <InfoRow label="Priorité" value={<Badge label={ticketService.formatTicketPriority(ticket.priority)} tone={PRIORITY_TONE[ticket.priority] ?? 'neutral'} icon="flag-outline" />} />
+        <InfoRow label="Catégorie" value={ticketService.formatTicketCategory(ticket.category)} />
+        <InfoRow label="Créé le" value={formatDate(ticket.createdAt)} />
+        {ticket.updatedAt !== ticket.createdAt ? <InfoRow label="Dernière activité" value={`il y a ${ticketService.getLastActivity(ticket)}`} /> : null}
+        {permissions.canViewAllTickets && ticket.user ? (
+          <InfoRow label="Demandeur" value={`${ticket.user.firstName} ${ticket.user.lastName}${ticket.user.role ? ` · ${getUserRoleLabel(ticket.user.role as UserRole)}` : ''}`} />
+        ) : null}
+        {permissions.canViewAllTickets && ticket.user?.email ? <InfoRow label="Email" value={ticket.user.email} /> : null}
+        <InfoRow
+          label="Assigné à"
+          value={ticket.assignedTo ? `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}${ticket.assignedAt ? `, le ${formatDate(ticket.assignedAt)}` : ''}` : 'Pas encore assigné'}
+          last={!(ticket.tags && ticket.tags.length > 0)}
+        />
+        {ticket.tags && ticket.tags.length > 0 ? (
+          <View style={styles.tags}>
+            {ticket.tags.map((tag, i) => <Badge key={`${tag}-${i}`} label={tag} tone="primary" icon="pricetag-outline" />)}
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </SafeAreaView>
+        ) : null}
+      </Card>
+
+      {/* Description */}
+      <Card>
+        <SectionTitle>Description</SectionTitle>
+        <AppText variant="body" selectable>{ticket.description}</AppText>
+      </Card>
+
+      {/* Résolution */}
+      {ticket.resolution ? (
+        <Card style={{ borderColor: c.success }}>
+          <SectionTitle icon="checkmark-circle-outline" color={c.success}>Résolution</SectionTitle>
+          <AppText variant="body">{ticket.resolution}</AppText>
+          {ticket.resolvedBy ? (
+            <AppText variant="small" color={c.mutedForeground} style={{ marginTop: spacing.sm }}>
+              Résolu par {ticket.resolvedBy.firstName} {ticket.resolvedBy.lastName}
+            </AppText>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {/* Évaluation */}
+      {ticket.rating ? (
+        <Card>
+          <SectionTitle>Évaluation</SectionTitle>
+          <View style={styles.stars} accessible accessibilityLabel={`Note : ${ticket.rating.score} sur 5`}>
+            {[1, 2, 3, 4, 5].map(star => (
+              <Ionicons key={star} name={star <= ticket.rating!.score ? 'star' : 'star-outline'} size={22} color={star <= ticket.rating!.score ? c.gold : c.border} />
+            ))}
+          </View>
+          {ticket.rating.comment ? <AppText variant="body" style={{ fontStyle: 'italic', marginTop: spacing.sm }}>« {ticket.rating.comment} »</AppText> : null}
+        </Card>
+      ) : null}
+
+      {/* Échanges */}
+      <Card>
+        <SectionTitle>{`Échanges (${comments.length})`}</SectionTitle>
+        {comments.length === 0 ? (
+          <AppText variant="small" color={c.mutedForeground}>Aucun échange pour le moment.</AppText>
+        ) : (
+          <View style={{ gap: spacing.md }}>
+            {comments.map((comment, index) => {
+              const role = comment.author?.role || 'user';
+              const isStaff = role !== 'user';
+              const bubbleBg = comment.isInternal ? c.warningSoft : isStaff ? c.primarySoft : c.muted;
+              return (
+                <View key={comment._id || `${comment.createdAt}-${index}`} style={[styles.bubble, { backgroundColor: bubbleBg, alignSelf: isStaff ? 'flex-start' : 'flex-end' }]}>
+                  <View style={styles.bubbleHead}>
+                    <Ionicons name={isStaff ? 'headset-outline' : 'person-outline'} size={14} color={isStaff ? c.primary : c.mutedForeground} />
+                    <AppText variant="smallStrong" numberOfLines={1} style={styles.flexShrink}>
+                      {comment.author ? `${comment.author.firstName ?? ''} ${comment.author.lastName ?? ''}`.trim() : 'Utilisateur supprimé'}
+                    </AppText>
+                    {isStaff ? <Badge label={getUserRoleLabel(role as UserRole)} tone="primary" /> : null}
+                    {comment.isInternal ? <Badge label="Note interne" tone="warning" icon="lock-closed-outline" /> : null}
+                  </View>
+                  <AppText variant="body" selectable>{comment.content}</AppText>
+                  {comment.attachments && comment.attachments.length > 0 ? (
+                    <View style={{ gap: 4 }}>
+                      {comment.attachments.map((a, i) => (
+                        <View key={i} style={styles.attachment}>
+                          <Ionicons name="attach" size={14} color={c.primary} />
+                          <AppText variant="caption" numberOfLines={1} style={styles.flexShrink}>{a.filename}</AppText>
+                          {a.size ? <AppText variant="caption" color={c.mutedForeground}>({Math.max(1, Math.round(a.size / 1024))} Ko)</AppText> : null}
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                  <AppText variant="caption" color={c.mutedForeground}>{formatDate(comment.createdAt)}</AppText>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </Card>
+
+      {/* Suivi : métriques, délais, escalade, contexte */}
+      {hasMetrics || slaStatus || ticketService.isTicketEscalated(ticket) || contextInfo.length > 0 ? (
+        <Card>
+          <SectionTitle>Suivi</SectionTitle>
+          {ticket.metrics?.firstResponseTime ? <InfoRow label="Première réponse" value={ticketService.formatDuration(ticket.metrics.firstResponseTime)} /> : null}
+          {ticket.metrics?.resolutionTime ? <InfoRow label="Temps de résolution" value={ticketService.formatDuration(ticket.metrics.resolutionTime)} /> : null}
+          {hasMetrics ? <InfoRow label="Réponses" value={String(ticket.metrics!.responseCount)} /> : null}
+          {ticket.metrics?.escalationCount ? <InfoRow label="Escalades" value={String(ticket.metrics.escalationCount)} /> : null}
+          {slaStatus?.responseDeadline ? (
+            <InfoRow label="Réponse attendue avant" value={formatDate(slaStatus.responseDeadline.toISOString())} valueColor={slaStatus.responseOverdue ? c.destructive : undefined} />
+          ) : null}
+          {slaStatus?.resolutionDeadline ? (
+            <InfoRow label="Résolution attendue avant" value={formatDate(slaStatus.resolutionDeadline.toISOString())} valueColor={slaStatus.resolutionOverdue ? c.destructive : undefined} />
+          ) : null}
+          {ticketService.isTicketEscalated(ticket) && ticket.escalation ? (
+            <>
+              {ticket.escalation.escalatedAt ? <InfoRow label="Escaladé le" value={formatDate(ticket.escalation.escalatedAt)} /> : null}
+              {ticket.escalation.escalatedTo ? <InfoRow label="Escaladé vers" value={`${ticket.escalation.escalatedTo.firstName} ${ticket.escalation.escalatedTo.lastName}`} /> : null}
+              {ticket.escalation.escalationReason ? <InfoRow label="Motif" value={ticket.escalation.escalationReason} /> : null}
+            </>
+          ) : null}
+          {contextInfo.map((info, i) => (
+            <InfoRow key={`${info.label}-${i}`} label={info.label} value={String(info.value)} last={i === contextInfo.length - 1} />
+          ))}
+          {slaOverdue ? <Notice tone="danger" icon="time-outline" text="Les délais de traitement sont dépassés." /> : null}
+        </Card>
+      ) : null}
+
+      {/* Actions administrateur */}
+      {showAdmin ? (
+        <Card style={{ gap: spacing.md }}>
+          <SectionTitle icon="shield-outline">Gestion du ticket</SectionTitle>
+          {actions.canChangeStatus && actions.availableStatusTransitions.length > 0 ? (
+            <View style={{ gap: spacing.sm }}>
+              <AppText variant="smallStrong">Changer le statut</AppText>
+              <View style={styles.transitions}>
+                {actions.availableStatusTransitions.map(t => (
+                  <Pressable
+                    key={t.status}
+                    onPress={() => handleChangeStatus(t.status)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Passer au statut ${t.label}`}
+                    style={({ pressed }) => [styles.transition, { borderColor: c.border, backgroundColor: pressed ? c.muted : c.card }]}
+                  >
+                    <MaterialIcons name={ticketService.getStatusIcon(t.status) as any} size={16} color={c.primary} />
+                    <AppText variant="smallStrong" numberOfLines={1}>{t.label}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          {actions.canAssign || actions.canEscalate ? (
+            <View style={styles.row}>
+              {actions.canAssign ? <Button title="Assigner" icon="person-add-outline" variant="outline" onPress={openAssignModal} fullWidth={false} style={styles.flex} /> : null}
+              {actions.canEscalate ? <Button title="Escalader" icon="trending-up" variant="outline" onPress={openEscalateModal} fullWidth={false} style={styles.flex} /> : null}
+            </View>
+          ) : null}
+          {!actions.canEscalate && ticketService.isTicketEscalated(ticket) ? <Notice tone="warning" icon="information-circle-outline" text="Ce ticket est déjà escaladé." /> : null}
+        </Card>
+      ) : null}
+
+      {/* Actions */}
+      {ticket.status === 'cancelled' ? (
+        <Notice tone="danger" icon="ban-outline" text="Ce ticket a été annulé. Aucune action n'est possible." />
+      ) : ticket.status === 'closed' ? (
+        actions.canReopen ? <Button title="Rouvrir le ticket" icon="refresh" variant="outline" onPress={() => handleChangeStatus('in_progress')} /> : null
+      ) : ticket.status === 'resolved' ? (
+        actions.canClose || actions.canRate ? (
+          <View style={{ gap: spacing.sm }}>
+            <Notice tone="success" icon="checkmark-circle-outline" text="Ce ticket est résolu. Vous pouvez l'évaluer ou le fermer." />
+            {actions.canRate ? <Button title="Évaluer le support" variant="gold" icon="star" onPress={() => setShowRatingModal(true)} /> : null}
+            {actions.canClose ? <Button title="Fermer le ticket" variant="outline" icon="lock-closed-outline" onPress={handleCloseTicket} /> : null}
+          </View>
+        ) : null
+      ) : actions.canComment || actions.canClose ? (
+        <View style={{ gap: spacing.sm }}>
+          {actions.canComment ? (
+            <Button
+              title={permissions.isSupportRole ? 'Répondre ou ajouter une note' : 'Répondre'}
+              icon="chatbubble-ellipses-outline"
+              onPress={() => setShowCommentInput(true)}
+            />
+          ) : null}
+          {actions.canClose ? <Button title="Fermer le ticket" variant="outline" icon="close-circle-outline" onPress={handleCloseTicket} /> : null}
+        </View>
+      ) : null}
+
+      {/* Réponse / note interne */}
+      <Sheet
+        visible={showCommentInput}
+        title={isInternalComment ? 'Note interne' : 'Votre réponse'}
+        onClose={() => { setShowCommentInput(false); setIsInternalComment(false); }}
+      >
+        <TextField
+          placeholder={isInternalComment ? 'Note pour l\'équipe support (invisible pour l\'utilisateur)…' : 'Écrivez votre message…'}
+          value={newComment}
+          onChangeText={setNewComment}
+          multiline
+          textAlignVertical="top"
+          maxLength={1000}
+          autoFocus
+          style={{ minHeight: 120 }}
+          editable={ticketService.canUserComment(ticket, currentUser?.id, currentUser?.role)}
+          hint={`${newComment.length}/1000`}
+        />
+        {permissions.isSupportRole ? (
+          <ChoiceCard
+            icon="lock-closed-outline"
+            title="Note interne"
+            description="Invisible pour l'utilisateur, aucun email envoyé."
+            selected={isInternalComment}
+            onPress={() => setIsInternalComment(v => !v)}
+          />
+        ) : null}
+        <Button
+          title={isInternalComment ? 'Ajouter la note' : 'Envoyer'}
+          icon="send"
+          onPress={handleAddComment}
+          loading={isAddingComment}
+          disabled={!newComment.trim()}
+        />
+      </Sheet>
+
+      {/* Évaluation */}
+      <Sheet visible={showRatingModal} title="Évaluer le support" onClose={() => setShowRatingModal(false)}>
+        <AppText variant="body" color={c.mutedForeground}>Comment évaluez-vous l'aide reçue ?</AppText>
+        <View style={styles.starsPicker}>
+          {[1, 2, 3, 4, 5].map(star => (
+            <Pressable key={star} onPress={() => setRating(star)} accessibilityRole="radio" accessibilityState={{ checked: rating === star }} accessibilityLabel={`${star} étoile${star > 1 ? 's' : ''}`} hitSlop={6}>
+              <Ionicons name={star <= rating ? 'star' : 'star-outline'} size={36} color={star <= rating ? c.gold : c.border} />
+            </Pressable>
+          ))}
+        </View>
+        <AppText variant="bodyStrong" center>{RATING_LABELS[rating]}</AppText>
+        <TextField placeholder="Un commentaire ? (facultatif)" value={ratingComment} onChangeText={setRatingComment} multiline textAlignVertical="top" maxLength={500} style={{ minHeight: 80 }} />
+        <Button title="Envoyer l'évaluation" variant="gold" onPress={handleRateTicket} loading={isSubmitting} />
+      </Sheet>
+
+      {/* Assignation */}
+      <Sheet visible={showAssignModal} title="Assigner le ticket" onClose={() => setShowAssignModal(false)}>
+        <StaffPicker />
+        <Button title="Assigner" onPress={handleAssignTicket} loading={isSubmitting} disabled={!assignToUser} />
+      </Sheet>
+
+      {/* Escalade */}
+      <Sheet visible={showEscalateModal} title="Escalader le ticket" onClose={() => setShowEscalateModal(false)}>
+        <StaffPicker />
+        <TextField label="Motif de l'escalade" placeholder="Pourquoi escalader ce ticket ?" value={escalateReason} onChangeText={setEscalateReason} multiline textAlignVertical="top" style={{ minHeight: 90 }} />
+        <Button title="Escalader" icon="trending-up" onPress={handleEscalateTicket} loading={isSubmitting} disabled={!assignToUser} />
+      </Sheet>
+
+      {/* Motif de fermeture */}
+      <Sheet visible={showCloseReasonModal} title="Motif de fermeture" onClose={() => setShowCloseReasonModal(false)}>
+        {CLOSE_REASONS.map(r => (
+          <ChoiceCard key={r.key} title={r.label} selected={selectedCloseReason === r.key} onPress={() => setSelectedCloseReason(r.key as any)} />
+        ))}
+        <Button title="Fermer le ticket" variant="destructive" icon="lock-closed-outline" onPress={confirmCloseTicket} loading={isSubmitting} />
+      </Sheet>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 16,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 18,
-    fontFamily: 'semiBold',
-  },
-  ticketHeader: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  ticketNumberContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  ticketNumber: {
-    fontSize: 16,
-    fontFamily: 'bold',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  ticketSubject: {
-    fontSize: 20,
-    fontFamily: 'bold',
-    marginBottom: 16,
-    lineHeight: 26,
-  },
-  ticketMeta: {
-    gap: 8,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metaText: {
-    fontSize: 14, fontFamily: 'regular',
-  },
-  assignedSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.greyscale300,
-  },
-  assignedText: {
-    fontSize: 14,
-    fontFamily: 'medium',
-  },
-  section: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  description: {
-    fontSize: 16, fontFamily: 'regular',
-    lineHeight: 24,
-  },
-  resolutionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  resolvedBy: {
-    fontSize: 14, fontFamily: 'regular',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  commentsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  addCommentButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  commentItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-    paddingBottom: 16,
-    marginBottom: 16,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  commentAuthor: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  commentAuthorName: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  supportBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  supportBadgeText: {
-    fontSize: 10,
-    fontFamily: 'semiBold',
-  },
-  commentDate: {
-    fontSize: 12, fontFamily: 'regular',
-  },
-  commentText: {
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-  },
-  noComments: {
-    fontSize: 14, fontFamily: 'regular',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  actionsSection: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 8,
-    paddingHorizontal: 12,
-  },
-  closeButton: {
-    backgroundColor: '#F44336',
-  },
-  actionButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    maxWidth: '90%',
-  },
-  ratingDisplay: {
-    alignItems: 'flex-start',
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 8,
-  },
-  ratingCommentText: {
-    fontSize: 14, fontFamily: 'regular',
-    fontStyle: 'italic',
-    lineHeight: 20,
-  },
-  // Styles des modals
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  commentModal: {
-    width: '90%',
-    borderRadius: 16,
-    paddingBottom: 20,
-  },
-  ratingModal: {
-    width: '90%',
-    borderRadius: 16,
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  commentInput: {
-    margin: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16, fontFamily: 'regular',
-    minHeight: 120,
-  },
-  commentActions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  submitButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  ratingLabel: {
-    fontSize: 16, fontFamily: 'regular',
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  starsSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  starButton: {
-    padding: 4,
-  },
-  ratingDescription: {
-    fontSize: 14, fontFamily: 'regular',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  ratingCommentInput: {
-    margin: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16, fontFamily: 'regular',
-    minHeight: 80,
-  },
-  submitRatingButton: {
-    marginHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitRatingButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  adminSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  adminActionGroup: {
-    marginBottom: 16,
-  },
-  adminActionLabel: {
-    fontSize: 13,
-    fontFamily: 'semiBold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  statusActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statusActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    minWidth: '45%',
-    flexGrow: 1,
-  },
-  statusActionText: {
-    fontSize: 13,
-    fontFamily: 'semiBold',
-    flexShrink: 1,
-  },
-  managementActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  managementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    flex: 1,
-    minWidth: '45%',
-  },
-  managementButtonText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  userSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.greyscale300,
-    gap: 4,
-  },
-  userSectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  userText: {
-    fontSize: 14,
-    fontFamily: 'medium',
-    flexShrink: 1,
-  },
-  userEmail: {
-    fontSize: 13, fontFamily: 'regular',
-    fontStyle: 'italic',
-    marginLeft: 24,
-  },
-  adminModal: {
-    width: '90%',
-    maxHeight: '85%',
-    borderRadius: 16,
-    paddingBottom: 20,
-  },
-  staffLabel: {
-    fontSize: 13,
-    fontFamily: 'semiBold',
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  staffList: {
-    maxHeight: 260,
-    marginHorizontal: 20,
-  },
-  staffItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  staffName: {
-    fontSize: 15,
-    fontFamily: 'semiBold',
-  },
-  staffRole: {
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 2,
-  },
-  staffEmpty: {
-    marginHorizontal: 20,
-    marginVertical: 16,
-    fontSize: 14, fontFamily: 'regular',
-  },
-  modalSubmit: {
-    flex: 0,
-    marginHorizontal: 20,
-    marginTop: 16,
-  },
-  retryButton: {
-    flex: 0,
-    marginTop: 20,
-    paddingHorizontal: 32,
-  },
-  internalComment: {
-    borderLeftWidth: 3,
-    borderRadius: 8,
-    paddingLeft: 10,
-  },
-  internalToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  internalToggleTitle: {
-    fontSize: 15,
-    fontFamily: 'semiBold',
-  },
-  internalToggleHint: {
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 2,
-  },
-  charCount: {
-    alignSelf: 'flex-end',
-    marginRight: 20,
-    marginTop: -12,
-    marginBottom: 8,
-    fontSize: 12, fontFamily: 'regular',
-  },
-  adminInput: {
-    margin: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  adminTextArea: {
-    margin: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16, fontFamily: 'regular',
-    minHeight: 80,
-  },
-  // Nouveaux styles pour les fonctionnalités ajoutées
-  tagsSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.greyscale300,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    flex: 1,
-  },
-  tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  tagText: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-  },
-  userRoleBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  userRoleText: {
-    fontSize: 10,
-    fontFamily: 'semiBold',
-  },
-  assignedDate: {
-    fontSize: 12, fontFamily: 'regular',
-    marginLeft: 8,
-  },
-  // Styles pour les métriques
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  metricItem: {
-    flex: 1,
-    minWidth: '45%',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.greyscale300 + '20',
-    marginBottom: 8,
-  },
-  metricLabel: {
-    fontSize: 12, fontFamily: 'regular',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  metricValue: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  internalBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  internalBadgeText: {
-    fontSize: 10,
-    fontFamily: 'semiBold',
-  },
-  commentAttachments: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  attachmentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    padding: 8,
-    borderRadius: 8,
-  },
-  attachmentName: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-  },
-  attachmentSize: {
-    fontSize: 10, fontFamily: 'regular',
-    fontStyle: 'italic',
-  },
-  // Styles pour les nouvelles sections
-  slaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  slaGrid: {
-    gap: 12,
-  },
-  slaItem: {
-    padding: 12,
-    backgroundColor: COLORS.greyscale300 + '20',
-    borderRadius: 8,
-  },
-  slaLabel: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginBottom: 4,
-  },
-  slaValue: {
-    fontSize: 14,
-    fontFamily: 'medium',
-  },
-  overdueText: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginTop: 4,
-  },
-  escalationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  escalationInfo: {
-    gap: 8,
-  },
-  escalationDate: {
-    fontSize: 14, fontFamily: 'regular',
-    fontStyle: 'italic',
-  },
-  escalationUser: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  escalationReason: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: COLORS.warning + '10',
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.warning,
-  },
-  escalationReasonLabel: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginBottom: 4,
-  },
-  escalationReasonText: {
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-  },
-  contextHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  contextGrid: {
-    gap: 8,
-  },
-  contextItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.greyscale300,
-  },
-  contextLabel: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    flex: 1,
-  },
-  contextValue: {
-    fontSize: 14, fontFamily: 'regular',
-    flex: 2,
-    textAlign: 'right',
-  },
-  statusAlert: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusAlertText: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  restrictionInfo: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  restrictionText: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  headerAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.greyscale300,
-    padding: 8,
-    borderRadius: 6,
-  },
-  headerAlertText: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-  },
+  flex: { flex: 1 },
+  flexShrink: { flexShrink: 1 },
+  row: { flexDirection: 'row', gap: spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  sectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, borderRadius: radius.lg, padding: spacing.md },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+  stars: { flexDirection: 'row', gap: 4 },
+  starsPicker: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
+  bubble: { maxWidth: '92%', borderRadius: radius.lg, padding: spacing.md, gap: 6 },
+  bubbleHead: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  attachment: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  transitions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  transition: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1 },
 });
 
-export default TicketDetailScreen; 
+export default TicketDetailScreen;

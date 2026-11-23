@@ -9,7 +9,9 @@
 import React, { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   ScrollViewProps,
@@ -646,6 +648,7 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={[styles.sheetOverlay, { backgroundColor: c.overlay }]} onPress={onClose} accessibilityLabel="Fermer">
         <Pressable style={[styles.sheet, { backgroundColor: c.card, paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.sm }]}>
           <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
@@ -655,9 +658,12 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
             </AppText>
             <IconButton icon="close" onPress={onClose} accessibilityLabel="Fermer" />
           </View>
-          {children}
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: spacing.md }} showsVerticalScrollIndicator={false}>
+            {children}
+          </ScrollView>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
