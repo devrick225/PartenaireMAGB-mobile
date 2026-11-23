@@ -2,29 +2,22 @@ import logger from '../utils/logger';
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Pressable,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
 import apiClient from '../store/services/apiClient';
 import { updateTokens } from '../store/slices/authSlice';
 import { showError, showSuccess } from '../store/slices/notificationSlice';
 import { getSavedCredentials, REMEMBER_PASSWORD_KEY } from '../utils/biometricAuth';
 import * as SecureStore from 'expo-secure-store';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, Card, TextField, Button } from '../design/components';
+import { spacing } from '../design/tokens';
 // Critères affichés en direct sous le formulaire
 const CRITERIA = [
   { label: 'Au moins 8 caractères', test: (p: string) => p.length >= 8 },
@@ -38,12 +31,10 @@ interface ChangePasswordScreenProps {
 }
 
 const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const dispatch = useDispatch();
-  const newPasswordRef = React.useRef<TextInput>(null);
-  const confirmPasswordRef = React.useRef<TextInput>(null);
+  const newPasswordRef = React.useRef<React.ElementRef<typeof TextInput>>(null);
+  const confirmPasswordRef = React.useRef<React.ElementRef<typeof TextInput>>(null);
   
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -153,316 +144,95 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
-  const renderPasswordInput = (
+
+  const PasswordField = (
     label: string,
-    field: string,
+    field: 'currentPassword' | 'newPassword' | 'confirmPassword',
     showField: keyof typeof showPasswords,
     placeholder: string,
-    extra: {
-      inputRef?: React.RefObject<TextInput | null>;
-      onSubmitEditing?: () => void;
-      isLast?: boolean;
-      isNew?: boolean;
-    } = {}
+    extra: { inputRef?: React.RefObject<React.ElementRef<typeof TextInput> | null>; onSubmitEditing?: () => void; isLast?: boolean; isNew?: boolean } = {}
   ) => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
-      <View style={[
-        styles.passwordInputContainer,
-        {
-          borderColor: errors[field] ? c.destructive : (c.border),
-          backgroundColor: c.card,
-        },
-      ]}>
-        <TextInput
-          ref={extra.inputRef as any}
-          style={[styles.passwordInput, { color: colors.text }]}
-          placeholder={placeholder}
-          placeholderTextColor={c.mutedForeground}
-          secureTextEntry={!showPasswords[showField]}
-          value={formData[field as keyof typeof formData]}
-          onChangeText={(text) => updateFormData(field, text)}
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType={extra.isNew ? 'newPassword' : 'password'}
-          autoComplete={extra.isNew ? 'new-password' : 'current-password'}
-          returnKeyType={extra.isLast ? 'done' : 'next'}
-          blurOnSubmit={!!extra.isLast}
-          onSubmitEditing={extra.onSubmitEditing}
-          editable={!isLoading}
-        />
-        <TouchableOpacity
+    <TextField
+      label={label}
+      icon="lock-closed-outline"
+      inputRef={extra.inputRef}
+      placeholder={placeholder}
+      secureTextEntry={!showPasswords[showField]}
+      value={formData[field]}
+      onChangeText={(text) => updateFormData(field, text)}
+      autoCapitalize="none"
+      autoCorrect={false}
+      textContentType={extra.isNew ? 'newPassword' : 'password'}
+      autoComplete={extra.isNew ? 'new-password' : 'current-password'}
+      returnKeyType={extra.isLast ? 'done' : 'next'}
+      blurOnSubmit={!!extra.isLast}
+      onSubmitEditing={extra.onSubmitEditing}
+      editable={!isLoading}
+      error={errors[field]}
+      right={
+        <Pressable
           onPress={() => togglePasswordVisibility(showField)}
-          style={styles.passwordToggle}
           hitSlop={10}
+          accessibilityRole="button"
           accessibilityLabel={showPasswords[showField] ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
         >
-          <MaterialIcons
-            name={showPasswords[showField] ? 'visibility' : 'visibility-off'}
-            size={24}
-            color={c.mutedForeground}
-          />
-        </TouchableOpacity>
-      </View>
-      {errors[field] && (
-        <Text style={styles.errorText}>{errors[field]}</Text>
-      )}
-    </View>
+          <Ionicons name={showPasswords[showField] ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.mutedForeground} />
+        </Pressable>
+      }
+    />
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen
+        hero={
+          <HeroHeader
+            eyebrow="Sécurité"
+            eyebrowIcon="shield-checkmark-outline"
+            title="Changer le mot de passe"
+            subtitle="Vos autres appareils seront déconnectés."
+            onBack={() => navigation.goBack()}
+          />
+        }
+        footer={<Button title="Changer le mot de passe" icon="lock-closed-outline" onPress={handleSubmit} loading={isLoading} />}
       >
-      {/* Header */}
-      <RefreshableHeader title="Changer le mot de passe" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
+        <Card style={{ gap: spacing.lg }}>
+          {PasswordField('Mot de passe actuel', 'currentPassword', 'current', 'Votre mot de passe actuel', {
+            onSubmitEditing: () => newPasswordRef.current?.focus(),
+          })}
+          {PasswordField('Nouveau mot de passe', 'newPassword', 'new', 'Au moins 8 caractères', {
+            inputRef: newPasswordRef,
+            isNew: true,
+            onSubmitEditing: () => confirmPasswordRef.current?.focus(),
+          })}
+          {PasswordField('Confirmer le nouveau mot de passe', 'confirmPassword', 'confirm', 'Retapez le nouveau mot de passe', {
+            inputRef: confirmPasswordRef,
+            isNew: true,
+            isLast: true,
+            onSubmitEditing: handleSubmit,
+          })}
+        </Card>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-      >
-        {/* Instructions */}
-        <View style={[styles.instructionsCard, { backgroundColor: c.card }]}>
-          <View style={styles.instructionsHeader}>
-            <MaterialIcons name="security" size={24} color={colors.primary} />
-            <Text style={[styles.instructionsTitle, { color: colors.text }]}>
-              Sécurité du mot de passe
-            </Text>
-          </View>
-          <Text style={[styles.instructionsText, { color: c.mutedForeground }]}>
-            Votre nouveau mot de passe doit contenir au moins 8 caractères avec une combinaison de lettres majuscules, minuscules et de chiffres.
-          </Text>
-        </View>
-
-        {/* Formulaire */}
-        <View style={[styles.formCard, { backgroundColor: c.card }]}>
-          {renderPasswordInput(
-            'Mot de passe actuel',
-            'currentPassword',
-            'current',
-            'Entrez votre mot de passe actuel',
-            { onSubmitEditing: () => newPasswordRef.current?.focus() }
-          )}
-
-          {renderPasswordInput(
-            'Nouveau mot de passe',
-            'newPassword',
-            'new',
-            'Entrez votre nouveau mot de passe',
-            { inputRef: newPasswordRef, isNew: true, onSubmitEditing: () => confirmPasswordRef.current?.focus() }
-          )}
-
-          {renderPasswordInput(
-            'Confirmer le nouveau mot de passe',
-            'confirmPassword',
-            'confirm',
-            'Confirmez votre nouveau mot de passe',
-            { inputRef: confirmPasswordRef, isNew: true, isLast: true, onSubmitEditing: handleSubmit }
-          )}
-        </View>
-
-        {/* Critères de mot de passe */}
-        <View style={[styles.criteriaCard, { backgroundColor: c.card }]}>
-          <Text style={[styles.criteriaTitle, { color: colors.text }]}>
-            Critères du mot de passe
-          </Text>
-          
-          <View style={styles.criteriaList}>
-            {CRITERIA.map(({ label, test }) => {
-              const ok = test(formData.newPassword);
-              const color = ok ? c.success : (c.mutedForeground);
-              return (
-                <View key={label} style={styles.criteriaItem}>
-                  <MaterialIcons name={ok ? 'check-circle' : 'radio-button-unchecked'} size={16} color={color} />
-                  <Text style={[styles.criteriaText, { color }]}>{label}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-
-      {/* Bouton de soumission */}
-      <View style={[styles.submitSection, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={isLoading}
-          accessibilityRole="button"
-          style={[
-            styles.submitButton,
-            {
-              backgroundColor: colors.primary,
-              opacity: isLoading ? 0.7 : 1,
-            },
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <MaterialIcons name="lock-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Changer le mot de passe</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <Card style={{ gap: spacing.sm }}>
+          <AppText variant="overline" color={c.mutedForeground}>Votre nouveau mot de passe doit</AppText>
+          {CRITERIA.map(({ label, test }) => {
+            const ok = test(formData.newPassword);
+            return (
+              <View key={label} style={styles.criterion} accessible accessibilityLabel={`${label} : ${ok ? 'respecté' : 'non respecté'}`}>
+                <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={ok ? c.success : c.mutedForeground} />
+                <AppText variant="small" color={ok ? c.success : c.mutedForeground}>{label}</AppText>
+              </View>
+            );
+          })}
+        </Card>
+      </Screen>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 8,
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  instructionsCard: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  instructionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  instructionsTitle: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    marginLeft: 8,
-  },
-  instructionsText: {
-    fontSize: 14, fontFamily: 'regular',
-    lineHeight: 20,
-  },
-  formCard: {
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    marginBottom: 8,
-  },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  passwordInput: {
-    flex: 1,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  passwordToggle: {
-    padding: 4,
-  },
-  errorText: {
-    color: '#FF5722',
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 4,
-  },
-  criteriaCard: {
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  criteriaTitle: {
-    fontSize: 16,
-    fontFamily: 'bold',
-    marginBottom: 16,
-  },
-  criteriaList: {
-    gap: 12,
-  },
-  criteriaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  criteriaText: {
-    fontSize: 14, fontFamily: 'regular',
-    marginLeft: 8,
-  },
-  bottomPadding: {
-    height: 24,
-  },
-  submitSection: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 12,
-    gap: 8,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'bold',
-  },
+  flex: { flex: 1 },
+  criterion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });
 
-export default ChangePasswordScreen; 
+export default ChangePasswordScreen;

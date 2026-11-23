@@ -494,9 +494,11 @@ interface TextFieldProps extends TextInputProps {
   suffix?: string;
   /** Élément à droite du champ (ex. bouton afficher/masquer le mot de passe) */
   right?: ReactNode;
+  /** Référence vers le TextInput (pour enchaîner les champs avec focus()) */
+  inputRef?: React.Ref<any>;
 }
 
-export function TextField({ label, error, hint, icon, suffix, right, style, ...rest }: TextFieldProps) {
+export function TextField({ label, error, hint, icon, suffix, right, inputRef, style, ...rest }: TextFieldProps) {
   const { c } = useDS();
   const [focused, setFocused] = React.useState(false);
   return (
@@ -517,6 +519,7 @@ export function TextField({ label, error, hint, icon, suffix, right, style, ...r
       >
         {icon ? <Ionicons name={icon} size={18} color={c.mutedForeground} style={{ marginRight: 8 }} /> : null}
         <TextInput
+          ref={inputRef}
           placeholderTextColor={c.mutedForeground}
           maxFontSizeMultiplier={1.4}
           accessibilityLabel={label}
