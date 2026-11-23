@@ -3,36 +3,41 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
+  Pressable,
   RefreshControl,
-  TouchableOpacity,
-  ActivityIndicator,
-  Dimensions,
-  Image,
   Alert,
-  Modal,
-  Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../theme/ThemeProvider';
-import PartnerIdDisplay from '../components/PartnerIdDisplay';
-import RefreshButton from '../components/RefreshButton';
-import { COLORS, SIZES } from '../constants';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  HeroChip,
+  IconButton,
+  Card,
+  Section,
+  Row,
+  StatCard,
+  StatusBadge,
+  Button,
+  ChoiceCard,
+  EmptyState,
+  LoadingState,
+  Sheet,
+  formatAmount as dsFormatAmount,
+  formatDate as dsFormatDate,
+} from '../design/components';
+import { spacing } from '../design/tokens';
 import userService from '../store/services/userService';
 import donationService from '../store/services/donationService';
 import { RootState } from '../store';
 import { checkAuthStatus, updateUser } from '../store/slices/authSlice';
 import useLogout from '../hooks/useLogout';
-import EventModal from '../components/EventModal';
-import { useEventModal } from '../hooks/useEventModal';
 import UserAvatar from '../components/UserAvatar';
 
-const { width } = Dimensions.get('window');
 
 interface UserStats {
   totalDonations: number;
@@ -90,7 +95,7 @@ interface DashboardModernProps {
 }
 
 const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c } = useDS();
   const { user } = useAppSelector((state: RootState) => state.auth);
   const dispatch = useAppDispatch();
   const { logout, handleAuthError } = useLogout();
@@ -105,11 +110,6 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
   const [showDonationTypeModal, setShowDonationTypeModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
 
-  // Event Modal Hook - désactivé pour l'instant
-  // const { showEventModal, dismissEventModal, markAsParticipated } = useEventModal();
-  const showEventModal = false;
-  const dismissEventModal = () => {};
-  const markAsParticipated = async () => {};
 
   // Besoin de vérification ?
   const needsEmailVerification = user ? !user.isEmailVerified : false;
@@ -285,1345 +285,207 @@ const DashboardModern: React.FC<DashboardModernProps> = ({ navigation }) => {
     return ranges[level as keyof typeof ranges] || "Niveau inconnu";
   };
 
+
+  const LEVEL_LABELS: Record<string, string> = { classique: 'Classique', bronze: 'Bronze', argent: 'Argent', or: 'Or' };
+  const firstName = user?.firstName || 'Partenaire';
+  const levelKey = userStats?.partnerLevel || 'classique';
+  const needsVerification = needsEmailVerification || needsPhoneVerification;
+  const isSupportStaff = ['admin', 'moderator', 'support_agent'].includes(user?.role as string);
+
+  const hero = (
+    <HeroHeader
+      eyebrow="Bonjour 👋"
+      title={firstName}
+      subtitle="Voici un aperçu de vos contributions."
+      right={
+        <View style={styles.heroActions}>
+          <IconButton icon={refreshing ? 'hourglass-outline' : 'refresh'} tone="hero" accessibilityLabel="Actualiser" onPress={onRefresh} />
+          <Pressable onPress={() => navigation.navigate('ProfileImage')} accessibilityRole="button" accessibilityLabel="Ma photo de profil">
+            <UserAvatar user={{ firstName: user?.firstName, lastName: user?.lastName, avatar: user?.avatar }} size={44} />
+          </Pressable>
+        </View>
+      }
+    >
+      <View style={styles.chips}>
+        <HeroChip icon="trophy" label={`Niveau ${LEVEL_LABELS[levelKey] ?? levelKey}`} />
+        {userStats?.partnerLevelDetails?.range || getPartnerLevelRange(levelKey) ? (
+          <HeroChip label={userStats?.partnerLevelDetails?.range || getPartnerLevelRange(levelKey)} />
+        ) : null}
+      </View>
+    </HeroHeader>
+  );
+
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>
-          Chargement de votre tableau de bord...
-        </Text>
-      </View>
+      <Screen hero={hero}>
+        <Card>
+          <LoadingState message="Chargement de votre tableau de bord…" />
+        </Card>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-
-      {/* Barre de navigation fixe avec bouton rafraîchissement */}
-      <View style={[styles.topNavBar, { backgroundColor: colors.primary }]}>
-        <Text style={styles.topNavTitle}>Tableau de bord</Text>
-        <TouchableOpacity
-          style={[
-            styles.topNavRefreshBtn,
-            refreshing && { backgroundColor: 'rgba(232, 177, 48,0.25)' },
-          ]}
-          onPress={onRefresh}
-          disabled={refreshing}
-          activeOpacity={0.7}
-        >
-          {refreshing ? (
-            <MaterialIcons name="hourglass-top" size={22} color="#E8B130" />
-          ) : (
-            <MaterialIcons name="refresh" size={26} color="#E8B130" />
-          )}
-        </TouchableOpacity>
+    <Screen
+      hero={hero}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+    >
+      {/* Chiffres clés */}
+      <View style={styles.row2}>
+        <StatCard label="Total des dons" value={(userStats?.totalDonations || 0).toLocaleString('fr-FR')} unit="FCFA" />
+        <StatCard label="Dons effectués" value={userStats?.donationCount || 0} unit="contributions" tone="neutral" />
+      </View>
+      <View style={styles.row3}>
+        <StatCard tinted tone="success" icon="repeat" label="Récurrents" value={userStats?.activeRecurringDonations || 0} />
+        <StatCard tinted tone="info" icon="trending-up" label="Don moyen" value={(userStats?.averageDonation || 0).toLocaleString('fr-FR')} />
+        <StatCard tinted tone="warning" icon="person-circle-outline" label="Profil" value={`${userStats?.profileCompletion ?? 0}%`} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-          />
+      {/* Vérification du compte */}
+      {needsVerification ? (
+        <Card style={[styles.notice, { backgroundColor: c.warningSoft, borderColor: c.warning }]}>
+          <Ionicons name="shield-checkmark-outline" size={22} color={c.warning} />
+          <View style={styles.flex}>
+            <AppText variant="bodyStrong" color={c.warning}>Vérifiez votre compte</AppText>
+            <AppText variant="small" color={c.warning}>
+              {needsEmailVerification && needsPhoneVerification
+                ? 'Votre email et votre téléphone doivent être vérifiés avant un don.'
+                : needsEmailVerification ? 'Votre email doit être vérifié avant un don.' : 'Votre téléphone doit être vérifié avant un don.'}
+            </AppText>
+          </View>
+          <Button title="Vérifier" variant="outline" fullWidth={false} onPress={() => setShowVerificationModal(true)} style={{ minHeight: 40 }} />
+        </Card>
+      ) : null}
+
+      <Button title="Faire un don" variant="gold" icon="heart" onPress={handleStartDonation} />
+
+      {/* Derniers dons */}
+      <Section
+        title="Derniers dons"
+        action={
+          recentDonations.length > 0 ? (
+            <Pressable onPress={() => navigation.navigate('DonationHistory')} accessibilityRole="button" hitSlop={8}>
+              <AppText variant="smallStrong" color={c.primary}>Voir tout</AppText>
+            </Pressable>
+          ) : undefined
         }
       >
-        {/* Header avec salutation */}
-        <View style={styles.header}>
-          <View style={styles.welcomeSection}>
-            <Text style={[styles.welcomeText, { color: colors.text }]}>
-              Bonjour, {user?.firstName} 👋
-            </Text>
-            <Text style={[styles.welcomeSubtext, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-              Voici un aperçu de vos contributions
-            </Text>
-          </View>
+        {recentDonations.length === 0 ? (
+          <EmptyState icon="heart-outline" title="Aucun don pour le moment" message="Votre premier don apparaîtra ici." />
+        ) : (
+          recentDonations.map((d: any, i: number) => (
+            <Pressable
+              key={d._id}
+              onPress={() => navigation.navigate('DonationDetail', { donationId: d._id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Don de ${dsFormatAmount(d.amount, d.currency)}, ${dsFormatDate(d.createdAt)}`}
+              style={({ pressed }) => [
+                styles.donationRow,
+                i < recentDonations.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+                pressed && { backgroundColor: c.muted },
+              ]}
+            >
+              <View style={[styles.iconTile, { backgroundColor: c.primarySoft }]}>
+                <MaterialIcons name={getCategoryIcon(d.category) as any} size={18} color={c.primary} />
+              </View>
+              <View style={styles.flex}>
+                <AppText variant="bodyStrong" numberOfLines={1}>{dsFormatAmount(d.amount, d.currency)}</AppText>
+                <AppText variant="small" color={c.mutedForeground} numberOfLines={1}>
+                  {donationService.formatCategory(d.category)} · {dsFormatDate(d.createdAt)}
+                </AppText>
+              </View>
+              <StatusBadge status={d.status} />
+            </Pressable>
+          ))
+        )}
+      </Section>
 
-          {/* Avatar et niveau */}
-          <View style={styles.avatarSection}>
-            <UserAvatar
-              user={{
-                firstName: user?.firstName,
-                lastName: user?.lastName,
-                avatar: user?.avatar
-              }}
-              size={80}
-              onPress={() => navigation.navigate('ProfileImage')}
-              showFullScreenOnPress={true}
+      {/* Actions rapides */}
+      <Section title="Actions rapides">
+        <Row icon="repeat" label="Mes dons récurrents" onPress={() => navigation.navigate('RecurringDonations')} chevron />
+        <Row icon="document-text-outline" label="Mes reçus et documents" onPress={() => navigation.navigate('Documents')} chevron />
+        <Row
+          icon="chatbubbles-outline"
+          label={isSupportStaff ? 'Tickets de support' : 'Contacter le support'}
+          onPress={() => (isSupportStaff ? navigation.navigate('TicketList') : navigation.navigate('ContactSupport'))}
+          chevron
+        />
+        <Row icon="help-circle-outline" label="Centre d'aide" onPress={() => navigation.navigate('HelpCenter')} chevron last />
+      </Section>
+
+      <Section title="Le ministère">
+        <Row icon="globe-outline" label="Missions" onPress={() => navigation.navigate('Missions')} chevron />
+        <Row icon="logo-instagram" label="Réseaux sociaux" onPress={() => navigation.navigate('SocialMedia')} chevron />
+        <Row icon="call-outline" label="Contacter le ministère" onPress={() => navigation.navigate('ContactMinistere')} chevron last />
+      </Section>
+
+      {userStats?.memberSince ? (
+        <AppText variant="caption" color={c.mutedForeground} center>
+          Partenaire depuis le {dsFormatDate(userStats.memberSince)}
+        </AppText>
+      ) : null}
+
+      {/* Vérification requise avant un don */}
+      <Sheet visible={showVerificationModal} title="Vérification requise" onClose={() => setShowVerificationModal(false)}>
+        <AppText variant="body" color={c.mutedForeground}>
+          Pour effectuer un don, vérifiez d'abord vos informations de contact.
+        </AppText>
+        <Card padded={false}>
+          {needsEmailVerification ? (
+            <Row
+              icon="mail-outline"
+              label="Email non vérifié"
+              sublabel="Recevoir un code par email"
+              onPress={() => { setShowVerificationModal(false); navigation.navigate('EmailVerification'); }}
+              chevron
+              last={!needsPhoneVerification}
             />
-            <View style={[styles.partnerLevelBadge, { backgroundColor: userStats?.partnerLevelDetails?.color || colors.primary, borderRadius: 12, marginTop: 12 }]}>
-              <Text style={styles.partnerLevelBadgeText}>
-                {userStats?.partnerLevel.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-
-        {/* Partner ID Display */}
-        {false && user?.partnerId && (
-          <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
-            <PartnerIdDisplay
-              partnerId={user.partnerId}
-              partnerLevel={user.partnerLevel}
-              partnerLevelDetails={user.partnerLevelDetails}
-              variant="compact"
-              showCopyButton={true}
-              showLevel={false}
+          ) : null}
+          {needsPhoneVerification ? (
+            <Row
+              icon="phone-portrait-outline"
+              label="Téléphone non vérifié"
+              sublabel="Recevoir un code par SMS"
+              onPress={() => { setShowVerificationModal(false); navigation.navigate('PhoneVerification'); }}
+              chevron
+              last
             />
-          </View>
-        )}
+          ) : null}
+        </Card>
+        <Button title="J'ai vérifié, actualiser" icon="refresh" onPress={handleRefreshVerification} loading={isRefreshingVerification} />
+        <Button title="Ouvrir les paramètres" variant="ghost" onPress={() => { setShowVerificationModal(false); navigation.navigate('Settings'); }} />
+      </Sheet>
 
-
-        {/* Niveau de partenaire 
-        {userStats?.partnerLevel && (
-          <View style={[styles.partnerLevelCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <View style={styles.partnerLevelHeader}>
-              <View style={[styles.partnerLevelIconContainer, { backgroundColor: (userStats.partnerLevelDetails?.color || colors.primary) + '20' }]}>
-                <MaterialIcons name="star" size={24} color={userStats.partnerLevelDetails?.color || colors.primary} />
-              </View>
-              <View style={styles.partnerLevelInfo}>
-                <Text style={[styles.partnerLevelTitle, { color: colors.text }]}>
-                  {userStats.partnerLevelDetails?.name || `Partenaire ${userStats.partnerLevel}`}
-                </Text>
-                <Text style={[styles.partnerLevelRange, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  {userStats.partnerLevelDetails?.range || getPartnerLevelRange(userStats.partnerLevel)}
-                </Text>
-              </View>
-              <View style={[styles.partnerLevelBadge, { backgroundColor: userStats.partnerLevelDetails?.color || colors.primary }]}>
-                <Text style={styles.partnerLevelBadgeText}>
-                  {userStats.partnerLevel.toUpperCase()}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        */}
-
-        {/* Statistiques principales */}
-        <View style={styles.statsContainer}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Statistiques globales
-          </Text>
-
-          <View style={styles.statsGrid}>
-            {/* Total des dons */}
-            <LinearGradient
-              colors={['#4CAF50', '#45A049']}
-              style={[styles.statCard, styles.largeCard]}
-            >
-              <MaterialIcons name="monetization-on" size={32} color="#FFFFFF" />
-              <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-                {formatAmount(userStats?.totalDonations || 0)}
-              </Text>
-              <Text style={styles.statLabel}>Total des dons</Text>
-            </LinearGradient>
-
-            {/* Nombre de dons */}
-            <View style={[styles.statCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, width: (width - 64) / 2 }]}>
-              <MaterialIcons
-                name="favorite"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[styles.statValueSmall, { color: colors.text }]}>
-                {userStats?.donationCount || 0}
-              </Text>
-              <Text style={[styles.statLabelSmall, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Dons effectués
-              </Text>
-            </View>
-
-            {/* Don moyen */}
-            <View style={[styles.statCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, width: (width - 64) / 2 }]}>
-              <MaterialIcons
-                name="trending-up"
-                size={24}
-                color={colors.primary}
-              />
-              <Text
-                style={[styles.statValueSmall, { color: colors.text }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.6}
-              >
-                {formatAmount(userStats?.averageDonation || 0)}
-              </Text>
-              <Text style={[styles.statLabelSmall, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Don moyen
-              </Text>
-            </View>
-
-            {/* Dons récurrents */}
-            <View style={[styles.statCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, width: (width - 64) / 2 }]}>
-              <MaterialIcons
-                name="repeat"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[styles.statValueSmall, { color: colors.text }]}>
-                {userStats?.activeRecurringDonations || 0}
-              </Text>
-              <Text style={[styles.statLabelSmall, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Dons récurrents
-              </Text>
-            </View>
-
-            {/* Complétude du profil */}
-            <View style={[styles.statCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, width: (width - 64) / 2 }]}>
-              <MaterialIcons
-                name="person"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[styles.statValueSmall, { color: colors.text }]}>
-                {userStats?.profileCompletion || 0}%
-              </Text>
-              <Text style={[styles.statLabelSmall, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Profil complété
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Badges */}
-        {userStats?.badges && userStats.badges.length > 0 && (
-          <View style={styles.badgesContainer}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Vos badges 🏆
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.badgesRow}>
-                {userStats.badges.map((badge, index) => (
-                  <View key={index} style={[styles.badgeCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-                    <Text style={styles.badgeIcon}>{badge.icon || '🏆'}</Text>
-                    <Text style={[styles.badgeName, { color: colors.text }]}>
-                      {badge.name}
-                    </Text>
-                    <Text style={[styles.badgeDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      {formatDate(badge.earnedAt)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Action rapide - Historique récent 
-        <View style={styles.quickActionCard}>
-          <View style={styles.quickActionHeader}>
-            <Text style={[styles.quickActionTitle, { color: dark ? COLORS.white : COLORS.black }]}>
-              Donations récentes
-            </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('DonationHistory')}>
-              <Text style={[styles.seeAllText, { color: COLORS.primary }]}>Voir tout</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {recentDonations.length > 0 ? (
-            <View style={styles.recentDonationsContainer}>
-              {recentDonations.slice(0, ).map((donation, index) => (
-                <TouchableOpacity
-                  key={donation._id}
-                  style={styles.recentDonationItem}
-                  onPress={() => navigation.navigate('DonationDetail', { donationId: donation._id })}
-                >
-                  <View style={styles.donationItemLeft}>
-                    <View style={[styles.donationIcon, { backgroundColor: COLORS.primary + '20' }]}>
-                      <MaterialIcons name="favorite" size={16} color={COLORS.primary} />
-                    </View>
-                    <View style={styles.donationDetails}>
-                      <Text
-                        style={[styles.donationAmount, { color: dark ? COLORS.white : COLORS.black }]}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.7}
-                      >
-                        {formatAmount(donation.amount, donation.currency)}
-                      </Text>
-                      <Text style={[styles.donationDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                        {formatDate(donation.createdAt)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={[styles.donationStatus, { 
-                    backgroundColor: getStatusColor(donation.status) + '20' 
-                  }]}>
-                    <Text style={[styles.donationStatusText, { 
-                      color: getStatusColor(donation.status) 
-                    }]}>
-                      {getStatusLabel(donation.status)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <MaterialIcons 
-                name="history" 
-                size={40} 
-                color={dark ? COLORS.grayTie : COLORS.gray} 
-              />
-              <Text style={[styles.emptyStateText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                Aucun don récent
-              </Text>
-              <TouchableOpacity
-                style={[styles.emptyActionButton, { backgroundColor: COLORS.primary }]}
-                onPress={() => navigation.navigate('CreateDonation')}
-              >
-                <Text style={styles.emptyActionText}>Faire un don</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-        */}
-
-        {/* Dernière donation */}
-        {userStats?.lastDonation && (
-          <View style={[styles.lastDonationCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <View style={styles.lastDonationHeader}>
-              <MaterialIcons name="history" size={24} color={colors.primary} />
-              <Text style={[styles.lastDonationTitle, { color: colors.text }]}>
-                Dernière donation
-              </Text>
-            </View>
-            <View style={styles.lastDonationContent}>
-              <Text
-                style={[styles.lastDonationAmount, { color: colors.primary }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.6}
-              >
-                {formatAmount(userStats.lastDonation.amount, userStats.lastDonation.currency)}
-              </Text>
-              <View style={styles.lastDonationDetails}>
-                <Text style={[styles.lastDonationCategory, { color: colors.text }]}>
-                  {donationService.formatCategory(userStats.lastDonation.category)}
-                </Text>
-                <Text style={[styles.lastDonationDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  {formatDate(userStats.lastDonation.date)}
-                </Text>
-              </View>
-            </View>
-
-          </View>
-        )}
-
-        {/* Répartition par catégorie 
-        {donationStats?.categoriesBreakdown && donationStats.categoriesBreakdown.length > 0 && (
-          <View style={styles.categoriesContainer}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Répartition par catégorie
-            </Text>
-            <View style={[styles.categoriesCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-              {donationStats.categoriesBreakdown.slice(0, 5).map((category, index) => (
-                <View key={index} style={[styles.categoryRow, index === donationStats.categoriesBreakdown.length - 1 && { borderBottomWidth: 0 }]}>
-                  <View style={styles.categoryInfo}>
-                    <MaterialIcons
-                      name={getCategoryIcon(category._id) as any}
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <Text style={[styles.categoryName, { color: colors.text }]}>
-                      {donationService.formatCategory(category._id)}
-                    </Text>
-                  </View>
-                  <View style={styles.categoryStats}>
-                    <Text style={[styles.categoryAmount, { color: colors.text }]}>
-                      {formatAmount(category.totalAmount)}
-                    </Text>
-                    <Text style={[styles.categoryCount, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                      {category.count} don{category.count > 1 ? 's' : ''}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-          */}
-
-        {/* Actions rapides */}
-        <View style={styles.actionsContainer}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Actions rapides
-          </Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={handleStartDonation}
-            >
-              <MaterialIcons name="add" size={24} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Nouveau don</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('DonationHistory', { showOnlyDonations: true })}
-            >
-              <MaterialIcons name="history" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Donations</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('PaymentHistory')}
-            >
-              <MaterialIcons name="payment" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Paiements</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('RecurringDonations')}
-            >
-              <MaterialIcons name="repeat" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Récurrents</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('Profile')}
-            >
-              <MaterialIcons name="person" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Profil</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => user?.role === 'admin' ? navigation.navigate('TicketList') : navigation.navigate('ContactSupport')}
-            >
-              <MaterialIcons name="support-agent" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Support</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('HelpCenter')}
-            >
-              <MaterialIcons name="help-outline" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>FAQ</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('Missions')}
-            >
-              <MaterialIcons name="church" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Missions</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('SocialMedia')}
-            >
-              <MaterialIcons name="share" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Nos Réseaux</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <MaterialIcons name="settings" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Paramètres</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-              onPress={() => navigation.navigate('ContactMinistere')}
-            >
-              <MaterialIcons name="phone" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Nos contacts</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#f44336', borderColor: '#f44336' }]}
-              onPress={handleLogout}
-            >
-              <MaterialIcons name="logout" size={24} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Déconnexion</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Membre depuis */}
-        {userStats?.memberSince && (
-          <View style={[styles.memberSinceCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-            <MaterialIcons name="cake" size={20} color={colors.primary} />
-            <Text style={[styles.memberSinceText, { color: colors.text }]}>
-              Membre depuis {formatDate(userStats.memberSince)}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-
-      {/* Bouton de rafraîchissement flottant */}
-      <RefreshButton
-        onPress={onRefresh}
-        isRefreshing={refreshing}
-        variant="floating"
-        position="bottom-right"
-        size="medium"
-      />
-
-      {/* Modal de vérification (garde-fou) */}
-      <Modal
-        visible={showVerificationModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowVerificationModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Vérification requise</Text>
-              <TouchableOpacity onPress={() => setShowVerificationModal(false)} style={styles.modalCloseButton}>
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ padding: 20 }}>
-              <Text style={{ color: dark ? COLORS.grayTie : COLORS.gray, marginBottom: 12 }}>
-                Pour effectuer un don, veuillez vérifier vos informations de contact.
-              </Text>
-
-              {needsEmailVerification && (
-                <View style={styles.verifyRow}>
-                  <MaterialIcons name="email" size={20} color={colors.primary} />
-                  <Text style={[styles.verifyRowText, { color: colors.text }]}>Email non vérifié</Text>
-                  <TouchableOpacity
-                    style={[styles.ctaBadge, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
-                    onPress={() => { setShowVerificationModal(false); navigation.navigate('EmailVerification'); }}
-                  >
-                    <Text style={[styles.ctaBadgeText, { color: colors.primary }]}>Vérifier</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {needsPhoneVerification && (
-                <View style={styles.verifyRow}>
-                  <MaterialIcons name="phone-iphone" size={20} color={colors.primary} />
-                  <Text style={[styles.verifyRowText, { color: colors.text }]}>Téléphone non vérifié</Text>
-                  <TouchableOpacity
-                    style={[styles.ctaBadge, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
-                    onPress={() => { setShowVerificationModal(false); navigation.navigate('PhoneVerification'); }}
-                  >
-                    <Text style={[styles.ctaBadgeText, { color: colors.primary }]}>Vérifier</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              <View style={{ marginTop: 16, gap: 10 }}>
-                <TouchableOpacity
-                  style={[styles.verifyPrimaryButton, { backgroundColor: colors.primary, opacity: isRefreshingVerification ? 0.7 : 1 }]}
-                  onPress={handleRefreshVerification}
-                  disabled={isRefreshingVerification}
-                >
-                  {isRefreshingVerification
-                    ? <ActivityIndicator size="small" color="#FFFFFF" />
-                    : <Text style={styles.verifyPrimaryText}>J'ai vérifié, actualiser</Text>}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.verifySecondaryButton, { borderColor: dark ? COLORS.grayTie : COLORS.greyscale300 }]}
-                  onPress={() => { setShowVerificationModal(false); navigation.navigate('Settings'); }}
-                >
-                  <Text style={[styles.verifySecondaryText, { color: colors.text }]}>Aller aux paramètres</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal de sélection du type de don */}
-      <Modal
-        visible={showDonationTypeModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowDonationTypeModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Type de don
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowDonationTypeModal(false)}
-                style={styles.modalCloseButton}
-              >
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.donationTypeOptions}>
-              <TouchableOpacity
-                style={[styles.donationTypeOption, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-                onPress={() => {
-                  setShowDonationTypeModal(false);
-                  navigation.navigate('CreateDonation', { initialType: 'one_time' });
-                }}
-              >
-                <View style={[styles.donationTypeIcon, { backgroundColor: colors.primary + '20' }]}>
-                  <MaterialIcons name="favorite" size={32} color={colors.primary} />
-                </View>
-                <View style={styles.donationTypeInfo}>
-                  <Text style={[styles.donationTypeTitle, { color: colors.text }]}>
-                    Don unique
-                  </Text>
-                  <Text style={[styles.donationTypeDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Effectuer un don ponctuel pour une cause spécifique
-                  </Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.donationTypeOption, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-                onPress={() => {
-                  setShowDonationTypeModal(false);
-                  navigation.navigate('CreateDonation', { initialType: 'recurring' });
-                }}
-              >
-                <View style={[styles.donationTypeIcon, { backgroundColor: '#4CAF50' + '20' }]}>
-                  <MaterialIcons name="repeat" size={32} color="#4CAF50" />
-                </View>
-                <View style={styles.donationTypeInfo}>
-                  <Text style={[styles.donationTypeTitle, { color: colors.text }]}>
-                    Don récurrent
-                  </Text>
-                  <Text style={[styles.donationTypeDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                    Automatiser vos contributions avec des paiements réguliers
-                  </Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={24} color="#4CAF50" />
-              </TouchableOpacity>
-
-              <View style={styles.donationTypeNote}>
-                <MaterialIcons name="info" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-                <Text style={[styles.donationTypeNoteText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
-                  Vous pourrez modifier les paramètres après avoir sélectionné le type
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Event Modal */}
-      <EventModal
-        visible={showEventModal}
-        onClose={dismissEventModal} // Ferme temporairement (bouton "Plus tard")
-        onJoinEvent={async () => {
-          // Marquer comme participé pour ne plus afficher la modal
-          markAsParticipated();
-          const formUrl = 'https://docs.google.com/forms/d/1YR5sNDXNFw8TE_ynuwPmfp65P9PXvjQOvMf9mpYERI0/viewform?fbclid=IwY2xjawMdO79leHRuA2FlbQIxMABicmlkETFrckdueU9oWWh5ZFdsdmVGAR5fXjV5jnOnHE-ESBKNusI3YksXppILN4OpGBKhmJu24mkXDx1iMLurotQGbQ_aem_HzDP35BBhjmqYDMhSl8HGA&edit_requested=true';
-
-          try {
-            const supported = await Linking.canOpenURL(formUrl);
-            if (supported) {
-              await Linking.openURL(formUrl);
-            } else {
-              Alert.alert(
-                'Erreur',
-                'Impossible d\'ouvrir le lien. Veuillez vérifier que vous avez un navigateur installé.',
-                [{ text: 'OK' }]
-              );
-            }
-          } catch (error) {
-            logger.error('Erreur lors de l\'ouverture du lien:', error);
-            Alert.alert(
-              'Erreur',
-              'Une erreur s\'est produite lors de l\'ouverture du formulaire.',
-              [{ text: 'OK' }]
-            );
-          }
-        }}
-      />
-    </SafeAreaView>
+      {/* Choix du type de don */}
+      <Sheet visible={showDonationTypeModal} title="Quel type de don ?" onClose={() => setShowDonationTypeModal(false)}>
+        <ChoiceCard
+          icon="flash-outline"
+          title="Don ponctuel"
+          description="Un don unique, sans engagement."
+          selected={false}
+          onPress={() => { setShowDonationTypeModal(false); navigation.navigate('CreateDonation', { initialType: 'one_time' }); }}
+        />
+        <ChoiceCard
+          icon="repeat"
+          title="Don récurrent"
+          description="Mensuel, trimestriel ou semestriel."
+          selected={false}
+          onPress={() => { setShowDonationTypeModal(false); navigation.navigate('CreateDonation', { initialType: 'recurring' }); }}
+        />
+      </Sheet>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  topNavBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  topNavTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  topNavRefreshBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E8B130',
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  welcomeSection: {
-    flex: 1,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  welcomeSubtext: {
-    fontSize: 14,
-  },
-  avatarSection: {
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  avatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  levelBadge: {
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-  },
-  levelText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  statsContainer: {
-    padding: 20,
-    paddingTop: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    marginTop: 10,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-    marginTop: 10,
-  },
-  statCard: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 8,
-  },
-  largeCard: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  statValueSmall: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabelSmall: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  badgesContainer: {
-    padding: 20,
-    paddingTop: 20,
-    marginBottom: 20,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 4,
-  },
-  badgeCard: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginRight: 12,
-    minWidth: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  badgeIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  badgeName: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  badgeDate: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  lastDonationCard: {
-    margin: 20,
-    marginTop: 20,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  lastDonationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  lastDonationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  lastDonationContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  lastDonationAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  lastDonationDetails: {
-    alignItems: 'flex-end',
-  },
-  lastDonationCategory: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  lastDonationDate: {
-    fontSize: 12,
-  },
-  categoriesContainer: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  categoriesCard: {
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  categoryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  categoryName: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 12,
-    textTransform: 'capitalize',
-  },
-  categoryStats: {
-    alignItems: 'flex-end',
-  },
-  categoryAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  categoryCount: {
-    fontSize: 12,
-  },
-  actionsContainer: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    minWidth: '45%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-    color: '#FFFFFF',
-  },
-  memberSinceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: 20,
-    marginTop: 0,
-    padding: 12,
-    borderRadius: 8,
-  },
-  memberSinceText: {
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  bottomPadding: {
-    height: 20,
-  },
-  recentDonationsContainer: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  recentDonationsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 4,
-  },
-  recentDonationsCard: {
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  recentDonationItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  recentDonationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  recentDonationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  recentDonationDetails: {
-    flex: 1,
-  },
-  recentDonationAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  recentDonationCategory: {
-    fontSize: 12,
-    textTransform: 'capitalize',
-  },
-  recentDonationMeta: {
-    alignItems: 'flex-end',
-  },
-  recentStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  recentStatusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  recentDonationDate: {
-    fontSize: 11,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  donationTypeOptions: {
-    padding: 20,
-  },
-  donationTypeOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  donationTypeIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  donationTypeInfo: {
-    flex: 1,
-  },
-  donationTypeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  donationTypeDescription: {
-    fontSize: 14,
-  },
-  donationTypeNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
-  },
-  donationTypeNoteText: {
-    fontSize: 12,
-    flex: 1,
-  },
-  quickActionCard: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  quickActionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  quickActionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  donationItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  donationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  donationDetails: {
-    flex: 1,
-  },
-  donationAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  donationDate: {
-    fontSize: 12,
-  },
-  donationStatus: {
-    padding: 4,
-    borderRadius: 10,
-  },
-  donationStatusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  emptyActionButton: {
-    padding: 12,
-    borderRadius: 8,
-  },
-  emptyActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  profileCompletionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  completionPercentage: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  profileCompletionText: {
-    fontSize: 12,
-    marginBottom: 16,
-  },
-  completeProfileButton: {
-    padding: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completeProfileButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-    color: '#FFFFFF',
-  },
-  partnerLevelCard: {
-    margin: 20,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  partnerLevelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  partnerLevelIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  partnerLevelInfo: {
-    flex: 1,
-  },
-  partnerLevelTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  partnerLevelRange: {
-    fontSize: 12,
-  },
-  partnerLevelBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(51, 94, 247, 0.1)',
-  },
-  partnerLevelBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  partnerProgressContainer: {
-    marginTop: 12,
-  },
-  partnerProgressInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  partnerProgressText: {
-    fontSize: 12,
-  },
-  partnerProgressAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  partnerProgressBar: {
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  partnerProgressFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  partnerProgressTarget: {
-    fontSize: 12,
-  },
-  verifyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  verifyRowText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  ctaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  ctaBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  verifyPrimaryButton: {
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  verifyPrimaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  verifySecondaryButton: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  verifySecondaryText: {
-    fontWeight: '600',
-  },
+  flex: { flex: 1 },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  row2: { flexDirection: 'row', gap: spacing.md },
+  row3: { flexDirection: 'row', gap: spacing.sm },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  donationRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 60 },
+  iconTile: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });
 
-export default DashboardModern; 
+export default DashboardModern;

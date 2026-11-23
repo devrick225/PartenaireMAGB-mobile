@@ -9,6 +9,7 @@
 import React, { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   ScrollViewProps,
@@ -639,6 +640,28 @@ export function LoadingState({ message = 'Chargement…' }: { message?: string }
   );
 }
 
+/** Fenêtre qui monte du bas (choix, confirmations) — remplace les anciennes modales plein écran */
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const { c } = useDS();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={[styles.sheetOverlay, { backgroundColor: c.overlay }]} onPress={onClose} accessibilityLabel="Fermer">
+        <Pressable style={[styles.sheet, { backgroundColor: c.card, paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.sm }]}>
+          <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
+          <View style={styles.sheetHeader}>
+            <AppText variant="title" accessibilityRole="header" style={{ flex: 1 }}>
+              {title}
+            </AppText>
+            <IconButton icon="close" onPress={onClose} accessibilityLabel="Fermer" />
+          </View>
+          {children}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 /** Ligne clé / valeur pour les écrans de détail */
 export function InfoRow({ label, value, last, valueColor }: { label: string; value?: ReactNode; last?: boolean; valueColor?: string }) {
   const { c } = useDS();
@@ -682,4 +705,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg, gap: spacing.sm },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
   infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, gap: spacing.md },
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, maxHeight: '88%' },
+  sheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: spacing.xs },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });

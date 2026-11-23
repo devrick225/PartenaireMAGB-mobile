@@ -1,5 +1,9 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+import { useDS } from "../design/components";
+import { fonts } from "../design/tokens";
 
 // Main App Screens
 import Dashboard from "../screens/Dashboard";
@@ -57,24 +61,60 @@ import ContactMinistere from "../screens/ContactMinistereSimple";
 import PaymentWebViewScreen from "../screens/PaymentWebViewScreen";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// Barre d'onglets du bas — mêmes entrées que la navigation mobile du site (frontend-new)
+const TABS = [
+  { name: "Dashboard", component: DashboardModern, label: "Accueil", icon: "home" },
+  { name: "DonationHistory", component: DonationHistoryScreen, label: "Dons", icon: "heart" },
+  { name: "PaymentHistory", component: PaymentHistoryScreen, label: "Paiements", icon: "wallet" },
+  { name: "TicketList", component: TicketListScreen, label: "Support", icon: "chatbubbles" },
+  { name: "Profile", component: ProfileScreen, label: "Profil", icon: "person" },
+];
+
+const MainTabs = () => {
+  const { c } = useDS();
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => {
+        const tab = TABS.find((t) => t.name === route.name);
+        return {
+          headerShown: false,
+          tabBarActiveTintColor: c.primary,
+          tabBarInactiveTintColor: c.mutedForeground,
+          tabBarStyle: { backgroundColor: c.card, borderTopColor: c.border },
+          tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
+          tabBarIcon: ({ color, focused, size }) => (
+            <Ionicons name={focused ? tab.icon : `${tab.icon}-outline`} size={size - 2} color={color} />
+          ),
+          tabBarAccessibilityLabel: tab?.label,
+        };
+      }}
+    >
+      {TABS.map((t) => (
+        // asTab : l'écran est une racine d'onglet (pas de bouton retour dans son en-tête)
+        <Tab.Screen key={t.name} name={t.name} component={t.component} options={{ title: t.label }} initialParams={{ asTab: true }} />
+      ))}
+    </Tab.Navigator>
+  );
+};
 
 const AppNavigator = () => {
   return (
     <>
       <DeepLinkHandler />
       <Stack.Navigator
-        initialRouteName="Dashboard"
+        initialRouteName="Main"
         screenOptions={{
           headerShown: false,
           gestureEnabled: true,
           animation: 'slide_from_right',
         }}
       >
-        {/* Main Dashboard */}
-        <Stack.Screen name="Dashboard" component={DashboardModern} />
+        {/* Onglets principaux : Accueil, Dons, Paiements, Support, Profil */}
+        <Stack.Screen name="Main" component={MainTabs} />
 
         {/* Profile & Settings */}
-        <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
 
@@ -85,11 +125,9 @@ const AppNavigator = () => {
         {/* Support & Help */}
         <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
         <Stack.Screen name="ContactSupport" component={ContactSupportScreen} />
-        <Stack.Screen name="TicketList" component={TicketListScreen} />
         <Stack.Screen name="TicketDetail" component={TicketDetailScreen} />
 
         {/* Donations */}
-        <Stack.Screen name="DonationHistory" component={DonationHistoryScreen} />
         <Stack.Screen name="DonationDetail" component={DonationDetailScreen} />
         <Stack.Screen name="CreateDonation" component={CreateDonationScreen} />
         <Stack.Screen name="RecurringDonations" component={RecurringDonationsScreen} />
@@ -97,7 +135,6 @@ const AppNavigator = () => {
         {/* Payments */}
         <Stack.Screen name="PaymentVerification" component={PaymentVerificationScreen} />
         <Stack.Screen name="PaymentManagement" component={PaymentManagementScreen} />
-        <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
 
         {/* Privacy Policy */}
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />

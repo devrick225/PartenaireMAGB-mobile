@@ -30,6 +30,7 @@ import { cardShadow, radius, spacing, MIN_TOUCH } from '../design/tokens';
 
 interface PaymentHistoryScreenProps {
   navigation: any;
+  route?: { params?: { asTab?: boolean } };
 }
 
 interface PaymentFilters {
@@ -37,7 +38,7 @@ interface PaymentFilters {
   provider?: string;
 }
 
-const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation }) => {
+const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation, route }) => {
   const { c } = useDS();
 
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -219,7 +220,7 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation 
         eyebrow="Mes paiements"
         eyebrowIcon="wallet-outline"
         title="Historique des paiements"
-        onBack={() => navigation.goBack()}
+        onBack={route?.params?.asTab ? undefined : () => navigation.goBack()}
         right={<IconButton icon={refreshing ? 'hourglass-outline' : 'refresh'} tone="hero" accessibilityLabel="Actualiser" onPress={onRefresh} />}
       />
       <View style={styles.headerBody}>

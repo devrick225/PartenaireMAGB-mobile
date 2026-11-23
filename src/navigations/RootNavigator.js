@@ -54,7 +54,9 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    // navigationInChildEnabled : permet navigate('Dashboard' | 'Profile' | …) vers les onglets
+    // imbriqués dans la pile (MainTabs), comme avant l'ajout de la barre d'onglets.
+    <NavigationContainer navigationInChildEnabled>
       {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );

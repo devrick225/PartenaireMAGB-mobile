@@ -37,6 +37,7 @@ interface DonationHistoryScreenProps {
   route?: {
     params?: {
       showOnlyDonations?: boolean;
+      asTab?: boolean;
     };
   };
 }
@@ -232,7 +233,7 @@ const DonationHistoryScreen: React.FC<DonationHistoryScreenProps> = ({ navigatio
         eyebrow="Mes dons"
         eyebrowIcon="heart-outline"
         title={title}
-        onBack={() => navigation.goBack()}
+        onBack={route?.params?.asTab ? undefined : () => navigation.goBack()}
         right={
           <IconButton
             icon={isRefreshing ? 'hourglass-outline' : 'refresh'}
