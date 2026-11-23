@@ -334,11 +334,12 @@ export function StatCard({ icon, label, value, unit, tone = 'primary', tinted, s
   if (tinted) {
     return (
       <View style={[styles.tintedStat, { backgroundColor: t.bg }, style]} accessible accessibilityLabel={`${label} : ${value}`}>
-        {icon ? <Ionicons name={icon} size={20} color={t.fg} /> : null}
-        <AppText variant="subtitle" color={t.fg} style={{ marginTop: 2 }}>
+        {/* Structure fixe (icône / chiffre / libellé sur une ligne) : toutes les cartes d'une rangée ont la même taille */}
+        <View style={styles.tintedIcon}>{icon ? <Ionicons name={icon} size={20} color={t.fg} /> : null}</View>
+        <AppText variant="subtitle" color={t.fg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.tintedValue}>
           {value}
         </AppText>
-        <AppText variant="caption" color={t.fg} numberOfLines={1}>
+        <AppText variant="caption" color={t.fg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={styles.tintedLabel}>
           {label}
         </AppText>
       </View>
@@ -852,7 +853,10 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xs, marginBottom: 6 },
   listRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 56, gap: spacing.md },
   iconTile: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  tintedStat: { flex: 1, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center' },
+  tintedStat: { flex: 1, flexBasis: 0, minHeight: 92, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  tintedIcon: { height: 22, alignItems: 'center', justifyContent: 'center' },
+  tintedValue: { marginTop: 2, alignSelf: 'stretch', textAlign: 'center' },
+  tintedLabel: { alignSelf: 'stretch', textAlign: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
   button: { minHeight: 50, borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   iconButton: { width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },

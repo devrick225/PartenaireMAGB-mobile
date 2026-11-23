@@ -78,6 +78,29 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation,
     loadPayments(true);
   }, [filters]);
 
+  // Totaux de l'en-tête : comptés côté serveur (toutes pages) pour que « Paiements »,
+  // « Réussis » et « En attente » aient la même source. Le filtre « moyen de paiement »
+  // s'applique ; le filtre de statut non (sinon les compteurs n'auraient plus de sens).
+  const [totals, setTotals] = useState<{ all: number; completed: number; pending: number } | null>(null);
+  const loadTotals = useCallback(async () => {
+    try {
+      const base: any = { page: 1, limit: 1, ...(filters.provider ? { provider: filters.provider } : {}) };
+      const count = async (extra: any) => {
+        const res = await paymentService.getPayments({ ...base, ...extra });
+        return res.data?.data?.pagination?.totalDocs ?? 0;
+      };
+      const [all, completed, pending] = await Promise.all([count({}), count({ status: 'completed' }), count({ status: 'pending' })]);
+      setTotals({ all, completed, pending });
+    } catch (error) {
+      logger.error('Erreur chargement totaux paiements:', error);
+      setTotals(null);
+    }
+  }, [filters.provider]);
+
+  useEffect(() => {
+    loadTotals();
+  }, [loadTotals]);
+
   const loadPayments = useCallback(async (reset = false) => {
     try {
       if (reset) {
@@ -126,6 +149,7 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation,
 
   const onRefresh = () => {
     setRefreshing(true);
+    loadTotals();
     loadPayments(true);
   };
 
@@ -225,9 +249,9 @@ const PaymentHistoryScreen: React.FC<PaymentHistoryScreenProps> = ({ navigation,
       />
       <View style={styles.headerBody}>
         <View style={styles.stats}>
-          <StatCard tinted tone="primary" icon="receipt-outline" label="Paiements" value={pagination.totalDocs} />
-          <StatCard tinted tone="success" icon="checkmark-circle-outline" label="Réussis" value={payments.filter(p => p.status === 'completed').length} />
-          <StatCard tinted tone="warning" icon="time-outline" label="En attente" value={payments.filter(p => p.status === 'pending').length} />
+          <StatCard tinted tone="primary" icon="receipt-outline" label="Paiements" value={totals ? totals.all : '—'} />
+          <StatCard tinted tone="success" icon="checkmark-circle-outline" label="Réussis" value={totals ? totals.completed : '—'} />
+          <StatCard tinted tone="warning" icon="time-outline" label="En attente" value={totals ? totals.pending : '—'} />
         </View>
         <View style={{ gap: spacing.sm }}>
           <AppText variant="overline" color={c.mutedForeground}>Statut</AppText>
@@ -278,7 +302,7 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: spacing.xxl },
   headerBody: { paddingHorizontal: spacing.lg, marginTop: -spacing.lg, marginBottom: spacing.lg, gap: spacing.lg },
   pad: { paddingHorizontal: spacing.lg },
-  stats: { flexDirection: 'row', gap: spacing.sm },
+  stats: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.sm },
   chipsRow: { gap: spacing.sm, paddingRight: spacing.lg },
   chip: { minHeight: MIN_TOUCH - 6, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   card: { marginHorizontal: spacing.lg, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
