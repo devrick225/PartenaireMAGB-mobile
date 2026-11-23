@@ -2,21 +2,15 @@ import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   TextInput,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
 import authService from '../store/services/authService';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateUser } from '../store/slices/authSlice';
@@ -24,17 +18,14 @@ import { RootState } from '../store';
 import { useOtpClipboard } from '../hooks/useOtpClipboard';
 import { showApiError } from '../store/services/apiClient';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, Card, Button, CodeInput } from '../design/components';
+import { spacing } from '../design/tokens';
 interface PhoneVerificationScreenProps {
   navigation: any;
 }
 
 const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -44,7 +35,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
   const [timer, setTimer] = useState(0);
   const [canResend, setCanResend] = useState(false);
   
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const inputRefs = useRef<any[]>([]);
 
   // Auto-remplissage depuis le presse-papier (SMS OTP)
   useOtpClipboard({
@@ -60,7 +51,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
   }, []);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (timer > 0) {
       interval = setInterval(() => {
         setTimer(timer - 1);
@@ -211,277 +202,51 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
     return phone;
   };
 
+
+  const incomplete = code.some(digit => digit === '');
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen
+        hero={
+          <HeroHeader eyebrow="Vérification" eyebrowIcon="shield-checkmark-outline" title="Vérifier mon téléphone" onBack={() => navigation.goBack()} />
+        }
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <RefreshableHeader title="Vérifier mon téléphone" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
-
-          {/* Illustration */}
-          <View style={styles.illustrationContainer}>
-            <LinearGradient
-              colors={[colors.primary + '20', colors.primary + '10']}
-              style={styles.illustrationBackground}
-            >
-              <MaterialIcons name="sms" size={80} color={colors.primary} />
-            </LinearGradient>
+        <Card style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: c.primarySoft }]}>
+            <Ionicons name="chatbubble-ellipses-outline" size={36} color={c.primary} />
           </View>
+          <AppText variant="body" color={c.mutedForeground} center>Nous avons envoyé un code à 6 chiffres par SMS au</AppText>
+          <AppText variant="bodyStrong" color={c.primary} center selectable>{formatPhone(user?.phone || '')}</AppText>
 
-          {/* Info Section */}
-          <View style={styles.infoSection}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Vérifiez votre téléphone
-            </Text>
-            <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
-              Nous avons envoyé un code à 6 chiffres au
-            </Text>
-            <Text style={[styles.phone, { color: colors.primary }]}>
-              {formatPhone(user?.phone || '')}
-            </Text>
-          </View>
+          <CodeInput code={code} onChangeDigit={handleCodeChange} onKeyPress={handleKeyPress} inputRefs={inputRefs} editable={!isLoading} />
 
-          {/* Code Input */}
-          <View style={styles.codeContainer}>
-            <Text style={[styles.codeLabel, { color: colors.text }]}>
-              Entrez le code de vérification
-            </Text>
-            <View style={styles.codeInputs}>
-              {code.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => {
-                    inputRefs.current[index] = ref;
-                  }}
-                  style={[
-                    styles.codeInput,
-                    {
-                      backgroundColor: c.card,
-                      borderColor: digit ? colors.primary : (c.border),
-                      color: colors.text,
-                    },
-                  ]}
-                  value={digit}
-                  onChangeText={(value) => handleCodeChange(value, index)}
-                  onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-                  keyboardType="number-pad"
-                  // Le 1er champ accepte 6 chiffres : collage + suggestion « code reçu » d'iOS
-                  maxLength={index === 0 ? 6 : 1}
-                  textContentType={index === 0 ? 'oneTimeCode' : 'none'}
-                  autoComplete={index === 0 ? 'sms-otp' : 'off'}
-                  selectTextOnFocus
-                  textAlign="center"
-                  selectTextOnFocus
-                  editable={!isLoading}
-                />
-              ))}
-            </View>
-          </View>
+          <Button title="Vérifier" icon="checkmark-circle-outline" onPress={() => handleVerifyCode()} loading={isLoading} disabled={incomplete} />
 
-          {/* Timer and Resend */}
-          <View style={styles.timerSection}>
-            {timer > 0 ? (
-              <Text style={[styles.timerText, { color: c.mutedForeground }]}>
-                Renvoyer le code dans {formatTime(timer)}
-              </Text>
-            ) : (
-              <TouchableOpacity
-                onPress={handleResendCode}
-                disabled={isSending}
-                style={styles.resendButton}
-              >
-                {isSending ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Text style={[styles.resendText, { color: colors.primary }]}>
-                    Renvoyer le code
-                  </Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Verify Button */}
-          <TouchableOpacity
-            onPress={() => handleVerifyCode()}
-            disabled={isLoading || code.some(digit => digit === '')}
-            style={[
-              styles.verifyButton,
-              {
-                backgroundColor: isLoading || code.some(digit => digit === '') 
-                  ? (c.border)
-                  : colors.primary,
-              },
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.verifyButtonText}>Vérifier</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Help Text */}
-          <Text style={[styles.helpText, { color: c.mutedForeground }]}>
-            Vous ne recevez pas le code ? Vérifiez que votre téléphone est allumé ou{' '}
-            <Text style={{ color: colors.primary }} onPress={handleResendCode}>
-              renvoyez-le
-            </Text>
-          </Text>
-
-          {/* Dev Mode Notice */}
-          {process.env.NODE_ENV === 'development' && (
-            <View style={[styles.devNotice, { backgroundColor: dark ? COLORS.dark3 : c.warning + '20' }]}>
-              <MaterialIcons name="info" size={16} color={colors.primary} />
-              <Text style={[styles.devNoticeText, { color: c.mutedForeground }]}>
-                Mode développement : Le code SMS s'affichera dans une alerte
-              </Text>
-            </View>
+          {timer > 0 ? (
+            <AppText variant="small" color={c.mutedForeground} center accessibilityLiveRegion="polite">
+              Renvoyer le code dans {formatTime(timer)}
+            </AppText>
+          ) : (
+            <Pressable onPress={handleResendCode} disabled={isSending} accessibilityRole="button" style={styles.resend}>
+              {isSending ? <ActivityIndicator size="small" color={c.primary} /> : <AppText variant="bodyStrong" color={c.primary}>Renvoyer le code</AppText>}
+            </Pressable>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </Card>
+
+        <AppText variant="small" color={c.mutedForeground} center>Vous ne recevez rien ? Vérifiez que votre téléphone capte le réseau, puis renvoyez le code.</AppText>
+        {process.env.NODE_ENV === 'development' ? (
+          <AppText variant="caption" color={c.mutedForeground} center>Mode développement : le code SMS s'affiche dans une alerte.</AppText>
+        ) : null}
+      </Screen>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  illustrationContainer: {
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  illustrationBackground: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 24,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16, fontFamily: 'regular',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  phone: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    textAlign: 'center',
-  },
-  codeContainer: {
-    marginBottom: 30,
-  },
-  codeLabel: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  codeInputs: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  codeInput: {
-    width: 45,
-    height: 55,
-    borderRadius: 12,
-    borderWidth: 2,
-    fontSize: 24,
-    fontWeight: 'bold',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  timerSection: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  timerText: {
-    fontSize: 14, fontFamily: 'regular',
-  },
-  resendButton: {
-    padding: 10,
-  },
-  resendText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  verifyButton: {
-    height: 50,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  verifyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'bold',
-  },
-  helpText: {
-    fontSize: 14, fontFamily: 'regular',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  devNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  devNoticeText: {
-    fontSize: 12, fontFamily: 'regular',
-    marginLeft: 8,
-    flex: 1,
-  },
+  card: { alignItems: 'stretch', gap: spacing.md, paddingVertical: spacing.xl },
+  iconCircle: { alignSelf: 'center', width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
+  resend: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
 });
 
-export default PhoneVerificationScreen; 
+export default PhoneVerificationScreen;

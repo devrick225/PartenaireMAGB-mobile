@@ -674,6 +674,57 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
   );
 }
 
+/**
+ * Saisie d'un code à usage unique (6 cases). Le premier champ accepte le code
+ * complet (collage, suggestion « code reçu » d'iOS / Android).
+ */
+export function CodeInput({
+  code,
+  onChangeDigit,
+  onKeyPress,
+  inputRefs,
+  editable = true,
+  label = 'Code de vérification',
+}: {
+  code: string[];
+  onChangeDigit: (value: string, index: number) => void;
+  onKeyPress?: (key: string, index: number) => void;
+  inputRefs: React.MutableRefObject<any[]>;
+  editable?: boolean;
+  label?: string;
+}) {
+  const { c } = useDS();
+  return (
+    <View style={styles.codeRow} accessibilityLabel={label}>
+      {code.map((digit, index) => (
+        <TextInput
+          key={index}
+          ref={(ref) => {
+            inputRefs.current[index] = ref;
+          }}
+          style={[
+            styles.codeCell,
+            typography.subtitle,
+            { backgroundColor: c.card, borderColor: digit ? c.primary : c.input, color: c.foreground },
+          ]}
+          value={digit}
+          onChangeText={(value) => onChangeDigit(value, index)}
+          onKeyPress={({ nativeEvent }) => onKeyPress?.(nativeEvent.key, index)}
+          keyboardType="number-pad"
+          maxLength={index === 0 ? 6 : 1}
+          textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+          selectTextOnFocus
+          textAlign="center"
+          editable={editable}
+          maxFontSizeMultiplier={1.3}
+          accessibilityLabel={`Chiffre ${index + 1} sur ${code.length}`}
+        />
+      ))}
+    </View>
+  );
+}
+
 /** Ligne clé / valeur pour les écrans de détail */
 export function InfoRow({ label, value, last, valueColor }: { label: string; value?: ReactNode; last?: boolean; valueColor?: string }) {
   const { c } = useDS();
@@ -721,4 +772,6 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, maxHeight: '88%' },
   sheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: spacing.xs },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  codeRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
+  codeCell: { flex: 1, maxWidth: 52, height: 56, borderWidth: 1.5, borderRadius: radius.lg, textAlign: 'center' },
 });
