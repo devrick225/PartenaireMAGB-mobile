@@ -1,16 +1,11 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Image,
   Alert,
-  Linking,
-  Dimensions
+  Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSelector } from '../store/hooks';
@@ -18,11 +13,12 @@ import { selectCurrentMinistry } from '../store/slices/ministrySlice';
 import { Ministry } from '../types/navigation';
 import openLink from '../utils/openLink';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-const { width } = Dimensions.get('window');
+import { useDS, AppText, Screen, HeroHeader, IconButton, Card, InfoRow, Badge, Button } from '../design/components';
+import { radius, spacing } from '../design/tokens';
 
 const MinistryDetailScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { c } = useDS();
   const route = useRoute<any>();
   const { ministry: routeMinistry } = route.params;
   
@@ -94,274 +90,77 @@ const MinistryDetailScreen: React.FC = () => {
     }
   };
 
-  const handleShare = () => {
-    const shareText = `${ministry.title}\n\n${ministry.description}`;
-    // Ici vous pouvez implémenter le partage avec une bibliothèque comme expo-sharing
-    Alert.alert('Partager', 'Fonctionnalité de partage à implémenter');
+  const handleShare = async () => {
+    try {
+      await Share.share({ message: `${ministry.title}\n\n${ministry.description}${ministry.externalLink ? `\n\n${ministry.externalLink}` : ''}` });
+    } catch {
+      Alert.alert('Partage impossible', 'Réessayez dans un instant.');
+    }
   };
 
+  const meeting = ministry.meetingInfo;
+  const hasMeeting = !!meeting && !!(meeting.day || meeting.time || meeting.location);
+  const contact = ministry.contactInfo;
+  const hasContact = !!contact && !!(contact.name || contact.phone || contact.email);
+  const canContact = !!contact && !!(contact.phone || contact.email);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <RefreshableHeader title={ministry.title} onBackPress={() => navigation.goBack()} showRefreshButton={false} showShareButton onSharePress={handleShare} />
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Image du ministère */}
-        {ministry.imageUrl && (
-          <Image
-            source={{ uri: ministry.imageUrl }}
-            style={styles.ministryImage}
-            resizeMode="cover"
-          />
-        )}
-
-        <View style={styles.content}>
-          {/* Titre et catégorie */}
-          <View style={styles.titleSection}>
-            <Text style={styles.ministryTitle}>{ministry.title}</Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>
-                {getCategoryLabel(ministry.category)}
-              </Text>
-            </View>
+    <Screen
+      hero={
+        <HeroHeader
+          eyebrow={getCategoryLabel(ministry.category)}
+          eyebrowIcon="people-outline"
+          title={ministry.title}
+          onBack={() => navigation.goBack()}
+          right={<IconButton icon="share-outline" tone="hero" accessibilityLabel="Partager" onPress={handleShare} />}
+        />
+      }
+      footer={
+        canContact || ministry.externalLink ? (
+          <View style={styles.footer}>
+            {canContact ? <Button title="Contacter" icon="call-outline" onPress={handleContactPress} fullWidth={false} style={styles.flex} /> : null}
+            {ministry.externalLink ? <Button title="En savoir plus" variant="outline" icon="open-outline" onPress={handleExternalLink} fullWidth={false} style={styles.flex} /> : null}
           </View>
+        ) : undefined
+      }
+    >
+      {ministry.imageUrl ? (
+        <Card padded={false} style={{ overflow: 'hidden' }}>
+          <Image source={{ uri: ministry.imageUrl }} style={styles.image} resizeMode="cover" accessibilityLabel={`Image du ministère ${ministry.title}`} />
+        </Card>
+      ) : null}
 
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{ministry.description}</Text>
-          </View>
+      <Card style={{ gap: spacing.sm }}>
+        <Badge label={getCategoryLabel(ministry.category)} tone="primary" />
+        <AppText variant="body" selectable>{ministry.description}</AppText>
+      </Card>
 
-          {/* Informations de réunion */}
-          {ministry.meetingInfo && (ministry.meetingInfo.day || ministry.meetingInfo.time || ministry.meetingInfo.location) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Réunions</Text>
-              <View style={styles.meetingInfo}>
-                {ministry.meetingInfo.day && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="calendar-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {getDayLabel(ministry.meetingInfo.day)}
-                    </Text>
-                  </View>
-                )}
-                
-                {ministry.meetingInfo.time && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="time-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {ministry.meetingInfo.time}
-                    </Text>
-                  </View>
-                )}
-                
-                {ministry.meetingInfo.location && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="location-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {ministry.meetingInfo.location}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
+      {hasMeeting ? (
+        <Card>
+          <AppText variant="overline" color={c.mutedForeground} style={styles.title}>Rencontres</AppText>
+          {meeting.day ? <InfoRow label="Jour" value={getDayLabel(meeting.day)} /> : null}
+          {meeting.time ? <InfoRow label="Heure" value={meeting.time} /> : null}
+          {meeting.location ? <InfoRow label="Lieu" value={meeting.location} last /> : null}
+        </Card>
+      ) : null}
 
-          {/* Informations de contact */}
-          {ministry.contactInfo && (ministry.contactInfo.name || ministry.contactInfo.phone || ministry.contactInfo.email) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Contact</Text>
-              <View style={styles.contactInfo}>
-                {ministry.contactInfo.name && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="person-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {ministry.contactInfo.name}
-                    </Text>
-                  </View>
-                )}
-                
-                {ministry.contactInfo.phone && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="call-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {ministry.contactInfo.phone}
-                    </Text>
-                  </View>
-                )}
-                
-                {ministry.contactInfo.email && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="mail-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {ministry.contactInfo.email}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Actions */}
-          <View style={styles.actionsSection}>
-            {ministry.contactInfo && (ministry.contactInfo.phone || ministry.contactInfo.email) && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleContactPress}
-              >
-                <Ionicons name="call-outline" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Contacter</Text>
-              </TouchableOpacity>
-            )}
-            
-            {ministry.externalLink && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
-                onPress={handleExternalLink}
-              >
-                <Ionicons name="open-outline" size={20} color="#007AFF" />
-                <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>
-                  Voir le lien
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      {hasContact ? (
+        <Card>
+          <AppText variant="overline" color={c.mutedForeground} style={styles.title}>Contact</AppText>
+          {contact.name ? <InfoRow label="Responsable" value={contact.name} /> : null}
+          {contact.phone ? <InfoRow label="Téléphone" value={contact.phone} /> : null}
+          {contact.email ? <InfoRow label="Email" value={contact.email} last /> : null}
+        </Card>
+      ) : null}
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 16,
-  },
-  shareButton: {
-    padding: 8,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  ministryImage: {
-    width: '100%',
-    height: 250,
-  },
-  content: {
-    padding: 16,
-  },
-  titleSection: {
-    marginBottom: 24,
-  },
-  ministryTitle: {
-    fontSize: 24,
-    fontFamily: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  categoryBadge: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  categoryText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'semiBold',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    color: '#333',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  description: {
-    fontSize: 16, fontFamily: 'regular',
-    color: '#666',
-    lineHeight: 24,
-  },
-  meetingInfo: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  contactInfo: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoText: {
-    fontSize: 16, fontFamily: 'regular',
-    color: '#333',
-    marginLeft: 12,
-    flex: 1,
-  },
-  actionsSection: {
-    marginTop: 16,
-    gap: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  secondaryButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    marginLeft: 8,
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-  },
+  flex: { flex: 1 },
+  footer: { flexDirection: 'row', gap: spacing.sm },
+  image: { width: '100%', height: 200, borderRadius: radius.xl },
+  title: { marginBottom: spacing.xs },
 });
 
-export default MinistryDetailScreen; 
+export default MinistryDetailScreen;
