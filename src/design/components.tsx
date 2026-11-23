@@ -701,13 +701,40 @@ export function OnboardingSlide({
   onPrimary: () => void;
   onSkip?: () => void;
 }) {
-  const { c } = useDS();
+  const { c, gradient } = useDS();
   const insets = useSafeAreaInsets();
+  // Les photos ont des formats variés (paysage, portrait, carré) : on les affiche entières,
+  // à leurs proportions, dans la plus grande taille qui tient dans la zone disponible.
+  const source = Image.resolveAssetSource(image);
+  const ratio = source?.width && source?.height ? source.width / source.height : 1;
+  const [box, setBox] = React.useState<{ w: number; h: number } | null>(null);
+  const PAD = spacing.lg;
+  const fit = box
+    ? (() => {
+        const maxW = box.w - PAD * 2;
+        const maxH = box.h - PAD * 2;
+        const w = Math.min(maxW, maxH * ratio);
+        return { width: w, height: w / ratio };
+      })()
+    : null;
   return (
     <View style={[styles.flex, { backgroundColor: c.background }]}>
-      <View style={styles.flex}>
-        <Image source={image} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
-        <LinearGradient colors={['rgba(47,28,74,0)', 'rgba(47,28,74,0.55)']} style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={gradient as unknown as [string, string, ...string[]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.flex, { paddingTop: insets.top + MIN_TOUCH, paddingBottom: 28 }]}
+      >
+        <View style={styles.slideImageArea} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+          {fit ? (
+            <Image
+              source={image}
+              style={[styles.slideImage, fit]}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            />
+          ) : null}
+        </View>
         {onSkip ? (
           <Pressable
             onPress={onSkip}
@@ -718,7 +745,7 @@ export function OnboardingSlide({
             <AppText variant="smallStrong" color="#FFFFFF">Passer</AppText>
           </Pressable>
         ) : null}
-      </View>
+      </LinearGradient>
       <View style={[styles.slideBody, { backgroundColor: c.card, paddingBottom: insets.bottom + spacing.lg }]}>
         <AppText variant="display" accessibilityRole="header">{title}</AppText>
         <AppText variant="subtitle" color={c.goldDark}>{tagline}</AppText>
@@ -876,6 +903,8 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, maxHeight: '88%' },
   sheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: spacing.xs },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  slideImageArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  slideImage: { borderRadius: 20, borderWidth: 3, borderColor: 'rgba(255,255,255,0.9)' },
   slideBody: { borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -28, paddingHorizontal: spacing.xl, paddingTop: spacing.xl, gap: spacing.md },
   dots: { flexDirection: 'row', gap: 6, marginVertical: spacing.sm },
   dot: { height: 8, borderRadius: 4 },
