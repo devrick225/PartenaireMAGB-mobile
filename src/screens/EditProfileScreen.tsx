@@ -2,33 +2,35 @@ import logger from '../utils/logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
+  Pressable,
   Alert,
-  ActivityIndicator,
   Image,
   Modal,
-  FlatList,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showApiError } from '../store/services/apiClient';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
 import userService from '../store/services/userService';
 import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import {
+  useDS,
+  AppText,
+  Screen,
+  HeroHeader,
+  Card,
+  TextField,
+  Button,
+  LoadingState,
+  Sheet,
+  IconName,
+} from '../design/components';
+import { radius, spacing, MIN_TOUCH } from '../design/tokens';
 interface Country {
   code: string;
   name: string;
@@ -42,8 +44,6 @@ interface EditProfileScreenProps {
 
 const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
   const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -79,7 +79,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       preferredFrequency: 'monthly',
       preferredDay: '',
       preferredPaymentMethod: '',
-      donationCategories: []
+      donationCategories: [] as string[]
     },
     familyInfo: {
       numberOfChildren: 0,
@@ -414,531 +414,211 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
     }
   };
 
-  const renderInputField = (
+
+  // Champ texte de la charte
+  const Field = (
     label: string,
     value: string,
     onChange: (text: string) => void,
     placeholder: string = '',
     keyboardType: 'default' | 'numeric' | 'email-address' | 'phone-pad' = 'default',
-    icon?: string,
+    icon?: IconName,
     options: { editable?: boolean; hint?: string; autoCapitalize?: 'none' | 'words' | 'sentences' } = {}
   ) => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
-      <View style={[styles.inputWrapper, { 
-        backgroundColor: c.card,
-        borderColor: c.border
-      }]}>
-        {icon && (
-          <Ionicons 
-            name={icon as any} 
-            size={20} 
-            color={dark ? COLORS.white : COLORS.grayscale400} 
-            style={styles.inputIcon}
-          />
-        )}
-      <TextInput
-          style={[styles.textInput, { color: c.foreground }]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-          placeholderTextColor={c.mutedForeground}
-        keyboardType={keyboardType}
-          autoCapitalize={options.autoCapitalize ?? 'none'}
-          editable={options.editable !== false}
-      />
-        {options.editable === false && (
-          <Ionicons name="lock-closed-outline" size={16} color={c.mutedForeground} />
-        )}
+    <TextField
+      label={label}
+      value={value}
+      onChangeText={onChange}
+      placeholder={placeholder}
+      keyboardType={keyboardType}
+      icon={icon}
+      autoCapitalize={options.autoCapitalize ?? 'none'}
+      editable={options.editable !== false}
+      hint={options.hint}
+      style={options.editable === false ? { color: c.mutedForeground } : undefined}
+    />
+  );
+
+  // Choix unique en puces
+  const Choices = (label: string, value: string, opts: { label: string; value: string }[], onSelect: (v: string) => void) => (
+    <View style={{ gap: 6 }}>
+      <AppText variant="smallStrong">{label}</AppText>
+      <View style={styles.chips}>
+        {opts.map(o => {
+          const active = value === o.value;
+          return (
+            <Pressable
+              key={o.value}
+              onPress={() => onSelect(o.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+              style={[styles.chip, { backgroundColor: active ? c.primary : c.card, borderColor: active ? c.primary : c.border }]}
+            >
+              <AppText variant="smallStrong" color={active ? c.primaryForeground : c.foreground}>{o.label}</AppText>
+            </Pressable>
+          );
+        })}
       </View>
-      {!!options.hint && (
-        <Text style={{ fontSize: 12, marginTop: 4, color: c.mutedForeground }}>{options.hint}</Text>
-      )}
     </View>
   );
 
-  const renderCountrySelector = () => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: colors.text }]}>Pays</Text>
-      <TouchableOpacity
-        style={[styles.countrySelector, { 
-          backgroundColor: c.card,
-          borderColor: c.border
-        }]}
-        onPress={() => setShowCountryModal(true)}
+  // Champ « sélecteur » qui ouvre une fenêtre
+  const Picker = (label: string, value: string | undefined, placeholder: string, icon: IconName, onPress: () => void, left?: React.ReactNode) => (
+    <View style={{ gap: 6 }}>
+      <AppText variant="smallStrong">{label}</AppText>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} : ${value || placeholder}`}
+        style={({ pressed }) => [styles.select, { backgroundColor: c.card, borderColor: c.input, opacity: pressed ? 0.85 : 1 }]}
       >
-        {selectedCountry && (
-          <>
-            <Image source={{ uri: selectedCountry.flag }} style={styles.selectedFlag} />
-            <Text style={[styles.selectedCountryText, { color: c.foreground }]}>
-              {selectedCountry.name}
-            </Text>
-          </>
-        )}
-        <Ionicons name="chevron-down" size={20} color={c.mutedForeground} />
-      </TouchableOpacity>
+        {left ?? <Ionicons name={icon} size={18} color={c.mutedForeground} />}
+        <AppText variant="body" color={value ? c.foreground : c.mutedForeground} style={styles.flex} numberOfLines={1}>{value || placeholder}</AppText>
+        <Ionicons name="chevron-down" size={18} color={c.mutedForeground} />
+      </Pressable>
     </View>
   );
 
-  const renderPhoneInput = () => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: colors.text }]}>Téléphone</Text>
-      <View style={styles.phoneContainer}>
-        <View style={[styles.phonePrefix, { 
-          backgroundColor: c.card,
-          borderColor: c.border
-        }]}>
-          {selectedCountry && (
-            <>
-              <Image source={{ uri: selectedCountry.flag }} style={styles.phoneFlagImage} />
-              <Text style={[styles.phonePrefixText, { color: c.foreground }]}>
-                {selectedCountry.callingCode}
-              </Text>
-            </>
-          )}
+  const SectionCard = ({ title, icon, children }: { title: string; icon: IconName; children: React.ReactNode }) => (
+    <Card style={{ gap: spacing.lg }}>
+      <View style={styles.sectionHead}>
+        <View style={[styles.iconTile, { backgroundColor: c.primarySoft }]}>
+          <Ionicons name={icon} size={18} color={c.primary} />
         </View>
-        <View style={{ flex: 1, marginLeft: 8 }}>
-          <View style={[styles.inputWrapper, { 
-            backgroundColor: c.card,
-            borderColor: c.border
-          }]}>
-            <TextInput
-              style={[styles.textInput, { color: c.foreground }]}
-              value={profile.phone}
-              onChangeText={(text) => setProfile({...profile, phone: text})}
-              placeholder="12345678"
-              placeholderTextColor={c.mutedForeground}
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-            />
-          </View>
-        </View>
+        <AppText variant="subtitle">{title}</AppText>
       </View>
-    </View>
+      {children}
+    </Card>
   );
 
-  const renderCountryItem = ({ item }: { item: Country }) => (
-    <TouchableOpacity
-      style={[styles.countryItem, { backgroundColor: c.card }]}
-      onPress={() => {
-        setSelectedCountry(item);
-        setProfile({...profile, country: item.code});
-        setShowCountryModal(false);
-      }}
-    >
-      <Image source={{ uri: item.flag }} style={styles.flagImage} />
-      <Text style={[styles.countryName, { color: c.foreground }]}>{item.name}</Text>
-      <Text style={[styles.callingCode, { color: c.mutedForeground }]}>{item.callingCode}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderSelectField = (
-    label: string,
-    value: string,
-    options: { label: string; value: string }[],
-    onSelect: (value: string) => void,
-    icon?: string
-  ) => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
-      <View style={[
-        styles.selectContainer,
-        { backgroundColor: c.card, borderColor: c.border }
-      ]}>
-        {options.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.selectOption,
-              value === option.value && { backgroundColor: colors.primary + '20' }
-            ]}
-            onPress={() => onSelect(option.value)}
-          >
-            <Text style={[
-              styles.selectOptionText,
-              { color: value === option.value ? colors.primary : colors.text }
-            ]}>
-              {option.label}
-            </Text>
-            {value === option.value && (
-              <MaterialIcons name="check" size={16} color={colors.primary} />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
+  const hero = (
+    <HeroHeader
+      eyebrow="Mon compte"
+      eyebrowIcon="person-outline"
+      title="Modifier le profil"
+      subtitle="Ces informations nous aident à mieux vous accompagner."
+      onBack={() => navigation.goBack()}
+    />
   );
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>
-          Chargement du profil...
-        </Text>
-      </View>
+      <Screen hero={hero}>
+        <Card><LoadingState message="Chargement du profil…" /></Card>
+      </Screen>
     );
   }
 
+  const flag = selectedCountry ? <Image source={{ uri: selectedCountry.flag }} style={styles.flag} /> : undefined;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <RefreshableHeader
-        title="Modifier le profil"
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={false}
-        customRightComponent={
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={isSaving}
-            accessibilityRole="button"
-            accessibilityLabel="Enregistrer"
-            style={[styles.saveButton, { backgroundColor: COLORS.primary, borderRadius: 12, minHeight: 40, justifyContent: 'center' }]}
-          >
-            {isSaving ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.saveButtonText}>Enregistrer</Text>}
-          </TouchableOpacity>
-        }
-      />
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen hero={hero} footer={<Button title="Enregistrer" icon="checkmark" onPress={handleSave} loading={isSaving} />}>
+        {/* Identité */}
+        <Card style={styles.identity}>
+          {(user as any)?.avatar ? (
+            <Image source={{ uri: (user as any).avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: c.primarySoft }]}>
+              <AppText variant="title" color={c.primary}>{user?.firstName?.[0]}{user?.lastName?.[0]}</AppText>
+            </View>
+          )}
+          <View style={styles.flex}>
+            <AppText variant="subtitle">{user?.firstName} {user?.lastName}</AppText>
+            <Pressable onPress={() => navigation.navigate('ProfileImage')} accessibilityRole="button" style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}>
+              <AppText variant="smallStrong" color={c.primary}>Changer la photo</AppText>
+            </Pressable>
+          </View>
+        </Card>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-      >
-        {/* Section Avatar */}
-        <View style={[styles.avatarSection, { backgroundColor: c.card }]}>
-          <View style={styles.avatarContainer}>
-            {(user as any)?.avatar ? (
-              <Image 
-                source={{ uri: (user as any).avatar }} 
-                style={styles.avatarImage}
-              />
-            ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-                <Text style={styles.avatarText}>
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </Text>
+        <SectionCard title="Informations personnelles" icon="person-outline">
+          {Field('Prénom', profile.firstName, (text) => setProfile({ ...profile, firstName: text }), 'Votre prénom', 'default', 'person-outline', { autoCapitalize: 'words' })}
+          {Field('Nom', profile.lastName, (text) => setProfile({ ...profile, lastName: text }), 'Votre nom', 'default', 'person-outline', { autoCapitalize: 'words' })}
+          {Field('Email', profile.email, (text) => setProfile({ ...profile, email: text }), 'votre@email.com', 'email-address', 'mail-outline', {
+            editable: false,
+            hint: 'L\'email ne peut pas être modifié depuis l\'application. Contactez le support si besoin.',
+          })}
+          <View style={{ gap: 6 }}>
+            <AppText variant="smallStrong">Téléphone</AppText>
+            <View style={styles.phoneRow}>
+              <View style={[styles.prefix, { backgroundColor: c.muted, borderColor: c.input }]}>
+                {flag}
+                <AppText variant="bodyStrong">{selectedCountry?.callingCode ?? '+'}</AppText>
               </View>
-            )}
-            <TouchableOpacity style={styles.avatarEditButton}>
-              <MaterialIcons name="camera-alt" size={20} color={COLORS.white} />
-            </TouchableOpacity>
+              <View style={styles.flex}>
+                <TextField value={profile.phone} onChangeText={(text) => setProfile({ ...profile, phone: text })} placeholder="07 00 00 00 00" keyboardType="phone-pad" accessibilityLabel="Numéro de téléphone" />
+              </View>
+            </View>
           </View>
-          <Text style={[styles.avatarText, { color: colors.text }]}>
-            {user?.firstName} {user?.lastName}
-          </Text>
-        </View>
+          {Picker('Pays', selectedCountry?.name, 'Choisir un pays', 'earth-outline', () => setShowCountryModal(true), flag)}
+          {Field('Ville', profile.city, (text) => setProfile({ ...profile, city: text }), 'Votre ville', 'default', 'business-outline', { autoCapitalize: 'words' })}
+          {Choices('Genre', profile.gender, [
+            { label: 'Homme', value: 'male' },
+            { label: 'Femme', value: 'female' },
+            { label: 'Autre', value: 'other' },
+          ], (value) => setProfile({ ...profile, gender: value }))}
+          {Choices('Situation familiale', profile.maritalStatus, [
+            { label: 'Célibataire', value: 'single' },
+            { label: 'Marié(e)', value: 'married' },
+            { label: 'Divorcé(e)', value: 'divorced' },
+            { label: 'Veuf / veuve', value: 'widowed' },
+          ], (value) => setProfile({ ...profile, maritalStatus: value }))}
+          {Picker('Date de naissance', profile.dateOfBirth, 'Choisir une date', 'calendar-outline', openDatePicker)}
+          {Field('Nombre d\'enfants', String(profile.familyInfo.numberOfChildren), (text) => setProfile({ ...profile, familyInfo: { ...profile.familyInfo, numberOfChildren: parseInt(text) || 0 } }), '0', 'numeric', 'people-outline')}
+        </SectionCard>
 
-        {/* Informations personnelles */}
-        <View style={[styles.section, { backgroundColor: c.card }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="person" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Informations personnelles
-            </Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
-          {renderInputField(
-              'Prénom',
-              profile.firstName,
-              (text) => setProfile({...profile, firstName: text}),
-              'Votre prénom',
-              'default',
-              'person-outline'
-          )}
-          
-          {renderInputField(
-              'Nom',
-              profile.lastName,
-              (text) => setProfile({...profile, lastName: text}),
-              'Votre nom',
-              'default',
-              'person-outline'
-          )}
-          
-          {renderInputField(
-            'Email',
-              profile.email,
-              (text) => setProfile({...profile, email: text}),
-              'votre@email.com',
-              'email-address',
-              'mail-outline',
-              { editable: false, hint: 'L\'email ne peut pas être modifié depuis l\'application. Contactez le support si besoin.' }
-          )}
-            
-            {renderPhoneInput()}
-            
-            {renderCountrySelector()}
-          
-          {renderInputField(
-              'Ville',
-              profile.city,
-              (text) => setProfile({...profile, city: text}),
-              'Votre ville',
-              'default',
-              'location-outline',
-              { autoCapitalize: 'words' }
-            )}
-          </View>
-        </View>
+        <SectionCard title="Adresse" icon="location-outline">
+          {Field('Adresse', profile.address.street, (text) => setProfile({ ...profile, address: { ...profile.address, street: text } }), 'Rue, immeuble…', 'default', 'navigate-outline', { autoCapitalize: 'sentences' })}
+          {Field('Quartier', profile.address.neighborhood, (text) => setProfile({ ...profile, address: { ...profile.address, neighborhood: text } }), 'Votre quartier', 'default', 'home-outline', { autoCapitalize: 'words' })}
+          {Field('Boîte postale', profile.address.postalCode, (text) => setProfile({ ...profile, address: { ...profile.address, postalCode: text } }), 'Ex. 01 BP 2206 Abidjan 01', 'default', 'mail-outline')}
+          {Field('Région', profile.address.state, (text) => setProfile({ ...profile, address: { ...profile.address, state: text } }), 'Région ou département', 'default', 'map-outline', { autoCapitalize: 'words' })}
+        </SectionCard>
 
-        {/* Informations personnelles */}
-        <View style={[styles.section, { backgroundColor: c.card }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="person" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Informations personnelles
-            </Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
-            {renderSelectField(
-              'Genre',
-              profile.gender,
-              [
-                { label: 'Homme', value: 'male' },
-                { label: 'Femme', value: 'female' },
-                { label: 'Autre', value: 'other' },
-              ],
-              (value) => setProfile({...profile, gender: value}),
-              'person-outline'
-            )}
-            
-            {renderSelectField(
-              'Statut marital',
-              profile.maritalStatus,
-              [
-                { label: 'Célibataire', value: 'single' },
-                { label: 'Marié(e)', value: 'married' },
-                { label: 'Divorcé(e)', value: 'divorced' },
-                { label: 'Veuf/Veuve', value: 'widowed' },
-              ],
-              (value) => setProfile({...profile, maritalStatus: value}),
-              'favorite-outline'
-          )}
-          
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>Date de naissance</Text>
-            <TouchableOpacity
-              style={[styles.datePickerButton, { 
-                backgroundColor: c.card,
-                borderColor: c.border
-              }]}
-              onPress={openDatePicker}
-            >
-              <Ionicons 
-                name="calendar-outline" 
-                size={20} 
-                color={dark ? COLORS.white : COLORS.grayscale400} 
-                style={styles.inputIcon}
-              />
-              <Text style={[
-                styles.datePickerText, 
-                { color: profile.dateOfBirth ? (c.foreground) : (c.mutedForeground) }
-              ]}>
-                {profile.dateOfBirth || 'Sélectionner une date'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          {renderInputField(
-              'Adresse',
-              profile.address.street,
-              (text) => setProfile({...profile, address: {...profile.address, street: text}}),
-              'Votre adresse complète',
-              'default',
-              'location-outline'
-            )}
+        <SectionCard title="Activité et église" icon="briefcase-outline">
+          {Field('Profession', profile.occupation, (text) => setProfile({ ...profile, occupation: text }), 'Votre profession', 'default', 'briefcase-outline', { autoCapitalize: 'sentences' })}
+          {Choices('Membre d\'une église', profile.churchMembership.isChurchMember ? 'yes' : 'no', [
+            { label: 'Oui', value: 'yes' },
+            { label: 'Non', value: 'no' },
+          ], (value) => setProfile({ ...profile, churchMembership: { ...profile.churchMembership, isChurchMember: value === 'yes' } }))}
+        </SectionCard>
 
-            {renderInputField(
-              'Quartier',
-              profile.address.neighborhood,
-              (text) => setProfile({...profile, address: {...profile.address, neighborhood: text}}),
-              'Votre quartier',
-              'default',
-              'home-outline'
-            )}
+        <SectionCard title="Préférences de don" icon="heart-outline">
+          {Field('Montant habituel (FCFA)', profile.donationPreferences.preferredAmount, (text) => setProfile({ ...profile, donationPreferences: { ...profile.donationPreferences, preferredAmount: text } }), 'Ex. 10 000', 'numeric', 'cash-outline')}
+          {Choices('Fréquence', profile.donationPreferences.preferredFrequency, [
+            { label: 'Hebdomadaire', value: 'weekly' },
+            { label: 'Mensuelle', value: 'monthly' },
+            { label: 'Trimestrielle', value: 'quarterly' },
+            { label: 'Annuelle', value: 'yearly' },
+          ], (value) => setProfile({ ...profile, donationPreferences: { ...profile.donationPreferences, preferredFrequency: value } }))}
+          {Field('Jour du mois', profile.donationPreferences.preferredDay, (text) => setProfile({ ...profile, donationPreferences: { ...profile.donationPreferences, preferredDay: text } }), 'Entre 1 et 31', 'numeric', 'calendar-outline')}
+          {Choices('Moyen de paiement', profile.donationPreferences.preferredPaymentMethod, [
+            { label: 'Mobile Money', value: 'mobile_money' },
+            { label: 'Carte bancaire', value: 'card' },
+            { label: 'Virement', value: 'bank_transfer' },
+            { label: 'Espèces', value: 'cash' },
+          ], (value) => setProfile({ ...profile, donationPreferences: { ...profile.donationPreferences, preferredPaymentMethod: value } }))}
+          {Choices('Type de don', profile.donationPreferences.donationCategories.length > 0 ? profile.donationPreferences.donationCategories[0] : '', [
+            { label: 'Mensuel', value: 'don_mensuel' },
+            { label: 'Trimestriel', value: 'don_trimestriel' },
+            { label: 'Semestriel', value: 'don_semestriel' },
+            { label: 'Ponctuel', value: 'don_ponctuel' },
+          ], (value) => setProfile({ ...profile, donationPreferences: { ...profile.donationPreferences, donationCategories: [value] } }))}
+        </SectionCard>
+      </Screen>
 
-            {renderInputField(
-              'Code postal',
-              profile.address.postalCode,
-              (text) => setProfile({...profile, address: {...profile.address, postalCode: text}}),
-              'Ex: 01 BP 2206 Abidjan 01',
-              'default',
-              'mail-outline'
-            )}
-
-            {renderInputField(
-              'État/Région',
-              profile.address.state,
-              (text) => setProfile({...profile, address: {...profile.address, state: text}}),
-              'État ou région',
-              'default',
-              'map-outline'
-            )}
-          </View>
-        </View>
-
-        {/* Informations professionnelles */}
-        <View style={[styles.section, { backgroundColor: c.card }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="work" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Informations professionnelles
-            </Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
-          {renderInputField(
-              'Profession',
-            profile.occupation,
-              (text) => setProfile({...profile, occupation: text}),
-              'Votre profession',
-              'default',
-              'briefcase-outline'
-          )}
-          </View>
-        </View>
-
-        {/* Informations de l'église */}
-        <View style={[styles.section, { backgroundColor: c.card }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="church" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Informations de l'église
-            </Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
-          {renderSelectField(
-              'Membre d\'église',
-              profile.churchMembership.isChurchMember ? 'yes' : 'no',
-            [
-                { label: 'Oui', value: 'yes' },
-                { label: 'Non', value: 'no' },
-              ],
-              (value) => setProfile({...profile, churchMembership: {...profile.churchMembership, isChurchMember: value === 'yes'}}),
-              'home-outline'
-            )}
-          </View>
-        </View>
-
-        {/* Préférences de don */}
-        <View style={[styles.section, { backgroundColor: c.card }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="favorite" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Préférences de don
-            </Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
-          {renderInputField(
-              'Montant préféré',
-              profile.donationPreferences.preferredAmount,
-              (text) => setProfile({...profile, donationPreferences: {...profile.donationPreferences, preferredAmount: text}}),
-              'Montant en XOF',
-              'numeric',
-              'heart-outline'
-          )}
-          
-          {renderSelectField(
-              'Fréquence de don',
-              profile.donationPreferences.preferredFrequency,
-              [
-                { label: 'Hebdomadaire', value: 'weekly' },
-                { label: 'Mensuel', value: 'monthly' },
-                { label: 'Trimestriel', value: 'quarterly' },
-                { label: 'Annuel', value: 'yearly' },
-              ],
-              (value) => setProfile({...profile, donationPreferences: {...profile.donationPreferences, preferredFrequency: value}}),
-              'repeat-outline'
-            )}
-
-            {renderInputField(
-              'Jour de don',
-              profile.donationPreferences.preferredDay,
-              (text) => setProfile({...profile, donationPreferences: {...profile.donationPreferences, preferredDay: text}}),
-              'Jour du mois (1-31)',
-              'numeric',
-              'calendar-outline'
-            )}
-
-            {renderSelectField(
-              'Méthode de paiement',
-              profile.donationPreferences.preferredPaymentMethod,
-            [
-                { label: 'Carte bancaire', value: 'card' },
-                { label: 'Mobile Money', value: 'mobile_money' },
-                { label: 'Virement bancaire', value: 'bank_transfer' },
-                { label: 'Espèces', value: 'cash' },
-            ],
-              (value) => setProfile({...profile, donationPreferences: {...profile.donationPreferences, preferredPaymentMethod: value}}),
-              'credit-card-outline'
-            )}
-
-            {renderSelectField(
-              'Catégories de don',
-              profile.donationPreferences.donationCategories.length > 0 ? profile.donationPreferences.donationCategories[0] : '',
-              [
-                { label: 'Mensuelle', value: 'don_mensuel' },
-                { label: 'Trimestrielle', value: 'don_trimestriel' },
-                { label: 'Semestrielle', value: 'don_semestriel' },
-                { label: 'Ponctuel', value: 'don_ponctuel' },
-              ],
-              (value) => setProfile({...profile, donationPreferences: {...profile.donationPreferences, donationCategories: [value]}}),
-              'attach-money-outline'
-            )}
-          </View>
-        </View>
-
-        {/* Informations familiales */}
-        <View style={[styles.section, { backgroundColor: c.card }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="family-restroom" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Informations familiales
-            </Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
-          {renderInputField(
-              'Nombre d\'enfants',
-              String(profile.familyInfo.numberOfChildren),
-              (text) => setProfile({...profile, familyInfo: { ...profile.familyInfo, numberOfChildren: parseInt(text) || 0 }}),
-              'Nombre d\'enfants',
-              'numeric',
-              'people-outline'
-          )}
-          </View>
-        </View>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-      </KeyboardAvoidingView>
-
-      {/* Date Picker */}
+      {/* Date de naissance */}
       {showDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-          minimumDate={new Date(1900, 0, 1)}
-        />
+        <DateTimePicker value={selectedDate} mode="date" onChange={handleDateChange} maximumDate={new Date()} minimumDate={new Date(1900, 0, 1)} />
       )}
       {Platform.OS === 'ios' && (
         <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
-          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
-            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
-                <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text }}>Date de naissance</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>OK</Text>
-                </TouchableOpacity>
+          <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={() => setShowDatePicker(false)}>
+            <Pressable style={[styles.sheet, { backgroundColor: c.card }]}>
+              <View style={styles.sheetHeader}>
+                <AppText variant="title">Date de naissance</AppText>
+                <Pressable onPress={() => setShowDatePicker(false)} accessibilityRole="button" hitSlop={8}>
+                  <AppText variant="bodyStrong" color={c.primary}>OK</AppText>
+                </Pressable>
               </View>
               <DateTimePicker
                 value={selectedDate}
@@ -950,310 +630,61 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
                 maximumDate={new Date()}
                 minimumDate={new Date(1900, 0, 1)}
               />
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </Pressable>
+          </Pressable>
         </Modal>
       )}
 
-      {/* Country Selector Modal */}
-      <Modal
-        visible={showCountryModal}
-        onRequestClose={() => setShowCountryModal(false)}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowCountryModal(false)}
-          />
-          <View style={[styles.modalContent, { backgroundColor: c.card }]}>
-            <FlatList
-              data={countries}
-              renderItem={renderCountryItem}
-              keyExtractor={(item) => item.code}
-              contentContainerStyle={styles.modalList}
-            />
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+      {/* Pays */}
+      <Sheet visible={showCountryModal} title="Pays" onClose={() => setShowCountryModal(false)}>
+        <Card padded={false}>
+          {countries.map((item, i) => {
+            const active = selectedCountry?.code === item.code;
+            return (
+              <Pressable
+                key={item.code}
+                onPress={() => {
+                  setSelectedCountry(item);
+                  setProfile({ ...profile, country: item.code });
+                  setShowCountryModal(false);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                style={({ pressed }) => [
+                  styles.countryRow,
+                  i < countries.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+                  (pressed || active) && { backgroundColor: c.primarySoft },
+                ]}
+              >
+                <Image source={{ uri: item.flag }} style={styles.flag} />
+                <AppText variant="body" style={styles.flex} numberOfLines={1}>{item.name}</AppText>
+                <AppText variant="small" color={c.mutedForeground}>{item.callingCode}</AppText>
+              </Pressable>
+            );
+          })}
+        </Card>
+      </Sheet>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  avatarSection: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 24,
-    fontFamily: 'bold',
-    color: COLORS.white,
-  },
-  avatarEditButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  section: {
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginLeft: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  sectionContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  textInput: {
-    fontSize: 16, fontFamily: 'regular',
-    paddingVertical: 0,
-    flex: 1,
-  },
-  selectContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 4,
-    minHeight: 50,
-    alignItems: 'center',
-  },
-  selectOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-    margin: 4,
-  },
-  selectOptionText: {
-    fontSize: 14, fontFamily: 'regular',
-    marginRight: 8,
-  },
-  bottomPadding: {
-    height: 20,
-  },
-  countrySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-    marginTop: 8,
-  },
-  selectedFlag: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  selectedCountryText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  phoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  phonePrefix: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 50,
-    marginRight: 8,
-  },
-  phoneFlagImage: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  phonePrefixText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  countryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray,
-  },
-  flagImage: {
-    width: 30,
-    height: 20,
-    marginRight: 12,
-    borderRadius: 4,
-  },
-  countryName: {
-    fontSize: 16,
-    fontFamily: 'medium',
-    flex: 1,
-  },
-  callingCode: {
-    fontSize: 14,
-    fontFamily: 'regular',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '80%',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  modalList: {
-    paddingVertical: 10,
-  },
-  datePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 50,
-    marginTop: 8,
-  },
-  datePickerText: {
-    fontSize: 16, fontFamily: 'regular',
-    marginLeft: 12,
-    flex: 1,
-  },
+  flex: { flex: 1 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
+  avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  iconTile: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: { minHeight: MIN_TOUCH - 6, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  select: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 50, borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  phoneRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+  prefix: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 50, borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  flag: { width: 24, height: 16, borderRadius: 2 },
+  countryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, minHeight: 52 },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
 
 export default EditProfileScreen;
