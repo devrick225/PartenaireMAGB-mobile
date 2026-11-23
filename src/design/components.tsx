@@ -9,6 +9,7 @@
 import React, { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -674,6 +675,61 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
   );
 }
 
+/** Écran d'accueil du premier lancement (onboarding) : image, texte, progression, actions */
+export function OnboardingSlide({
+  image,
+  title,
+  tagline,
+  description,
+  step,
+  total,
+  primaryLabel,
+  onPrimary,
+  onSkip,
+}: {
+  image: any;
+  title: string;
+  tagline: string;
+  description: string;
+  step: number;
+  total: number;
+  primaryLabel: string;
+  onPrimary: () => void;
+  onSkip?: () => void;
+}) {
+  const { c } = useDS();
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.flex, { backgroundColor: c.background }]}>
+      <View style={styles.flex}>
+        <Image source={image} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+        <LinearGradient colors={['rgba(47,28,74,0)', 'rgba(47,28,74,0.55)']} style={StyleSheet.absoluteFill} />
+        {onSkip ? (
+          <Pressable
+            onPress={onSkip}
+            accessibilityRole="button"
+            accessibilityLabel="Passer l'introduction"
+            style={[styles.skip, { top: insets.top + spacing.sm, backgroundColor: 'rgba(255,255,255,0.2)' }]}
+          >
+            <AppText variant="smallStrong" color="#FFFFFF">Passer</AppText>
+          </Pressable>
+        ) : null}
+      </View>
+      <View style={[styles.slideBody, { backgroundColor: c.card, paddingBottom: insets.bottom + spacing.lg }]}>
+        <AppText variant="display" accessibilityRole="header">{title}</AppText>
+        <AppText variant="subtitle" color={c.goldDark}>{tagline}</AppText>
+        <AppText variant="body" color={c.mutedForeground}>{description}</AppText>
+        <View style={styles.dots} accessible accessibilityLabel={`Étape ${step} sur ${total}`}>
+          {Array.from({ length: total }, (_, i) => (
+            <View key={i} style={[styles.dot, { backgroundColor: i + 1 === step ? c.primary : c.border, width: i + 1 === step ? 24 : 8 }]} />
+          ))}
+        </View>
+        <Button title={primaryLabel} variant={step === total ? 'gold' : 'primary'} icon={step === total ? 'log-in-outline' : undefined} onPress={onPrimary} />
+      </View>
+    </View>
+  );
+}
+
 /**
  * Gabarit des écrans d'authentification (mot de passe oublié, réinitialisation…) :
  * en-tête de marque en dégradé + contenu en carte qui le chevauche.
@@ -812,6 +868,10 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, maxHeight: '88%' },
   sheetGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: spacing.xs },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  slideBody: { borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -28, paddingHorizontal: spacing.xl, paddingTop: spacing.xl, gap: spacing.md },
+  dots: { flexDirection: 'row', gap: 6, marginVertical: spacing.sm },
+  dot: { height: 8, borderRadius: 4 },
+  skip: { position: 'absolute', right: spacing.lg, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
   authIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   codeRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
   codeCell: { flex: 1, maxWidth: 52, height: 56, borderWidth: 1.5, borderRadius: radius.lg, textAlign: 'center' },

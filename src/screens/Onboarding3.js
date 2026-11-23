@@ -1,61 +1,20 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import PageContainer from '../components/PageContainer';
-import DotsView from '../components/DotsView';
-import Button from '../components/Button';
-import Onboarding1Styles from '../styles/OnboardingStyles';
 import { images } from '../constants';
-import { useTheme } from '../theme/ThemeProvider';
+import { OnboardingSlide } from '../design/components';
 
-const Onboarding3 = ({ navigation }) => {
-  const { colors } = useTheme();
-
-
-  return (
-    <SafeAreaView style={[Onboarding1Styles.container, {
-      backgroundColor: colors.background
-    }]}>
-      <PageContainer>
-        <View style={Onboarding1Styles.contentContainer}>
-        <Image
-            source={images.onboarding3}
-            style={Onboarding1Styles.backgroundImage}
-            resizeMode="cover"
-            />
-
-          {/* Section Contenu Fixe */}
-          <View style={[Onboarding1Styles.buttonContainer, {
-            backgroundColor: colors.background
-          }]}>
-            <View style={Onboarding1Styles.titleContainer}>
-              <Text style={[Onboarding1Styles.title, { color: colors.text }]}>Débloquez des récompenses</Text>
-              <Text style={Onboarding1Styles.subTitle}>Gagnez des badges à chaque étape</Text>
-            </View>
-
-            <Text style={[Onboarding1Styles.description, { color: colors.text }]}>
-              Plus vous donnez, plus vous progressez : Bronze, Argent, Or… Chaque contribution vous fait évoluer.            </Text>
-
-            <View style={Onboarding1Styles.dotsContainer}>
-              <DotsView progress={0.75} numDots={4} />
-            </View>
-            <Button
-              title="Suivant"
-              filled
-              onPress={() => navigation.navigate('Onboarding4')}
-              style={Onboarding1Styles.nextButton}
-            />
-            <Button
-              title="Sauter"
-              onPress={() => navigation.navigate('Login')}
-              textColor={colors.primary}
-              style={Onboarding1Styles.skipButton}
-            />
-          </View>
-        </View>
-      </PageContainer>
-    </SafeAreaView>
-  );
-};
+// Introduction au premier lancement — étape 3 sur 4
+const Onboarding3 = ({ navigation }) => (
+  <OnboardingSlide
+    image={images.onboarding3}
+    title="Débloquez des récompenses"
+    tagline="Gagnez des badges à chaque étape"
+    description="Plus vous donnez, plus vous progressez : Bronze, Argent, Or… Chaque contribution vous fait évoluer."
+    step={3}
+    total={4}
+    primaryLabel="Suivant"
+    onPrimary={() => navigation.navigate('Onboarding4')}
+      onSkip={() => navigation.navigate('Login')}
+  />
+);
 
 export default Onboarding3;

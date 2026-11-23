@@ -1,66 +1,20 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import PageContainer from '../components/PageContainer';
-import DotsView from '../components/DotsView';
-import Button from '../components/Button';
-import Onboarding1Styles from '../styles/OnboardingStyles';
 import { images } from '../constants';
-import { useTheme } from '../theme/ThemeProvider';
+import { OnboardingSlide } from '../design/components';
 
-const Onboarding = ({ navigation }) => {
-  const { colors } = useTheme();
-
-
-  return (
-    <SafeAreaView style={[Onboarding1Styles.container, {
-      backgroundColor: colors.background }]}>
-      <PageContainer>
-        <View style={Onboarding1Styles.contentContainer}>
-          <View style={Onboarding1Styles.backgroundImage}>
-            <Image
-              source={images.onboarding1}
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
-            />
-            {/* Overlay pour améliorer la lisibilité */}
-            
-            {/* Section Contenu Fixe */}
-            <View style={[Onboarding1Styles.buttonContainer, {
-              backgroundColor: colors.background
-            }]}>
-            <View style={Onboarding1Styles.titleContainer}>
-              <Text style={[Onboarding1Styles.title, {
-                color: colors.text
-              }]}>Bienvenue dans</Text>
-              <Text style={Onboarding1Styles.subTitle}>Partenaire MAGB</Text>
-            </View>
-
-            <Text style={[Onboarding1Styles.description, { color: colors.text }]}>
-              Rejoignez une communauté engagée et impactez des vies à travers des dons simples, réguliers et personnalisés.
-            </Text>
-
-            <View style={Onboarding1Styles.dotsContainer}>
-              <DotsView progress={0} numDots={4} />
-            </View>
-            <Button
-              title="Suivant"
-              filled
-              onPress={() => navigation.navigate('Onboarding2')}
-              style={Onboarding1Styles.nextButton}
-            />
-            <Button
-              title="Sauter"
-              onPress={() => navigation.navigate('Login')}
-              textColor={colors.primary}
-              style={Onboarding1Styles.skipButton}
-            />
-            </View>
-          </View>
-        </View>
-      </PageContainer>
-    </SafeAreaView>
-  );
-};
+// Introduction au premier lancement — étape 1 sur 4
+const Onboarding = ({ navigation }) => (
+  <OnboardingSlide
+    image={images.onboarding1}
+    title="Bienvenue"
+    tagline="Partenaire MAGB"
+    description="Rejoignez une communauté engagée et impactez des vies à travers des dons simples, réguliers et personnalisés."
+    step={1}
+    total={4}
+    primaryLabel="Suivant"
+    onPrimary={() => navigation.navigate('Onboarding2')}
+      onSkip={() => navigation.navigate('Login')}
+  />
+);
 
 export default Onboarding;
