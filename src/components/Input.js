@@ -35,8 +35,9 @@ const Input = (props) => {
         style={[
           styles.inputContainer,
           {
-            borderColor: isFocused ? COLORS.primary : dark ? COLORS.dark2 : COLORS.greyscale500,
-            backgroundColor: isFocused ? COLORS.tansparentPrimary : dark ? COLORS.dark2 : COLORS.greyscale500,
+            // Champ de la charte : fond carte, bordure « input », bordure violette au focus
+            borderColor: props.errorText ? COLORS.error : isFocused ? COLORS.primary : dark ? COLORS.dark3 : '#DEDBD3',
+            backgroundColor: dark ? COLORS.dark2 : COLORS.white,
           },
         ]}
       >
@@ -54,7 +55,9 @@ const Input = (props) => {
           onChangeText={onChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          style={[styles.input, { color: dark ? COLORS.white : COLORS.black }]}
+          maxFontSizeMultiplier={1.4}
+          accessibilityLabel={props.accessibilityLabel || props.placeholder}
+          style={[styles.input, { color: dark ? '#F6F4EE' : '#221B32' }]}
           placeholder={props.placeholder}
           placeholderTextColor={props.placeholderTextColor}
           autoCapitalize={props.autoCapitalize || 'none'}
@@ -67,6 +70,9 @@ const Input = (props) => {
         {showPasswordToggle && (
           <TouchableOpacity
             style={styles.eyeButton}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            hitSlop={10}
             onPress={() => setShowPassword(prev => !prev)}
             disabled={props.editable === false}
           >
@@ -94,7 +100,7 @@ Input.defaultProps = {
   id: '',
   errorText: null,
   icon: null,
-  placeholderTextColor: '#BCBCBC',
+  placeholderTextColor: '#8A8296',
   editable: true,
   autoCapitalize: 'none',
   secureTextEntry: false,

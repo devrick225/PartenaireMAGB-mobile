@@ -22,6 +22,7 @@ import { showError, showSuccess } from '../store/slices/notificationSlice';
 import { getSavedCredentials, REMEMBER_PASSWORD_KEY } from '../utils/biometricAuth';
 import * as SecureStore from 'expo-secure-store';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 // Critères affichés en direct sous le formulaire
 const CRITERIA = [
   { label: 'Au moins 8 caractères', test: (p: string) => p.length >= 8 },
@@ -212,16 +213,7 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>Changer le mot de passe</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <RefreshableHeader title="Changer le mot de passe" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
 
       <ScrollView
         style={styles.scrollView}

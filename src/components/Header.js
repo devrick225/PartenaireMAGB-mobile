@@ -10,11 +10,14 @@ const Header = ({ title, showBackButton = true }) => {
 
   return (
     <View style={[styles.container, {
-      backgroundColor: dark ? COLORS.dark1 : COLORS.white
+      backgroundColor: 'transparent'
     }]}>
       <View style={{flexDirection: 'row', alignItems: 'center'}}>
         {showBackButton && (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Retour"
+            hitSlop={12}
             onPress={() => navigation.goBack()}>
             <Image
               source={icons.back}
@@ -24,7 +27,7 @@ const Header = ({ title, showBackButton = true }) => {
               }]} />
           </TouchableOpacity>
         )}
-        <Text style={[styles.title, {
+        <Text accessibilityRole="header" maxFontSizeMultiplier={1.4} style={[styles.title, {
           color: colors.text
         }]}>{title}</Text>
       </View>
@@ -46,7 +49,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: "bold",
+    fontFamily: "PlayfairDisplay_700Bold", // titres de la charte
     color: COLORS.black
   }
 })

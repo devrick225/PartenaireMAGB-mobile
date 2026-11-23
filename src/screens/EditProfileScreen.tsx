@@ -26,6 +26,7 @@ import userService from '../store/services/userService';
 import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 interface Country {
   code: string;
   name: string;
@@ -578,26 +579,22 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Modifier le profil</Text>
-        <TouchableOpacity 
-          onPress={handleSave} 
-          disabled={isSaving}
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>Enregistrer</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      <RefreshableHeader
+        title="Modifier le profil"
+        onBackPress={() => navigation.goBack()}
+        showRefreshButton={false}
+        customRightComponent={
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={isSaving}
+            accessibilityRole="button"
+            accessibilityLabel="Enregistrer"
+            style={[styles.saveButton, { backgroundColor: COLORS.primary, borderRadius: 12, minHeight: 40, justifyContent: 'center' }]}
+          >
+            {isSaving ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.saveButtonText}>Enregistrer</Text>}
+          </TouchableOpacity>
+        }
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView

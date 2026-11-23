@@ -24,6 +24,7 @@ import { RootState } from '../store';
 import { useOtpClipboard } from '../hooks/useOtpClipboard';
 import { showApiError } from '../store/services/apiClient';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 interface PhoneVerificationScreenProps {
   navigation: any;
 }
@@ -214,16 +215,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={[styles.header, { backgroundColor: colors.background }]}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-            >
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Vérification SMS</Text>
-            <View style={{ width: 40 }} />
-          </View>
+          <RefreshableHeader title="Vérifier mon téléphone" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
 
           {/* Illustration */}
           <View style={styles.illustrationContainer}>

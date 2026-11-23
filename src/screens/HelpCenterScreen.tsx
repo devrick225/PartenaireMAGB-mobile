@@ -14,6 +14,8 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 
+import RefreshableHeader from '../components/RefreshableHeader';
+import { IconButton } from '../design/components';
 interface HelpCategory {
   id: string;
   title: string;
@@ -471,21 +473,14 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Centre d'aide</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ContactSupport')}
-          style={[styles.contactButton, { backgroundColor: colors.primary }]}
-        >
-          <MaterialIcons name="support-agent" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      <RefreshableHeader
+        title="Centre d'aide"
+        onBackPress={() => navigation.goBack()}
+        showRefreshButton={false}
+        customRightComponent={
+          <IconButton icon="headset-outline" accessibilityLabel="Contacter le support" onPress={() => navigation.navigate('ContactSupport')} />
+        }
+      />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Barre de recherche */}

@@ -9,7 +9,7 @@ import { COLORS, SIZES } from '../constants';
 
 const Button = (props) => {
     const filledBgColor = props.color || '#472A6F' // Bleu principal
-    const outlinedBgColor = COLORS.white
+    const outlinedBgColor = 'transparent'
     const bgColor = props.filled ? filledBgColor : outlinedBgColor
     const textColor = props.filled
         ? COLORS.white || props.textColor
@@ -18,6 +18,10 @@ const Button = (props) => {
 
     return (
         <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={props.title}
+            accessibilityState={{ disabled: !!props.disabled, busy: isLoading }}
+            disabled={props.disabled || isLoading}
             style={{
                 ...styles.btn,
                 ...{ backgroundColor: bgColor },
@@ -28,7 +32,7 @@ const Button = (props) => {
             {isLoading && isLoading == true ? (
                 <ActivityIndicator size="small" color={COLORS.white} />
             ) : (
-                <Text style={{ fontSize: 18, fontFamily: "semiBold", ...{ color: textColor } }}>
+                <Text maxFontSizeMultiplier={1.4} style={{ fontSize: 16, fontFamily: "semiBold", ...{ color: textColor } }}>
                     {props.title}
                 </Text>
             )}
@@ -39,12 +43,12 @@ const styles = StyleSheet.create({
     btn: {
         paddingHorizontal: SIZES.padding,
         paddingVertical: SIZES.padding,
-        borderColor: '#472A6F', // Bleu principal
+        borderColor: COLORS.primary,
         borderWidth: 1,
-        borderRadius: 25,
+        borderRadius: 12, // --radius de la charte
         alignItems: 'center',
         justifyContent: 'center',
-        height: 52
+        minHeight: 50
     },
 })
 

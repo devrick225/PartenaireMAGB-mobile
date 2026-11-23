@@ -23,6 +23,7 @@ import apiClient from '../store/services/apiClient';
 import useUserPermissions from '../hooks/useUserPermissions';
 import { requestMediaLibraryPermission } from '../utils/permissions';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 interface SupportCategory {
   id: string;
   title: string;
@@ -73,16 +74,7 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
   if (!permissions.canCreateTickets) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { backgroundColor: colors.background }]}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Contact Support</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <RefreshableHeader title="Contacter le support" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
         
         <View style={styles.unauthorizedContainer}>
           <MaterialIcons name="block" size={64} color={colors.text} />

@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 interface PrivacyPolicyScreenProps {
   navigation: any;
 }
@@ -98,18 +99,7 @@ Pour exercer ces droits, contactez-nous à l'adresse : partenaireadorationgene.b
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Politique de Confidentialité
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <RefreshableHeader title="Politique de confidentialité" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>

@@ -26,6 +26,7 @@ import { RootState } from '../store';
 import { updateUser } from '../store/slices/authSlice';
 import { showApiError } from '../store/services/apiClient';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface ProfileImageScreenProps {
@@ -266,18 +267,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Photo de profil
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <RefreshableHeader title="Photo de profil" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
 
       {/* Contenu principal */}
       <View style={styles.content}>

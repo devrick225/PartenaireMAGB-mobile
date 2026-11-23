@@ -18,6 +18,7 @@ import { selectCurrentMinistry } from '../store/slices/ministrySlice';
 import { Ministry } from '../types/navigation';
 import openLink from '../utils/openLink';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 const { width } = Dimensions.get('window');
 
 const MinistryDetailScreen: React.FC = () => {
@@ -101,23 +102,7 @@ const MinistryDetailScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {ministry.title}
-        </Text>
-        <TouchableOpacity
-          style={styles.shareButton}
-          onPress={handleShare}
-        >
-          <Ionicons name="share-outline" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
+      <RefreshableHeader title={ministry.title} onBackPress={() => navigation.goBack()} showRefreshButton={false} showShareButton onSharePress={handleShare} />
 
       <ScrollView
         style={styles.scrollView}

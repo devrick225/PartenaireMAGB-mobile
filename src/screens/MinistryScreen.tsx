@@ -33,6 +33,7 @@ import {
 import { Ministry } from '../types/navigation';
 import openLink from '../utils/openLink';
 
+import RefreshableHeader from '../components/RefreshableHeader';
 const { width } = Dimensions.get('window');
 
 const MinistryScreen: React.FC = () => {
@@ -191,16 +192,7 @@ const MinistryScreen: React.FC = () => {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Ministères</Text>
-          <View style={styles.headerRight} />
-        </View>
+        <RefreshableHeader title="Ministères" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Chargement des ministères...</Text>
