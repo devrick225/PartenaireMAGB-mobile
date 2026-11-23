@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
   Share,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,6 +18,8 @@ import { COLORS } from '../constants';
 import donationService, { Donation } from '../store/services/donationService';
 import paymentService, { Payment } from '../store/services/paymentService';
 import { showApiError } from '../store/services/apiClient';
+import { openPaymentPage } from '../utils/openPaymentPage';
+import { buildPaymentReturnDeepLink } from '../utils/deepLinkScheme';
 import documentsService from '../store/services/documentsService';
 import Constants from 'expo-constants';
 
@@ -349,8 +350,9 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                     text: 'Continuer le paiement',
                     onPress: async () => {
                       try {
-                        await Linking.openURL(paymentUrl);
+                        const ret = await openPaymentPage(paymentUrl);
                         navigation.navigate('PaymentVerification', {
+                          ...(ret.status ? { status: ret.status } : {}),
                           paymentId: existingPayment._id,
                           donationId: donation._id,
                           transactionId: existingPayment.moneyfusion?.token || existingPayment.fusionpay?.transactionId || existingPayment.geniuspay?.reference,
@@ -364,13 +366,15 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                           donationId: donation._id,
                           provider: !donation.paymentMethod ? 'moneyfusion' : ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
                           paymentMethod: donation.paymentMethod || 'moneyfusion',
+                          callbackUrl: buildPaymentReturnDeepLink(donation._id),
                         };
                         const newPaymentResponse = await donationService.initializePayment(newPaymentData);
                         if (newPaymentResponse.data.success) {
                           const newPaymentUrl = newPaymentResponse.data.data.paymentUrl;
                           if (newPaymentUrl) {
-                            await Linking.openURL(newPaymentUrl);
+                            const ret = await openPaymentPage(newPaymentUrl);
                             navigation.navigate('PaymentVerification', {
+                              ...(ret.status ? { status: ret.status } : {}),
                               paymentId: newPaymentResponse.data.data.paymentId,
                               donationId: donation._id,
                               transactionId: newPaymentResponse.data.data.transactionId,
@@ -391,6 +395,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                 donationId: donation._id,
                 provider: !donation.paymentMethod ? 'moneyfusion' : ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
                 paymentMethod: donation.paymentMethod || 'moneyfusion',
+                callbackUrl: buildPaymentReturnDeepLink(donation._id),
                 existingPaymentId: existingPayment._id, // Indiquer qu'il faut mettre à jour ce paiement
               };
               paymentResponse = await donationService.initializePayment(paymentData);
@@ -402,6 +407,7 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
               donationId: donation._id,
               provider: !donation.paymentMethod ? 'moneyfusion' : ['moneyfusion', 'geniuspay'].includes(donation.paymentMethod) ? donation.paymentMethod : 'fusionpay',
               paymentMethod: donation.paymentMethod || 'moneyfusion',
+              callbackUrl: buildPaymentReturnDeepLink(donation._id),
             };
             paymentResponse = await donationService.initializePayment(paymentData);
           }
@@ -432,11 +438,12 @@ const DonationDetailScreen: React.FC<DonationDetailScreenProps> = ({ navigation,
                     text: 'Continuer le paiement',
                     onPress: async () => {
                       try {
-                        // Rediriger vers MoneyFusion
-                        await Linking.openURL(paymentUrl);
-                        
-                        // Naviguer vers l'écran de vérification
+                        // Ouvrir la page de paiement : se referme automatiquement au retour dans l'app
+                        const ret = await openPaymentPage(paymentUrl);
+
+                        // Naviguer vers l'écran de vérification (le backend confirme le statut réel)
                         navigation.navigate('PaymentVerification', {
+                          ...(ret.status ? { status: ret.status } : {}),
                           paymentId: paymentInfo.paymentId,
                           donationId: donation._id,
                           transactionId: paymentInfo.transactionId,

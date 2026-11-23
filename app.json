@@ -76,7 +76,8 @@
         {
           "faceIDPermission": "PartenaireMAGB utilise Face ID pour vous connecter rapidement et en toute sécurité."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

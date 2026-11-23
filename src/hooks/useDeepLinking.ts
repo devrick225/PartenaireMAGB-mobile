@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import logger from '../utils/logger';
+import { isPaymentSessionActive } from '../utils/openPaymentPage';
 
 interface DeepLinkData {
   url: string;
@@ -72,7 +73,8 @@ export const useDeepLinking = (navigation?: any) => {
       logger.debug('Parsed deep link:', deepLinkData);
       
       // Navigation automatique si navigation est disponible
-      if (navigation && deepLinkData.type === 'payment') {
+      // Pendant une session openPaymentPage, l'écran appelant gère déjà la navigation
+      if (navigation && deepLinkData.type === 'payment' && !isPaymentSessionActive()) {
         const paymentData = parsePaymentDeepLink(deepLinkData);
         if (paymentData) {
           logger.payment('Navigation vers PaymentVerification avec:', paymentData);

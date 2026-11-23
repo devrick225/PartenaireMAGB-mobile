@@ -14,7 +14,6 @@ import {
   Switch,
   Modal,
   FlatList,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -24,6 +23,7 @@ import donationService, { CreateDonationData, InitializePaymentData } from '../s
 import paymentService from '../store/services/paymentService';
 import { showApiError } from '../store/services/apiClient';
 import { buildPaymentReturnDeepLink } from '../utils/deepLinkScheme';
+import { openPaymentPage } from '../utils/openPaymentPage';
 import PayDunyaOperatorSelector from '../components/PayDunyaOperatorSelector';
 import { PaymentOperator } from '../constants/paymentMethods';
 import { useSelector, useDispatch } from 'react-redux';
@@ -628,15 +628,16 @@ const CreateDonationScreen: React.FC<CreateDonationScreenProps> = ({ navigation,
                 text: 'Continuer le paiement',
                 onPress: async () => {
                   try {
-                    // Rediriger vers MoneyFusion
-                    await Linking.openURL(paymentUrl);
-                    
-                    // Naviguer vers l'écran de vérification
+                    // Ouvrir la page de paiement : se referme automatiquement au retour dans l'app
+                    const ret = await openPaymentPage(paymentUrl);
+
+                    // Naviguer vers l'écran de vérification (le backend confirme le statut réel)
                     navigation.replace('PaymentVerification', {
                       paymentId: paymentInfo.paymentId,
                       donationId: donation.id,
                       transactionId: paymentInfo.transactionId,
                       paymentUrl: paymentUrl,
+                      ...(ret.status ? { status: ret.status } : {}),
                     });
                   } catch (error) {
                     logger.error('Erreur ouverture URL:', error);
