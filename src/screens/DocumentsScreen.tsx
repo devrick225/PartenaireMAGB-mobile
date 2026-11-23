@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Pressable,
   Alert,
   Modal,
   ActivityIndicator,
-  FlatList,
   RefreshControl,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
 import documentsService, { AvailableDocuments, DownloadProgress, DownloadResult } from '../store/services/documentsService';
-import RefreshableHeader from '../components/RefreshableHeader';
 import { showApiError } from '../store/services/apiClient';
 import { WebView } from 'react-native-webview';
 import Constants from 'expo-constants';
 
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, IconButton, Card, StatCard, Section, Button, EmptyState, LoadingState } from '../design/components';
+import { radius, spacing } from '../design/tokens';
 interface DocumentsScreenProps {
   navigation: any;
 }
@@ -37,9 +31,7 @@ interface DownloadItem {
 }
 
 const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const [documents, setDocuments] = useState<AvailableDocuments | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -186,83 +178,6 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
     }
   };
 
-  const renderDocumentItem = ({ item }: { item: DownloadItem }) => {
-    const isDownloading = downloadingItems.has(item.id);
-    const progress = downloadProgress[item.id] || 0;
-
-    return (
-      <TouchableOpacity
-        style={[styles.documentItem, { backgroundColor: c.card }]}
-        onPress={() => handleDownload(item)}
-        disabled={isDownloading}
-        activeOpacity={0.7}
-      >
-        <View style={styles.documentIcon}>
-          <MaterialIcons
-            name={getDocumentIcon(item.type) as any}
-            size={24}
-            color={isDownloading ? colors.primary : colors.text}
-          />
-        </View>
-        
-        <View style={styles.documentInfo}>
-          <Text style={[styles.documentTitle, { color: colors.text }]} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={[styles.documentMeta, { color: c.mutedForeground }]}> 
-            {formatDocumentType(item.type)} • {getDocumentSize(item.type)}
-          </Text>
-          {item.metadata?.amount && (
-            <Text style={[styles.documentAmount, { color: colors.primary }]}> 
-              {formatCurrency(item.metadata.amount, item.metadata.currency)}
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.downloadAction}>
-          {isDownloading ? (
-            <View style={styles.downloadingContainer}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.progressText, { color: colors.primary }]}> 
-                {progress}%
-              </Text>
-            </View>
-          ) : (
-            <MaterialIcons name="download" size={24} color={colors.primary} />
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderSection = (title: string, items: DownloadItem[], emptyText: string) => {
-    if (items.length === 0) {
-      return (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
-          <View style={styles.emptySection}>
-            <MaterialIcons name="info" size={24} color={c.mutedForeground} />
-            <Text style={[styles.emptyText, { color: c.mutedForeground }]}> 
-              {emptyText}
-            </Text>
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
-        <FlatList
-          data={items}
-          renderItem={renderDocumentItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    );
-  };
 
   const getDocumentItems = (): { receipts: DownloadItem[]; schedules: DownloadItem[]; reports: DownloadItem[] } => {
     if (!documents) return { receipts: [], schedules: [], reports: [] };
@@ -321,161 +236,138 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
     return { receipts, schedules, reports };
   };
 
+  const DocumentRow = ({ item, last }: { item: DownloadItem; last: boolean }) => {
+    const isDownloading = downloadingItems.has(item.id);
+    const progress = downloadProgress[item.id] || 0;
+    return (
+      <Pressable
+        onPress={() => handleDownload(item)}
+        disabled={isDownloading}
+        accessibilityRole="button"
+        accessibilityLabel={`Télécharger ${item.title}`}
+        style={({ pressed }) => [
+          styles.docRow,
+          !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+          pressed && { backgroundColor: c.muted },
+        ]}
+      >
+        <View style={[styles.iconTile, { backgroundColor: c.primarySoft }]}>
+          <MaterialIcons name={getDocumentIcon(item.type) as any} size={20} color={c.primary} />
+        </View>
+        <View style={styles.flex}>
+          <AppText variant="bodyStrong" numberOfLines={2}>{item.title}</AppText>
+          <AppText variant="small" color={c.mutedForeground}>
+            {formatDocumentType(item.type)} · {getDocumentSize(item.type)}
+            {item.metadata?.date ? ` · ${new Date(item.metadata.date).toLocaleDateString('fr-FR')}` : ''}
+          </AppText>
+        </View>
+        {isDownloading ? (
+          <View style={styles.progress}>
+            <ActivityIndicator size="small" color={c.primary} />
+            <AppText variant="caption" color={c.primary}>{progress}%</AppText>
+          </View>
+        ) : (
+          <Ionicons name="download-outline" size={22} color={c.primary} />
+        )}
+      </Pressable>
+    );
+  };
+
+  const DocSection = ({ title, items, empty, icon }: { title: string; items: DownloadItem[]; empty: string; icon: any }) => (
+    <Section title={title}>
+      {items.length === 0 ? (
+        <EmptyState icon={icon} title="Rien pour le moment" message={empty} />
+      ) : (
+        items.map((item, i) => <DocumentRow key={item.id} item={item} last={i === items.length - 1} />)
+      )}
+    </Section>
+  );
+
   const { receipts, schedules, reports } = getDocumentItems();
+
+  const hero = (
+    <HeroHeader
+      eyebrow="Mon compte"
+      eyebrowIcon="folder-open-outline"
+      title="Mes documents"
+      subtitle="Reçus fiscaux, échéanciers et rapports à télécharger."
+      onBack={() => navigation.goBack()}
+      right={<IconButton icon={isRefreshing ? 'hourglass-outline' : 'refresh'} tone="hero" accessibilityLabel="Actualiser" onPress={handleRefresh} />}
+    />
+  );
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
-        <RefreshableHeader
-          title="Mes Documents"
-          showBackButton={true}
-          onBackPress={() => navigation.goBack()}
-          showRefreshButton={false}
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}> 
-            Chargement des documents...
-          </Text>
-        </View>
-      </SafeAreaView>
+      <Screen hero={hero}>
+        <Card><LoadingState message="Chargement des documents…" /></Card>
+      </Screen>
     );
   }
 
   const previewDir = previewFilePath ? previewFilePath.substring(0, previewFilePath.lastIndexOf('/') + 1) : undefined;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
-      <RefreshableHeader
-        title="Mes Documents"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showRefreshButton={true}
-        onRefreshPress={handleRefresh}
-        isRefreshing={isRefreshing}
-      />
-
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
+    <>
+      <Screen
+        hero={hero}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={c.primary} colors={[c.primary]} />}
       >
-        {documents && (
-          <View style={[styles.summaryCard, { backgroundColor: c.card }]}> 
-            <View style={styles.summaryHeader}>
-              <MaterialIcons name="description" size={24} color={colors.primary} />
-              <Text style={[styles.summaryTitle, { color: colors.text }]}> 
-                Documents Disponibles
-              </Text>
-            </View>
-            <View style={styles.summaryStats}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.primary }]}> 
-                  {documents.summary.donationsCount}
-                </Text>
-                <Text style={[styles.statLabel, { color: c.mutedForeground }]}> 
-                  Reçus
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.primary }]}> 
-                  {documents.summary.recurringDonationsCount}
-                </Text>
-                <Text style={[styles.statLabel, { color: c.mutedForeground }]}> 
-                  Échéanciers
-                </Text>
-              </View>
-            </View>
+        {documents ? (
+          <View style={styles.stats}>
+            <StatCard tinted tone="primary" icon="receipt-outline" label="Reçus" value={documents.summary.donationsCount} />
+            <StatCard tinted tone="info" icon="calendar-outline" label="Échéanciers" value={documents.summary.recurringDonationsCount} />
           </View>
-        )}
+        ) : null}
+        <DocSection title="Reçus de dons" items={receipts} icon="receipt-outline" empty="Vos reçus apparaîtront ici après chaque don payé." />
+        <DocSection title="Échéanciers" items={schedules} icon="calendar-outline" empty="Programmez un don récurrent pour obtenir son échéancier." />
+        <DocSection title="Rapports" items={reports} icon="stats-chart-outline" empty="Aucun rapport disponible." />
+      </Screen>
 
-        {renderSection('Reçus de Donation', receipts, 'Aucun reçu disponible. Effectuez un don pour obtenir un reçu.')}
-        {renderSection('Échéanciers de Dons Récurrents', schedules, 'Aucun échéancier disponible. Configurez un don récurrent pour obtenir un échéancier.')}
-        {renderSection('Rapports', reports, 'Aucun rapport disponible.')}
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-
-      {/* Modal de progression */}
-      <Modal
-        visible={showProgressModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowProgressModal(false)}
-        statusBarTranslucent
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.progressModal, { backgroundColor: colors.background }]}> 
-            <Text style={[styles.progressTitle, { color: colors.text }]}> 
-              Téléchargement en cours...
-            </Text>
-            {currentDownload && (
+      {/* Téléchargement en cours */}
+      <Modal visible={showProgressModal} transparent animationType="fade" onRequestClose={() => setShowProgressModal(false)} statusBarTranslucent>
+        <View style={[styles.overlay, { backgroundColor: c.overlay }]}>
+          <Card style={styles.progressCard}>
+            <AppText variant="subtitle">Téléchargement…</AppText>
+            {currentDownload ? (
               <>
-                <Text style={[styles.progressSubtitle, { color: c.mutedForeground }]}> 
-                  {currentDownload.title}
-                </Text>
-                <View style={styles.progressContainer}>
-                  <View style={[styles.progressBar, { backgroundColor: dark ? COLORS.dark3 : '#E5E7EB' }]}> 
-                    <View
-                      style={[
-                        styles.progressFill,
-                        { backgroundColor: colors.primary, width: `${currentDownload.progress}%` }
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.progressPercent, { color: colors.primary }]}> 
-                    {currentDownload.progress}%
-                  </Text>
+                <AppText variant="small" color={c.mutedForeground} numberOfLines={2}>{currentDownload.title}</AppText>
+                <View style={[styles.bar, { backgroundColor: c.muted }]}>
+                  <View style={[styles.barFill, { backgroundColor: c.primary, width: `${currentDownload.progress}%` }]} />
                 </View>
+                <AppText variant="smallStrong" color={c.primary}>{currentDownload.progress}%</AppText>
               </>
-            )}
-          </View>
+            ) : null}
+          </Card>
         </View>
       </Modal>
 
-      {/* Modal de prévisualisation */}
-      <Modal
-        visible={previewVisible}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={handleClosePreview}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}>
-            <TouchableOpacity onPress={handleClosePreview} style={{ padding: 8, marginRight: 8 }}>
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>Aperçu du document</Text>
-            <View style={{ flex: 1 }} />
-            {previewFilePath && (
+      {/* Aperçu */}
+      <Modal visible={previewVisible} transparent={false} animationType="slide" onRequestClose={handleClosePreview}>
+        <SafeAreaView style={[styles.flex, { backgroundColor: c.background }]}>
+          <View style={[styles.previewBar, { borderBottomColor: c.border }]}>
+            <IconButton icon="chevron-back" accessibilityLabel="Fermer l'aperçu" onPress={handleClosePreview} />
+            <AppText variant="title" style={styles.flex} numberOfLines={1}>Aperçu</AppText>
+            {previewFilePath ? (
               <>
-                <TouchableOpacity onPress={openWithNativeViewer} style={{ padding: 8 }}>
-                  <Ionicons name="open-outline" size={22} color={colors.text} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleShare} style={{ padding: 8 }}>
-                  <Ionicons name="share-outline" size={22} color={colors.text} />
-                </TouchableOpacity>
+                <IconButton icon="open-outline" accessibilityLabel="Ouvrir dans une autre application" onPress={openWithNativeViewer} />
+                <IconButton icon="share-outline" accessibilityLabel="Partager" onPress={handleShare} />
               </>
-            )}
+            ) : null}
           </View>
-
-          <View style={{ flex: 1, backgroundColor: c.card }}>
+          <View style={[styles.flex, { backgroundColor: c.card }]}>
             {previewType === 'pdf' && previewFilePath ? (
               Platform.OS === 'android' ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                  <MaterialIcons name="picture-as-pdf" size={48} color={colors.primary} />
-                  <Text style={{ marginTop: 12, color: colors.text, textAlign: 'center' }}>
-                    Aperçu PDF limité sur Android. Utilisez "Ouvrir" pour afficher dans une application compatible.
-                  </Text>
-                  <TouchableOpacity onPress={openWithNativeViewer} style={{ marginTop: 16, padding: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-                    <Text style={{ color: 'white', fontWeight: '600' }}>Ouvrir</Text>
-                  </TouchableOpacity>
+                <View style={styles.previewEmpty}>
+                  <EmptyState
+                    icon="document-text-outline"
+                    title="Aperçu limité sur Android"
+                    message="Ouvrez le document dans une application compatible."
+                    action={<Button title="Ouvrir" icon="open-outline" onPress={openWithNativeViewer} />}
+                  />
                 </View>
               ) : (
                 <WebView
-                  originWhitelist={["*"]}
+                  originWhitelist={['*']}
                   source={{ uri: previewFilePath }}
                   allowingReadAccessToURL={previewDir}
                   allowFileAccess
@@ -485,32 +377,24 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
                   onMessage={() => {}}
                   startInLoadingState
                   onError={(e) => setWebViewError(e.nativeEvent.description || 'Erreur de chargement du PDF')}
-                  style={{ flex: 1 }}
+                  style={styles.flex}
                 />
               )
             ) : (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <MaterialIcons name="insert-drive-file" size={48} color={colors.primary} />
-                <Text style={{ marginTop: 12, color: colors.text, textAlign: 'center', paddingHorizontal: 16 }}>
-                  Aperçu non disponible pour ce type de fichier. Utilisez les boutons ci-dessus.
-                </Text>
+              <View style={styles.previewEmpty}>
+                <EmptyState icon="document-outline" title="Aperçu indisponible" message="Utilisez « Ouvrir » ou « Partager » en haut de l'écran." />
               </View>
             )}
-
-            {Platform.OS === 'ios' && webViewError && (
-              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: dark ? COLORS.dark3 : '#E5E7EB' }}>
-                <Text style={{ color: colors.text, marginBottom: 8 }}>Impossible d'afficher le PDF dans l'aperçu.</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                  <TouchableOpacity onPress={openWithNativeViewer} style={{ padding: 10, backgroundColor: colors.primary, borderRadius: 8 }}>
-                    <Text style={{ color: 'white', fontWeight: '600' }}>Ouvrir</Text>
-                  </TouchableOpacity>
-                </View>
+            {Platform.OS === 'ios' && webViewError ? (
+              <View style={[styles.previewError, { backgroundColor: c.muted }]}>
+                <AppText variant="small" style={styles.flex}>Impossible d'afficher le PDF dans l'aperçu.</AppText>
+                <Button title="Ouvrir" fullWidth={false} onPress={openWithNativeViewer} />
               </View>
-            )}
+            ) : null}
           </View>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </>
   );
 };
 
@@ -563,170 +447,20 @@ const formatFrequency = (frequency: string): string => {
   return frequencies[frequency] || frequency;
 };
 
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16, fontFamily: 'regular',
-  },
-  summaryCard: {
-    marginVertical: 16,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontFamily: 'semiBold',
-    marginLeft: 12,
-  },
-  summaryStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontFamily: 'bold',
-  },
-  statLabel: {
-    fontSize: 12, fontFamily: 'regular',
-    marginTop: 4,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'semiBold',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  emptySection: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyText: {
-    marginTop: 8,
-    textAlign: 'center',
-    fontSize: 14, fontFamily: 'regular',
-  },
-  documentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginBottom: 8,
-    borderRadius: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-  },
-  documentIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  documentInfo: {
-    flex: 1,
-  },
-  documentTitle: {
-    fontSize: 16,
-    fontFamily: 'medium',
-    marginBottom: 4,
-  },
-  documentMeta: {
-    fontSize: 12, fontFamily: 'regular',
-    marginBottom: 2,
-  },
-  documentAmount: {
-    fontSize: 14,
-    fontFamily: 'semiBold',
-  },
-  downloadAction: {
-    padding: 8,
-  },
-  downloadingContainer: {
-    alignItems: 'center',
-    minWidth: 40,
-  },
-  progressText: {
-    fontSize: 10, fontFamily: 'regular',
-    marginTop: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  progressModal: {
-    margin: 20,
-    padding: 24,
-    borderRadius: 12,
-    minWidth: 280,
-    alignItems: 'center',
-  },
-  progressTitle: {
-    fontSize: 18,
-    fontFamily: 'semiBold',
-    marginBottom: 8,
-  },
-  progressSubtitle: {
-    fontSize: 14, fontFamily: 'regular',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  progressContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    height: 6,
-    borderRadius: 3,
-    marginBottom: 8,
-    backgroundColor: '#E5E7EB',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressPercent: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-  },
-  bottomPadding: {
-    height: 80,
-  },
+  flex: { flex: 1 },
+  stats: { flexDirection: 'row', gap: spacing.sm },
+  docRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 64 },
+  iconTile: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  progress: { alignItems: 'center', gap: 2 },
+  overlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  progressCard: { alignSelf: 'stretch', gap: spacing.sm },
+  bar: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 4 },
+  previewBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
+  previewEmpty: { flex: 1, justifyContent: 'center', padding: spacing.lg },
+  previewError: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
 });
 
 export default DocumentsScreen;
