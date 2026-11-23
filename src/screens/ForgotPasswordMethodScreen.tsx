@@ -13,12 +13,16 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, SIZES, illustrations } from '../constants';
 
 import { IconButton } from '../design/components';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface ForgotPasswordMethodScreenProps {
   navigation: any;
 }
 
 const ForgotPasswordMethodScreen: React.FC<ForgotPasswordMethodScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
 
   const handleBackToLogin = () => {
     navigation.reset({
@@ -57,11 +61,11 @@ const ForgotPasswordMethodScreen: React.FC<ForgotPasswordMethodScreenProps> = ({
           </View>
 
           {/* Titre et description */}
-          <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>
+          <Text style={[styles.title, { color: c.foreground }]}>
             Réinitialiser le mot de passe
           </Text>
           
-          <Text style={[styles.subtitle, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
             Choisissez comment vous souhaitez recevoir votre code de réinitialisation
           </Text>
 
@@ -72,8 +76,8 @@ const ForgotPasswordMethodScreen: React.FC<ForgotPasswordMethodScreenProps> = ({
               style={[
                 styles.methodCard,
                 {
-                  backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                  borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
+                  backgroundColor: c.card,
+                  borderColor: c.border,
                 }
               ]}
               onPress={handleEmailMethod}
@@ -86,17 +90,17 @@ const ForgotPasswordMethodScreen: React.FC<ForgotPasswordMethodScreenProps> = ({
                 />
               </View>
               <View style={styles.methodContent}>
-                <Text style={[styles.methodTitle, { color: dark ? COLORS.white : COLORS.black }]}>
+                <Text style={[styles.methodTitle, { color: c.foreground }]}>
                   Par Email
                 </Text>
-                <Text style={[styles.methodDescription, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+                <Text style={[styles.methodDescription, { color: c.mutedForeground }]}>
                   Recevez le code de réinitialisation sur votre adresse email
                 </Text>
               </View>
               <MaterialIcons 
                 name="chevron-right" 
                 size={24} 
-                color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                color={c.mutedForeground} 
               />
             </TouchableOpacity>
 
@@ -105,8 +109,8 @@ const ForgotPasswordMethodScreen: React.FC<ForgotPasswordMethodScreenProps> = ({
               style={[
                 styles.methodCard,
                 {
-                  backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                  borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
+                  backgroundColor: c.card,
+                  borderColor: c.border,
                 }
               ]}
               onPress={handleSmsMethod}
@@ -119,17 +123,17 @@ const ForgotPasswordMethodScreen: React.FC<ForgotPasswordMethodScreenProps> = ({
                 />
               </View>
               <View style={styles.methodContent}>
-                <Text style={[styles.methodTitle, { color: dark ? COLORS.white : COLORS.black }]}>
+                <Text style={[styles.methodTitle, { color: c.foreground }]}>
                   Par SMS
                 </Text>
-                <Text style={[styles.methodDescription, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+                <Text style={[styles.methodDescription, { color: c.mutedForeground }]}>
                   Recevez le code de réinitialisation sur votre téléphone
                 </Text>
               </View>
               <MaterialIcons 
                 name="chevron-right" 
                 size={24} 
-                color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                color={c.mutedForeground} 
               />
             </TouchableOpacity>
           </View>

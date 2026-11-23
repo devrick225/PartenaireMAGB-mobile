@@ -25,6 +25,8 @@ import { showError, showSuccess } from '../store/slices/notificationSlice';
 import { RootState, AppDispatch } from '../store';
 
 import { IconButton } from '../design/components';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface Country {
   code: string;
   name: string;
@@ -39,7 +41,9 @@ interface SignupCompleteProps {
 const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error } = useSelector((state: RootState) => state.auth);
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -219,8 +223,8 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
   ) => (
     <View style={styles.inputContainer}>
       <View style={[styles.inputWrapper, {
-        backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-        borderColor: error ? COLORS.error : (dark ? COLORS.dark3 : COLORS.greyscale300)
+        backgroundColor: c.card,
+        borderColor: error ? c.destructive : (c.border)
       }]}>
         {icon && (
           <Ionicons
@@ -232,10 +236,10 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
         )}
         <TextInput
           style={[styles.textInput, {
-            color: dark ? COLORS.white : COLORS.black,
+            color: c.foreground,
           }]}
           placeholder={placeholder}
-          placeholderTextColor={dark ? COLORS.grayTie : COLORS.grayscale400}
+          placeholderTextColor={c.mutedForeground}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry}
@@ -253,7 +257,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
   const renderCountryItem = ({ item }: { item: Country }) => (
     <TouchableOpacity
       style={[styles.countryItem, {
-        backgroundColor: dark ? COLORS.dark2 : COLORS.white,
+        backgroundColor: c.card,
         borderBottomColor: dark ? COLORS.dark3 : '#F5F5F5'
       }]}
       onPress={() => {
@@ -263,8 +267,8 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
       }}
     >
       <Image source={{ uri: item.flag }} style={styles.flagImage} />
-      <Text style={[styles.countryName, { color: dark ? COLORS.white : COLORS.black }]}>{item.name}</Text>
-      <Text style={[styles.callingCode, { color: dark ? COLORS.grayTie : COLORS.gray }]}>{item.callingCode}</Text>
+      <Text style={[styles.countryName, { color: c.foreground }]}>{item.name}</Text>
+      <Text style={[styles.callingCode, { color: c.mutedForeground }]}>{item.callingCode}</Text>
     </TouchableOpacity>
   );
 
@@ -284,17 +288,17 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
           {/* Header */}
           <View style={styles.header}>
             <IconButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Retour" />
-            <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>Créer un compte</Text>
-            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.title, { color: c.foreground }]}>Créer un compte</Text>
+            <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
               Rejoignez notre communauté de donateurs
             </Text>
           </View>
 
           {/* Form */}
-          <View style={[styles.form, { backgroundColor: dark ? COLORS.dark1 : COLORS.white }]}>
+          <View style={[styles.form, { backgroundColor: c.card }]}>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Nom *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Nom *</Text>
               {renderInput(
                 'Votre nom',
                 formData.lastName,
@@ -308,7 +312,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
               )}
             </View>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Prénom *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Prénom *</Text>
               {renderInput(
                 'Votre prénom',
                 formData.firstName,
@@ -324,7 +328,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Email */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Email *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Email *</Text>
               {renderInput(
                 'votre@email.com',
                 formData.email,
@@ -340,33 +344,33 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Pays */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Pays *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Pays *</Text>
               <TouchableOpacity
                 style={[styles.countrySelector, {
-                  backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                  borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+                  backgroundColor: c.card,
+                  borderColor: c.border
                 }]}
                 onPress={() => setShowCountryModal(true)}
               >
                 {selectedCountry ? (
                   <>
                     <Image source={{ uri: selectedCountry.flag }} style={styles.selectedFlag} />
-                    <Text style={[styles.selectedCountryText, { color: dark ? COLORS.white : COLORS.black }]} numberOfLines={1}>
+                    <Text style={[styles.selectedCountryText, { color: c.foreground }]} numberOfLines={1}>
                       {selectedCountry.name}
                     </Text>
                   </>
                 ) : (
-                  <Text style={[styles.selectedCountryText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                  <Text style={[styles.selectedCountryText, { color: c.mutedForeground }]}>
                     Chargement des pays...
                   </Text>
                 )}
-                <Ionicons name="chevron-down" size={20} color={dark ? COLORS.grayTie : COLORS.grayscale400} />
+                <Ionicons name="chevron-down" size={20} color={c.mutedForeground} />
               </TouchableOpacity>
             </View>
 
             {/* Ville */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Ville *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Ville *</Text>
               {renderInput(
                 'Votre ville',
                 formData.city,
@@ -382,16 +386,16 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Téléphone */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Téléphone *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Téléphone *</Text>
               <View style={styles.phoneContainer}>
                 <View style={[styles.phonePrefix, {
-                  backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                  borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+                  backgroundColor: c.card,
+                  borderColor: c.border
                 }]}>
                   {selectedCountry ? (
                     <>
                       <Image source={{ uri: selectedCountry.flag }} style={styles.phoneFlagImage} />
-                      <Text style={[styles.phonePrefixText, { color: dark ? COLORS.white : COLORS.black }]}>
+                      <Text style={[styles.phonePrefixText, { color: c.foreground }]}>
                         {selectedCountry.callingCode}
                       </Text>
                     </>
@@ -417,7 +421,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Mot de passe */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Mot de passe *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Mot de passe *</Text>
               {renderInput(
                 'Votre mot de passe',
                 formData.password,
@@ -430,7 +434,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color={dark ? COLORS.grayTie : COLORS.grayscale400}
+                    color={c.mutedForeground}
                   />
                 </TouchableOpacity>,
                 { textContentType: 'newPassword', autoComplete: 'new-password' }
@@ -439,7 +443,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Confirmation mot de passe */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: dark ? COLORS.white : COLORS.black }]}>Confirmer le mot de passe *</Text>
+              <Text style={[styles.label, { color: c.foreground }]}>Confirmer le mot de passe *</Text>
               {renderInput(
                 'Confirmez votre mot de passe',
                 formData.confirmPassword,
@@ -452,7 +456,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
                   <Ionicons
                     name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color={dark ? COLORS.grayTie : COLORS.grayscale400}
+                    color={c.mutedForeground}
                   />
                 </TouchableOpacity>,
                 { textContentType: 'newPassword', autoComplete: 'new-password' }
@@ -466,10 +470,10 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
               accessibilityRole="checkbox"
               accessibilityState={{ checked: termsAccepted }}
             >
-              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, errors.terms && { borderColor: COLORS.error }]}>
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, errors.terms && { borderColor: c.destructive }]}>
                 {termsAccepted && <Ionicons name="checkmark" size={16} color={COLORS.white} />}
               </View>
-              <Text style={[styles.termsText, { color: dark ? COLORS.white : COLORS.black }]}>
+              <Text style={[styles.termsText, { color: c.foreground }]}>
                 J'accepte les{' '}
                 <Text style={[styles.termsLink, { color: COLORS.primary }]}>
                   conditions d'utilisation
@@ -496,7 +500,7 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
 
             {/* Lien de connexion */}
             <View style={styles.loginLinkContainer}>
-              <Text style={[styles.loginText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.loginText, { color: c.mutedForeground }]}>
                 Vous avez déjà un compte ?{' '}
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -514,14 +518,14 @@ const SignupComplete: React.FC<SignupCompleteProps> = ({ navigation }) => {
           onRequestClose={() => setShowCountryModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: dark ? COLORS.dark1 : COLORS.white }]}>
-              <View style={[styles.modalHeader, { borderBottomColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}>
-                <Text style={[styles.modalTitle, { color: dark ? COLORS.white : COLORS.black }]}>Sélectionner un pays</Text>
+            <View style={[styles.modalContent, { backgroundColor: c.card }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
+                <Text style={[styles.modalTitle, { color: c.foreground }]}>Sélectionner un pays</Text>
                 <TouchableOpacity
                   onPress={() => setShowCountryModal(false)}
-                  style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
+                  style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
                 >
-                  <Ionicons name="close" size={24} color={dark ? COLORS.white : COLORS.black} />
+                  <Ionicons name="close" size={24} color={c.foreground} />
                 </TouchableOpacity>
               </View>
               <FlatList

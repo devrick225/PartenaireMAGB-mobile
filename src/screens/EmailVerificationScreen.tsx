@@ -24,12 +24,16 @@ import { useOtpClipboard } from '../hooks/useOtpClipboard';
 import { showApiError } from '../store/services/apiClient';
 
 import RefreshableHeader from '../components/RefreshableHeader';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface EmailVerificationScreenProps {
   navigation: any;
 }
 
 const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -204,7 +208,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
             <Text style={[styles.title, { color: colors.text }]}>
               Vérifiez votre email
             </Text>
-            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
               Nous avons envoyé un code à 6 chiffres à
             </Text>
             <Text style={[styles.email, { color: colors.primary }]}>
@@ -227,8 +231,8 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
                   style={[
                     styles.codeInput,
                     {
-                      backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                      borderColor: digit ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      backgroundColor: c.card,
+                      borderColor: digit ? colors.primary : (c.border),
                       color: colors.text,
                     },
                   ]}
@@ -252,7 +256,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
           {/* Timer and Resend */}
           <View style={styles.timerSection}>
             {timer > 0 ? (
-              <Text style={[styles.timerText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.timerText, { color: c.mutedForeground }]}>
                 Renvoyer le code dans {formatTime(timer)}
               </Text>
             ) : (
@@ -280,7 +284,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
               styles.verifyButton,
               {
                 backgroundColor: isLoading || code.some(digit => digit === '') 
-                  ? (dark ? COLORS.dark3 : COLORS.greyscale300)
+                  ? (c.border)
                   : colors.primary,
               },
             ]}
@@ -293,7 +297,7 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
           </TouchableOpacity>
 
           {/* Help Text */}
-          <Text style={[styles.helpText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.helpText, { color: c.mutedForeground }]}>
             Vous ne recevez pas le code ? Vérifiez vos spams ou{' '}
             <Text style={{ color: colors.primary }} onPress={handleResendCode}>
               renvoyez-le

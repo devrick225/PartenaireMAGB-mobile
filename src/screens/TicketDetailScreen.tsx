@@ -33,6 +33,8 @@ interface StaffMember {
 import { RootState } from '../store';
 import RefreshableHeader from '../components/RefreshableHeader';
 
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface TicketDetailScreenProps {
   navigation: any;
   route: {
@@ -43,7 +45,9 @@ interface TicketDetailScreenProps {
 }
 
 const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, route }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const { ticketId } = route.params;
   const permissions = useUserPermissions();
   const currentUser = useSelector((state: RootState) => state.auth.user);
@@ -289,7 +293,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   };
 
   const renderTicketHeader = () => (
-    <View style={[styles.ticketHeader, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+    <View style={[styles.ticketHeader, { backgroundColor: c.card }]}>
       <View style={styles.headerTop}>
         <View style={styles.ticketNumberContainer}>
           <MaterialIcons name="confirmation-number" size={20} color={colors.primary} />
@@ -324,9 +328,9 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           <MaterialIcons 
             name={ticketService.getCategoryIcon(ticket?.category || '') as any} 
             size={16} 
-            color={dark ? COLORS.grayTie : COLORS.gray} 
+            color={c.mutedForeground} 
           />
-          <Text style={[styles.metaText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.metaText, { color: c.mutedForeground }]}>
             {ticketService.formatTicketCategory(ticket?.category || '')}
           </Text>
         </View>
@@ -341,15 +345,15 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           </Text>
         </View>
         <View style={styles.metaRow}>
-          <MaterialIcons name="schedule" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-          <Text style={[styles.metaText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <MaterialIcons name="schedule" size={16} color={c.mutedForeground} />
+          <Text style={[styles.metaText, { color: c.mutedForeground }]}>
             Créé il y a {ticket ? ticketService.getTicketAge(ticket) : 'N/A'}
           </Text>
         </View>
         {ticket?.updatedAt !== ticket?.createdAt && (
           <View style={styles.metaRow}>
-            <MaterialIcons name="update" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-            <Text style={[styles.metaText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <MaterialIcons name="update" size={16} color={c.mutedForeground} />
+            <Text style={[styles.metaText, { color: c.mutedForeground }]}>
               Dernière activité il y a {ticket ? ticketService.getLastActivity(ticket) : 'N/A'}
             </Text>
           </View>
@@ -386,7 +390,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               </View>
             )}
           </View>
-          <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]} numberOfLines={1}>
+          <Text style={[styles.userEmail, { color: c.mutedForeground }]} numberOfLines={1}>
             {ticket.user.email}
           </Text>
         </View>
@@ -399,7 +403,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             Assigné à {ticket.assignedTo.firstName} {ticket.assignedTo.lastName}
           </Text>
           {ticket.assignedAt && (
-            <Text style={[styles.assignedDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.assignedDate, { color: c.mutedForeground }]}>
               le {formatDate(ticket.assignedAt)}
             </Text>
           )}
@@ -423,9 +427,9 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         
         if (statusRules.isOverdue) {
           return (
-            <View style={[styles.headerAlert, { backgroundColor: COLORS.error + '20' }]}>
-              <MaterialIcons name="warning" size={16} color={COLORS.error} />
-              <Text style={[styles.headerAlertText, { color: COLORS.error }]}>
+            <View style={[styles.headerAlert, { backgroundColor: c.destructive + '20' }]}>
+              <MaterialIcons name="warning" size={16} color={c.destructive} />
+              <Text style={[styles.headerAlertText, { color: c.destructive }]}>
                 Ticket en retard SLA
               </Text>
             </View>
@@ -434,9 +438,9 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         
         if (statusRules.isEscalated) {
           return (
-            <View style={[styles.headerAlert, { backgroundColor: COLORS.warning + '20' }]}>
-              <MaterialIcons name="trending-up" size={16} color={COLORS.warning} />
-              <Text style={[styles.headerAlertText, { color: COLORS.warning }]}>
+            <View style={[styles.headerAlert, { backgroundColor: c.warning + '20' }]}>
+              <MaterialIcons name="trending-up" size={16} color={c.warning} />
+              <Text style={[styles.headerAlertText, { color: c.warning }]}>
                 Ticket escaladé
               </Text>
             </View>
@@ -449,7 +453,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   );
 
   const renderDescription = () => (
-    <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+    <View style={[styles.section, { backgroundColor: c.card }]}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
       <Text style={[styles.description, { color: colors.text }]}>
         {ticket?.description}
@@ -463,13 +467,13 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     }
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Métriques</Text>
         <View style={styles.metricsGrid}>
           {ticket.metrics.firstResponseTime && (
             <View style={styles.metricItem}>
               <MaterialIcons name="schedule" size={20} color={colors.primary} />
-              <Text style={[styles.metricLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
                 Premier réponse
               </Text>
               <Text style={[styles.metricValue, { color: colors.text }]}>
@@ -480,8 +484,8 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           
           {ticket.metrics.resolutionTime && (
             <View style={styles.metricItem}>
-              <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
-              <Text style={[styles.metricLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <MaterialIcons name="check-circle" size={20} color={c.success} />
+              <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
                 Temps de résolution
               </Text>
               <Text style={[styles.metricValue, { color: colors.text }]}>
@@ -492,7 +496,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           
           <View style={styles.metricItem}>
             <MaterialIcons name="chat" size={20} color={colors.primary} />
-            <Text style={[styles.metricLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
               Réponses
             </Text>
             <Text style={[styles.metricValue, { color: colors.text }]}>
@@ -502,8 +506,8 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           
           {ticket.metrics.escalationCount > 0 && (
             <View style={styles.metricItem}>
-              <MaterialIcons name="trending-up" size={20} color={COLORS.warning} />
-              <Text style={[styles.metricLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <MaterialIcons name="trending-up" size={20} color={c.warning} />
+              <Text style={[styles.metricLabel, { color: c.mutedForeground }]}>
                 Escalades
               </Text>
               <Text style={[styles.metricValue, { color: colors.text }]}>
@@ -527,14 +531,14 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     }
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <View style={styles.slaHeader}>
           <MaterialIcons 
             name={hasOverdue ? "warning" : "schedule"} 
             size={20} 
-            color={hasOverdue ? COLORS.error : colors.primary} 
+            color={hasOverdue ? c.destructive : colors.primary} 
           />
-          <Text style={[styles.sectionTitle, { color: hasOverdue ? COLORS.error : colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: hasOverdue ? c.destructive : colors.text }]}>
             SLA {hasOverdue ? "(En retard)" : ""}
           </Text>
         </View>
@@ -542,19 +546,19 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         <View style={styles.slaGrid}>
           {slaStatus.responseDeadline && (
             <View style={styles.slaItem}>
-              <Text style={[styles.slaLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.slaLabel, { color: c.mutedForeground }]}>
                 Deadline réponse
               </Text>
               <Text style={[
                 styles.slaValue, 
                 { 
-                  color: slaStatus.responseOverdue ? COLORS.error : colors.text 
+                  color: slaStatus.responseOverdue ? c.destructive : colors.text 
                 }
               ]}>
                 {formatDate(slaStatus.responseDeadline.toISOString())}
               </Text>
               {slaStatus.responseOverdue && (
-                <Text style={[styles.overdueText, { color: COLORS.error }]}>
+                <Text style={[styles.overdueText, { color: c.destructive }]}>
                   En retard
                 </Text>
               )}
@@ -563,19 +567,19 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
 
           {slaStatus.resolutionDeadline && (
             <View style={styles.slaItem}>
-              <Text style={[styles.slaLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.slaLabel, { color: c.mutedForeground }]}>
                 Deadline résolution
               </Text>
               <Text style={[
                 styles.slaValue, 
                 { 
-                  color: slaStatus.resolutionOverdue ? COLORS.error : colors.text 
+                  color: slaStatus.resolutionOverdue ? c.destructive : colors.text 
                 }
               ]}>
                 {formatDate(slaStatus.resolutionDeadline.toISOString())}
               </Text>
               {slaStatus.resolutionOverdue && (
-                <Text style={[styles.overdueText, { color: COLORS.error }]}>
+                <Text style={[styles.overdueText, { color: c.destructive }]}>
                   En retard
                 </Text>
               )}
@@ -590,17 +594,17 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     if (!ticketService.isTicketEscalated(ticket!)) return null;
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <View style={styles.escalationHeader}>
-          <MaterialIcons name="trending-up" size={20} color={COLORS.warning} />
-          <Text style={[styles.sectionTitle, { color: COLORS.warning }]}>
+          <MaterialIcons name="trending-up" size={20} color={c.warning} />
+          <Text style={[styles.sectionTitle, { color: c.warning }]}>
             Escalade
           </Text>
         </View>
         
         <View style={styles.escalationInfo}>
           {ticket?.escalation.escalatedAt && (
-            <Text style={[styles.escalationDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.escalationDate, { color: c.mutedForeground }]}>
               Escaladé le {formatDate(ticket.escalation.escalatedAt)}
             </Text>
           )}
@@ -613,7 +617,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           
           {ticket?.escalation.escalationReason && (
             <View style={styles.escalationReason}>
-              <Text style={[styles.escalationReasonLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.escalationReasonLabel, { color: c.mutedForeground }]}>
                 Raison :
               </Text>
               <Text style={[styles.escalationReasonText, { color: colors.text }]}>
@@ -633,7 +637,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     if (contextInfo.length === 0) return null;
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <View style={styles.contextHeader}>
           <MaterialIcons name="info" size={20} color={colors.primary} />
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -644,7 +648,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         <View style={styles.contextGrid}>
           {contextInfo.map((info, index) => (
             <View key={index} style={styles.contextItem}>
-              <Text style={[styles.contextLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.contextLabel, { color: c.mutedForeground }]}>
                 {info.label}
               </Text>
               <Text style={[styles.contextValue, { color: colors.text }]} numberOfLines={2}>
@@ -661,16 +665,16 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     if (!ticket?.resolution) return null;
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <View style={styles.resolutionHeader}>
-          <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
-          <Text style={[styles.sectionTitle, { color: COLORS.success }]}>Résolution</Text>
+          <MaterialIcons name="check-circle" size={20} color={c.success} />
+          <Text style={[styles.sectionTitle, { color: c.success }]}>Résolution</Text>
         </View>
         <Text style={[styles.description, { color: colors.text }]}>
           {ticket.resolution}
         </Text>
         {ticket.resolvedBy && (
-          <Text style={[styles.resolvedBy, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.resolvedBy, { color: c.mutedForeground }]}>
             Résolu par {ticket.resolvedBy.firstName} {ticket.resolvedBy.lastName}
           </Text>
         )}
@@ -679,7 +683,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
   };
 
   const renderComments = () => (
-    <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+    <View style={[styles.section, { backgroundColor: c.card }]}>
       <View style={styles.commentsHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Commentaires ({comments.length})
@@ -690,14 +694,14 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         comments.map((comment, index) => (
           <View
             key={comment._id || `${comment.createdAt}-${index}`}
-            style={[styles.commentItem, comment.isInternal && [styles.internalComment, { backgroundColor: COLORS.warning + '12', borderLeftColor: COLORS.warning }]]}
+            style={[styles.commentItem, comment.isInternal && [styles.internalComment, { backgroundColor: c.warning + '12', borderLeftColor: c.warning }]]}
           >
             <View style={styles.commentHeader}>
               <View style={styles.commentAuthor}>
                 <MaterialIcons 
                   name={(comment.author?.role || 'user') === 'user' ? 'person' : 'support-agent'} 
                   size={16} 
-                  color={(comment.author?.role || 'user') === 'user' ? colors.primary : COLORS.success} 
+                  color={(comment.author?.role || 'user') === 'user' ? colors.primary : c.success} 
                 />
                 <Text style={[styles.commentAuthorName, { color: colors.text }]} numberOfLines={1}>
                   {comment.author ? `${comment.author.firstName ?? ''} ${comment.author.lastName ?? ''}`.trim() : 'Utilisateur supprimé'}
@@ -710,14 +714,14 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                   </View>
                 )}
                 {comment.isInternal && (
-                  <View style={[styles.internalBadge, { backgroundColor: COLORS.warning + '20' }]}>
-                    <Text style={[styles.internalBadgeText, { color: COLORS.warning }]}>
+                  <View style={[styles.internalBadge, { backgroundColor: c.warning + '20' }]}>
+                    <Text style={[styles.internalBadgeText, { color: c.warning }]}>
                       Interne
                     </Text>
                   </View>
                 )}
               </View>
-              <Text style={[styles.commentDate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.commentDate, { color: c.mutedForeground }]}>
                 {formatDate(comment.createdAt)}
               </Text>
             </View>
@@ -729,13 +733,13 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             {comment.attachments && comment.attachments.length > 0 && (
               <View style={styles.commentAttachments}>
                 {comment.attachments.map((attachment, index) => (
-                  <View key={index} style={[styles.attachmentItem, { backgroundColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}>
+                  <View key={index} style={[styles.attachmentItem, { backgroundColor: c.border }]}>
                     <MaterialIcons name="attachment" size={16} color={colors.primary} />
                     <Text style={[styles.attachmentName, { color: colors.text }]} numberOfLines={1}>
                       {attachment.filename}
                     </Text>
                     {!!attachment.size && (
-                      <Text style={[styles.attachmentSize, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                      <Text style={[styles.attachmentSize, { color: c.mutedForeground }]}>
                         ({Math.max(1, Math.round(attachment.size / 1024))} Ko)
                       </Text>
                     )}
@@ -746,7 +750,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           </View>
         ))
       ) : (
-        <Text style={[styles.noComments, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+        <Text style={[styles.noComments, { color: c.mutedForeground }]}>
           Aucun commentaire pour le moment
         </Text>
       )}
@@ -771,7 +775,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     if (!actions.canChangeStatus && !actions.canAssign && !actions.canEscalate) return null;
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <View style={styles.adminSectionHeader}>
           <MaterialIcons name="admin-panel-settings" size={22} color={colors.primary} />
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
@@ -782,7 +786,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         {/* Changement de statut */}
         {actions.canChangeStatus && actions.availableStatusTransitions.length > 0 && (
           <View style={styles.adminActionGroup}>
-            <Text style={[styles.adminActionLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.adminActionLabel, { color: c.mutedForeground }]}>
               Changer le statut
             </Text>
             <View style={styles.statusActions}>
@@ -819,7 +823,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
         {/* Actions de gestion (Assigner / Escalader) */}
         {(actions.canAssign || actions.canEscalate) && (
           <View style={styles.adminActionGroup}>
-            <Text style={[styles.adminActionLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.adminActionLabel, { color: c.mutedForeground }]}>
               Gestion
             </Text>
             <View style={styles.managementActions}>
@@ -835,7 +839,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
 
               {actions.canEscalate && (
                 <TouchableOpacity
-                  style={[styles.managementButton, { backgroundColor: COLORS.warning }]}
+                  style={[styles.managementButton, { backgroundColor: c.warning }]}
                   onPress={openEscalateModal}
                 >
                   <MaterialIcons name="trending-up" size={18} color={COLORS.white} />
@@ -848,9 +852,9 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
 
         {/* Info si déjà escaladé */}
         {!actions.canEscalate && ticketService.isTicketEscalated(ticket) && (
-          <View style={[styles.restrictionInfo, { backgroundColor: COLORS.warning + '10' }]}>
-            <MaterialIcons name="info" size={16} color={COLORS.warning} />
-            <Text style={[styles.restrictionText, { color: COLORS.warning }]}>
+          <View style={[styles.restrictionInfo, { backgroundColor: c.warning + '10' }]}>
+            <MaterialIcons name="info" size={16} color={c.warning} />
+            <Text style={[styles.restrictionText, { color: c.warning }]}>
               Ce ticket est déjà escaladé.
             </Text>
           </View>
@@ -868,11 +872,11 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     // Ticket annulé : aucune action possible
     if (ticket.status === 'cancelled') {
       return (
-        <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-          <View style={[styles.statusAlert, { backgroundColor: COLORS.error + '20' }]}>
-            <MaterialIcons name="block" size={20} color={COLORS.error} />
-            <Text style={[styles.statusAlertText, { color: COLORS.error }]}>
+          <View style={[styles.statusAlert, { backgroundColor: c.destructive + '20' }]}>
+            <MaterialIcons name="block" size={20} color={c.destructive} />
+            <Text style={[styles.statusAlertText, { color: c.destructive }]}>
               Ce ticket a été annulé. Aucune action n'est possible.
             </Text>
           </View>
@@ -883,7 +887,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     // Ticket fermé : seule la réouverture est possible
     if (ticket.status === 'closed') {
       return (
-        <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
           <View style={[styles.statusAlert, { backgroundColor: COLORS.gray + '20' }]}>
             <MaterialIcons name="lock" size={20} color={COLORS.gray} />
@@ -910,11 +914,11 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
       if (!hasActions) return null;
 
       return (
-        <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-          <View style={[styles.statusAlert, { backgroundColor: COLORS.success + '20' }]}>
-            <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
-            <Text style={[styles.statusAlertText, { color: COLORS.success }]}>
+          <View style={[styles.statusAlert, { backgroundColor: c.success + '20' }]}>
+            <MaterialIcons name="check-circle" size={20} color={c.success} />
+            <Text style={[styles.statusAlertText, { color: c.success }]}>
               Ce ticket a été résolu. Vous pouvez le fermer ou l'évaluer.
             </Text>
           </View>
@@ -948,13 +952,13 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     }
 
     return (
-      <View style={[styles.actionsSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.actionsSection, { backgroundColor: c.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
 
         {statusRules.isOverdue && (
-          <View style={[styles.statusAlert, { backgroundColor: COLORS.error + '20' }]}>
-            <MaterialIcons name="warning" size={20} color={COLORS.error} />
-            <Text style={[styles.statusAlertText, { color: COLORS.error }]}>
+          <View style={[styles.statusAlert, { backgroundColor: c.destructive + '20' }]}>
+            <MaterialIcons name="warning" size={20} color={c.destructive} />
+            <Text style={[styles.statusAlertText, { color: c.destructive }]}>
               Ce ticket est en retard selon les SLA définis.
             </Text>
           </View>
@@ -989,7 +993,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
     if (!ticket?.rating) return null;
 
     return (
-      <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.section, { backgroundColor: c.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Évaluation client</Text>
         <View style={styles.ratingDisplay}>
           <View style={styles.starsContainer}>
@@ -998,7 +1002,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 key={star}
                 name="star"
                 size={24}
-                color={star <= ticket.rating!.score ? '#E8B130' : dark ? COLORS.dark3 : COLORS.greyscale300}
+                color={star <= ticket.rating!.score ? '#E8B130' : c.border}
               />
             ))}
           </View>
@@ -1027,18 +1031,18 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             </Text>
             <TouchableOpacity
               onPress={() => setShowAssignModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
+              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
             >
               <MaterialIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
 
-          <Text style={[styles.staffLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>Assigner à</Text>
+          <Text style={[styles.staffLabel, { color: c.mutedForeground }]}>Assigner à</Text>
           {isLoadingStaff ? (
             <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
           ) : staff.length === 0 ? (
-            <Text style={[styles.staffEmpty, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.staffEmpty, { color: c.mutedForeground }]}>
               Aucun autre membre du support trouvé.
             </Text>
           ) : (
@@ -1049,7 +1053,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                   <TouchableOpacity
                     key={member._id}
                     style={[styles.staffItem, {
-                      borderColor: selected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      borderColor: selected ? colors.primary : (c.border),
                       backgroundColor: selected ? colors.primary + '15' : 'transparent',
                     }]}
                     onPress={() => setAssignToUser(member._id)}
@@ -1098,18 +1102,18 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             </Text>
             <TouchableOpacity
               onPress={() => setShowEscalateModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
+              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
             >
               <MaterialIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
 
-          <Text style={[styles.staffLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}>Escalader vers</Text>
+          <Text style={[styles.staffLabel, { color: c.mutedForeground }]}>Escalader vers</Text>
           {isLoadingStaff ? (
             <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
           ) : staff.length === 0 ? (
-            <Text style={[styles.staffEmpty, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.staffEmpty, { color: c.mutedForeground }]}>
               Aucun autre membre du support trouvé.
             </Text>
           ) : (
@@ -1120,7 +1124,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                   <TouchableOpacity
                     key={member._id}
                     style={[styles.staffItem, {
-                      borderColor: selected ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      borderColor: selected ? colors.primary : (c.border),
                       backgroundColor: selected ? colors.primary + '15' : 'transparent',
                     }]}
                     onPress={() => setAssignToUser(member._id)}
@@ -1148,11 +1152,11 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               {
                 backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
                 color: colors.text,
-                borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
+                borderColor: c.border,
               },
             ]}
             placeholder="Raison de l'escalade"
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
+            placeholderTextColor={c.mutedForeground}
             value={escalateReason}
             onChangeText={setEscalateReason}
             multiline={true}
@@ -1161,7 +1165,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           />
 
           <TouchableOpacity
-            style={[styles.submitButton, styles.modalSubmit, { backgroundColor: COLORS.warning, opacity: isSubmitting || !assignToUser ? 0.5 : 1 }]}
+            style={[styles.submitButton, styles.modalSubmit, { backgroundColor: c.warning, opacity: isSubmitting || !assignToUser ? 0.5 : 1 }]}
             onPress={handleEscalateTicket}
             disabled={isSubmitting || !assignToUser}
           >
@@ -1187,7 +1191,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             </Text>
             <TouchableOpacity
               onPress={() => { setShowCommentInput(false); setIsInternalComment(false); }}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
+              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
             >
               <MaterialIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -1199,11 +1203,11 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               {
                 backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
                 color: colors.text,
-                borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
+                borderColor: c.border,
               },
             ]}
             placeholder={isInternalComment ? 'Note pour l\'équipe support (invisible pour l\'utilisateur)...' : 'Saisissez votre commentaire...'}
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
+            placeholderTextColor={c.mutedForeground}
             value={newComment}
             onChangeText={setNewComment}
             multiline={true}
@@ -1213,15 +1217,15 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             autoFocus
             editable={ticketService.canUserComment(ticket!, currentUser?.id, currentUser?.role)}
           />
-          <Text style={[styles.charCount, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.charCount, { color: c.mutedForeground }]}>
             {newComment.length}/1000
           </Text>
 
           {permissions.isSupportRole && (
             <TouchableOpacity
               style={[styles.internalToggle, {
-                borderColor: isInternalComment ? COLORS.warning : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                backgroundColor: isInternalComment ? COLORS.warning + '15' : 'transparent',
+                borderColor: isInternalComment ? c.warning : (c.border),
+                backgroundColor: isInternalComment ? c.warning + '15' : 'transparent',
               }]}
               onPress={() => setIsInternalComment(v => !v)}
               accessibilityRole="checkbox"
@@ -1230,21 +1234,21 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               <MaterialIcons
                 name={isInternalComment ? 'check-box' : 'check-box-outline-blank'}
                 size={22}
-                color={isInternalComment ? COLORS.warning : (dark ? COLORS.grayTie : COLORS.gray)}
+                color={isInternalComment ? c.warning : (c.mutedForeground)}
               />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={[styles.internalToggleTitle, { color: colors.text }]}>Note interne</Text>
-                <Text style={[styles.internalToggleHint, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                <Text style={[styles.internalToggleHint, { color: c.mutedForeground }]}>
                   Invisible pour l'utilisateur, aucun email envoyé
                 </Text>
               </View>
-              <MaterialIcons name="lock-outline" size={18} color={isInternalComment ? COLORS.warning : (dark ? COLORS.grayTie : COLORS.gray)} />
+              <MaterialIcons name="lock-outline" size={18} color={isInternalComment ? c.warning : (c.mutedForeground)} />
             </TouchableOpacity>
           )}
 
           <View style={styles.commentActions}>
             <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}
+              style={[styles.cancelButton, { backgroundColor: c.border }]}
               onPress={() => { setShowCommentInput(false); setIsInternalComment(false); }}
             >
               <Text style={[styles.cancelButtonText, { color: colors.text }]}>
@@ -1255,7 +1259,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               style={[
                 styles.submitButton,
                 {
-                  backgroundColor: isInternalComment ? COLORS.warning : colors.primary,
+                  backgroundColor: isInternalComment ? c.warning : colors.primary,
                   opacity: isAddingComment || !newComment.trim() ? 0.5 : 1,
                 },
               ]}
@@ -1289,7 +1293,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
             </Text>
             <TouchableOpacity
               onPress={() => setShowRatingModal(false)}
-              style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
+              style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
             >
               <MaterialIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -1309,13 +1313,13 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                 <MaterialIcons
                   name="star"
                   size={32}
-                  color={star <= rating ? '#E8B130' : dark ? COLORS.dark3 : COLORS.greyscale300}
+                  color={star <= rating ? '#E8B130' : c.border}
                 />
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={[styles.ratingDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.ratingDescription, { color: c.mutedForeground }]}>
             {rating === 1 && "Très insatisfait"}
             {rating === 2 && "Insatisfait"}
             {rating === 3 && "Neutre"}
@@ -1329,11 +1333,11 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               {
                 backgroundColor: dark ? COLORS.dark3 : COLORS.grayscale100,
                 color: colors.text,
-                borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
+                borderColor: c.border,
               },
             ]}
             placeholder="Commentaire (optionnel)"
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
+            placeholderTextColor={c.mutedForeground}
             value={ratingComment}
             onChangeText={setRatingComment}
             multiline={true}
@@ -1389,7 +1393,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
           isRefreshing={isRefreshing}
         />
         <View style={styles.errorContainer}>
-          <MaterialIcons name="error" size={80} color={dark ? COLORS.grayTie : COLORS.gray} />
+          <MaterialIcons name="error" size={80} color={c.mutedForeground} />
           <Text style={[styles.errorText, { color: colors.text }]}>
             {loadFailed ? 'Impossible de charger le ticket' : 'Ticket non trouvé'}
           </Text>
@@ -1459,7 +1463,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
               <Text style={[styles.modalTitle, { color: colors.text }]}>Motif de fermeture</Text>
               <TouchableOpacity
                 onPress={() => setShowCloseReasonModal(false)}
-                style={[styles.modalCloseButton, { backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale300 }]}
+                style={[styles.modalCloseButton, { backgroundColor: c.muted }]}
               >
                 <MaterialIcons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
@@ -1482,7 +1486,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                     padding: 12,
                     borderRadius: 8,
                     borderWidth: 1,
-                    borderColor: dark ? COLORS.dark3 : COLORS.greyscale300,
+                    borderColor: c.border,
                     backgroundColor: selectedCloseReason === (opt.key as any) ? colors.primary + '15' : 'transparent',
                   }}
                   onPress={() => setSelectedCloseReason(opt.key as any)}
@@ -1494,7 +1498,7 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
                       height: 20,
                       borderRadius: 10,
                       borderWidth: 2,
-                      borderColor: selectedCloseReason === (opt.key as any) ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      borderColor: selectedCloseReason === (opt.key as any) ? colors.primary : (c.border),
                       backgroundColor: selectedCloseReason === (opt.key as any) ? colors.primary : 'transparent',
                     }}
                   />
@@ -1504,13 +1508,13 @@ const TicketDetailScreen: React.FC<TicketDetailScreenProps> = ({ navigation, rou
 
             <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 20 }}>
               <TouchableOpacity
-                style={[styles.cancelButton, { backgroundColor: dark ? COLORS.dark3 : COLORS.greyscale300 }]}
+                style={[styles.cancelButton, { backgroundColor: c.border }]}
                 onPress={() => setShowCloseReasonModal(false)}
               >
                 <Text style={[styles.cancelButtonText, { color: colors.text }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: COLORS.error, opacity: isSubmitting ? 0.6 : 1 }]}
+                style={[styles.submitButton, { backgroundColor: c.destructive, opacity: isSubmitting ? 0.6 : 1 }]}
                 onPress={confirmCloseTicket}
                 disabled={isSubmitting}
               >
@@ -1665,9 +1669,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'bold',
+    fontSize: 12,
+    fontFamily: 'semiBold',
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   description: {
     fontSize: 16, fontFamily: 'regular',

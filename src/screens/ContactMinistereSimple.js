@@ -24,6 +24,8 @@ import InputModern from '../components/InputModern';
 import apiService from '../services/apiService';
 import RefreshableHeader from '../components/RefreshableHeader';
 import openLink from '../utils/openLink';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 const { width, height } = Dimensions.get('window');
 
 // Coordonnées du Ministère de l'Agriculture et de l'Équipement Rural du Sénégal
@@ -51,7 +53,9 @@ const CONTACT_INFO = {
 };
 
 const ContactMinistereSimple = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useAppDispatch();
   
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -465,7 +469,7 @@ const ContactMinistereSimple = ({ navigation }) => {
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.mapActionButton, { backgroundColor: '#4CAF50' }]}
+                style={[styles.mapActionButton, { backgroundColor: c.success }]}
                 onPress={handleOpenMap}
               >
                 <MaterialIcons name="map" size={20} color="#FFFFFF" />
@@ -491,7 +495,7 @@ const ContactMinistereSimple = ({ navigation }) => {
             'Téléphone 1',
             CONTACT_INFO.phone1Display,
             () => handlePhoneCall(CONTACT_INFO.phone1, CONTACT_INFO.phone1Display),
-            '#4CAF50'
+            c.success
           )}
 
           {renderContactCard(
@@ -499,7 +503,7 @@ const ContactMinistereSimple = ({ navigation }) => {
             'Téléphone 2',
             CONTACT_INFO.phone2Display,
             () => handlePhoneCall(CONTACT_INFO.phone2, CONTACT_INFO.phone2Display),
-            '#4CAF50'
+            c.success
           )}
 
           {renderContactCard(
@@ -507,7 +511,7 @@ const ContactMinistereSimple = ({ navigation }) => {
             'Email officiel',
             CONTACT_INFO.email,
             handleEmail,
-            '#2196F3'
+            c.info
           )}
 
           {renderContactCard(
@@ -515,7 +519,7 @@ const ContactMinistereSimple = ({ navigation }) => {
             'Site web',
             CONTACT_INFO.website,
             handleWebsite,
-            '#FF9800'
+            c.warning
           )}
 
           {renderContactCard(
@@ -542,21 +546,21 @@ const ContactMinistereSimple = ({ navigation }) => {
           </Text>
           
           <View style={styles.hoursItem}>
-            <MaterialIcons name="schedule" size={20} color="#4CAF50" />
+            <MaterialIcons name="schedule" size={20} color={c.success} />
             <Text style={[styles.hoursText, { color: colors.text }]}>
               {CONTACT_INFO.horaires.semaine}
             </Text>
           </View>
           
           <View style={styles.hoursItem}>
-            <MaterialIcons name="schedule" size={20} color="#FF9800" />
+            <MaterialIcons name="schedule" size={20} color={c.warning} />
             <Text style={[styles.hoursText, { color: colors.text }]}>
               {CONTACT_INFO.horaires.weekend}
             </Text>
           </View>
           
           <View style={styles.hoursItem}>
-            <MaterialIcons name="schedule" size={20} color="#F44336" />
+            <MaterialIcons name="schedule" size={20} color={c.destructive} />
             <Text style={[styles.hoursText, { color: colors.text }]}>
               {CONTACT_INFO.horaires.ferme}
             </Text>
@@ -647,9 +651,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'bold',
+    fontSize: 12,
+    fontFamily: 'semiBold',
     marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   mapContainer: {
     marginBottom: 30,
@@ -854,7 +860,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 20,
   },
   recipientText: {

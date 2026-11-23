@@ -23,6 +23,8 @@ import { getSavedCredentials, REMEMBER_PASSWORD_KEY } from '../utils/biometricAu
 import * as SecureStore from 'expo-secure-store';
 
 import RefreshableHeader from '../components/RefreshableHeader';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 // Critères affichés en direct sous le formulaire
 const CRITERIA = [
   { label: 'Au moins 8 caractères', test: (p: string) => p.length >= 8 },
@@ -36,7 +38,9 @@ interface ChangePasswordScreenProps {
 }
 
 const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useDispatch();
   const newPasswordRef = React.useRef<TextInput>(null);
   const confirmPasswordRef = React.useRef<TextInput>(null);
@@ -166,15 +170,15 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
       <View style={[
         styles.passwordInputContainer,
         {
-          borderColor: errors[field] ? '#FF5722' : (dark ? COLORS.dark3 : COLORS.greyscale300),
-          backgroundColor: dark ? COLORS.dark2 : COLORS.white,
+          borderColor: errors[field] ? c.destructive : (c.border),
+          backgroundColor: c.card,
         },
       ]}>
         <TextInput
           ref={extra.inputRef as any}
           style={[styles.passwordInput, { color: colors.text }]}
           placeholder={placeholder}
-          placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
+          placeholderTextColor={c.mutedForeground}
           secureTextEntry={!showPasswords[showField]}
           value={formData[field as keyof typeof formData]}
           onChangeText={(text) => updateFormData(field, text)}
@@ -196,7 +200,7 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
           <MaterialIcons
             name={showPasswords[showField] ? 'visibility' : 'visibility-off'}
             size={24}
-            color={dark ? COLORS.grayTie : COLORS.gray}
+            color={c.mutedForeground}
           />
         </TouchableOpacity>
       </View>
@@ -222,20 +226,20 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
         keyboardDismissMode="interactive"
       >
         {/* Instructions */}
-        <View style={[styles.instructionsCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.instructionsCard, { backgroundColor: c.card }]}>
           <View style={styles.instructionsHeader}>
             <MaterialIcons name="security" size={24} color={colors.primary} />
             <Text style={[styles.instructionsTitle, { color: colors.text }]}>
               Sécurité du mot de passe
             </Text>
           </View>
-          <Text style={[styles.instructionsText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.instructionsText, { color: c.mutedForeground }]}>
             Votre nouveau mot de passe doit contenir au moins 8 caractères avec une combinaison de lettres majuscules, minuscules et de chiffres.
           </Text>
         </View>
 
         {/* Formulaire */}
-        <View style={[styles.formCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.formCard, { backgroundColor: c.card }]}>
           {renderPasswordInput(
             'Mot de passe actuel',
             'currentPassword',
@@ -262,7 +266,7 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
         </View>
 
         {/* Critères de mot de passe */}
-        <View style={[styles.criteriaCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.criteriaCard, { backgroundColor: c.card }]}>
           <Text style={[styles.criteriaTitle, { color: colors.text }]}>
             Critères du mot de passe
           </Text>
@@ -270,7 +274,7 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
           <View style={styles.criteriaList}>
             {CRITERIA.map(({ label, test }) => {
               const ok = test(formData.newPassword);
-              const color = ok ? '#4CAF50' : (dark ? COLORS.grayTie : COLORS.gray);
+              const color = ok ? c.success : (c.mutedForeground);
               return (
                 <View key={label} style={styles.criteriaItem}>
                   <MaterialIcons name={ok ? 'check-circle' : 'radio-button-unchecked'} size={16} color={color} />

@@ -27,6 +27,8 @@ import { updateUser } from '../store/slices/authSlice';
 import { RootState } from '../store';
 
 import RefreshableHeader from '../components/RefreshableHeader';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface Country {
   code: string;
   name: string;
@@ -39,7 +41,9 @@ interface EditProfileScreenProps {
 }
 
 const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -422,8 +426,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
     <View style={styles.inputContainer}>
       <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
       <View style={[styles.inputWrapper, { 
-        backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-        borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+        backgroundColor: c.card,
+        borderColor: c.border
       }]}>
         {icon && (
           <Ionicons 
@@ -434,21 +438,21 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
           />
         )}
       <TextInput
-          style={[styles.textInput, { color: dark ? COLORS.white : COLORS.black }]}
+          style={[styles.textInput, { color: c.foreground }]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-          placeholderTextColor={dark ? COLORS.grayTie : COLORS.grayscale400}
+          placeholderTextColor={c.mutedForeground}
         keyboardType={keyboardType}
           autoCapitalize={options.autoCapitalize ?? 'none'}
           editable={options.editable !== false}
       />
         {options.editable === false && (
-          <Ionicons name="lock-closed-outline" size={16} color={dark ? COLORS.grayTie : COLORS.grayscale400} />
+          <Ionicons name="lock-closed-outline" size={16} color={c.mutedForeground} />
         )}
       </View>
       {!!options.hint && (
-        <Text style={{ fontSize: 12, marginTop: 4, color: dark ? COLORS.grayTie : COLORS.gray }}>{options.hint}</Text>
+        <Text style={{ fontSize: 12, marginTop: 4, color: c.mutedForeground }}>{options.hint}</Text>
       )}
     </View>
   );
@@ -458,20 +462,20 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       <Text style={[styles.inputLabel, { color: colors.text }]}>Pays</Text>
       <TouchableOpacity
         style={[styles.countrySelector, { 
-          backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-          borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+          backgroundColor: c.card,
+          borderColor: c.border
         }]}
         onPress={() => setShowCountryModal(true)}
       >
         {selectedCountry && (
           <>
             <Image source={{ uri: selectedCountry.flag }} style={styles.selectedFlag} />
-            <Text style={[styles.selectedCountryText, { color: dark ? COLORS.white : COLORS.black }]}>
+            <Text style={[styles.selectedCountryText, { color: c.foreground }]}>
               {selectedCountry.name}
             </Text>
           </>
         )}
-        <Ionicons name="chevron-down" size={20} color={dark ? COLORS.grayTie : COLORS.grayscale400} />
+        <Ionicons name="chevron-down" size={20} color={c.mutedForeground} />
       </TouchableOpacity>
     </View>
   );
@@ -481,13 +485,13 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       <Text style={[styles.inputLabel, { color: colors.text }]}>Téléphone</Text>
       <View style={styles.phoneContainer}>
         <View style={[styles.phonePrefix, { 
-          backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-          borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+          backgroundColor: c.card,
+          borderColor: c.border
         }]}>
           {selectedCountry && (
             <>
               <Image source={{ uri: selectedCountry.flag }} style={styles.phoneFlagImage} />
-              <Text style={[styles.phonePrefixText, { color: dark ? COLORS.white : COLORS.black }]}>
+              <Text style={[styles.phonePrefixText, { color: c.foreground }]}>
                 {selectedCountry.callingCode}
               </Text>
             </>
@@ -495,15 +499,15 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
           <View style={[styles.inputWrapper, { 
-            backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-            borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+            backgroundColor: c.card,
+            borderColor: c.border
           }]}>
             <TextInput
-              style={[styles.textInput, { color: dark ? COLORS.white : COLORS.black }]}
+              style={[styles.textInput, { color: c.foreground }]}
               value={profile.phone}
               onChangeText={(text) => setProfile({...profile, phone: text})}
               placeholder="12345678"
-              placeholderTextColor={dark ? COLORS.grayTie : COLORS.grayscale400}
+              placeholderTextColor={c.mutedForeground}
               keyboardType="phone-pad"
               autoCapitalize="none"
             />
@@ -515,7 +519,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
 
   const renderCountryItem = ({ item }: { item: Country }) => (
     <TouchableOpacity
-      style={[styles.countryItem, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
+      style={[styles.countryItem, { backgroundColor: c.card }]}
       onPress={() => {
         setSelectedCountry(item);
         setProfile({...profile, country: item.code});
@@ -523,8 +527,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       }}
     >
       <Image source={{ uri: item.flag }} style={styles.flagImage} />
-      <Text style={[styles.countryName, { color: dark ? COLORS.white : COLORS.black }]}>{item.name}</Text>
-      <Text style={[styles.callingCode, { color: dark ? COLORS.grayTie : COLORS.gray }]}>{item.callingCode}</Text>
+      <Text style={[styles.countryName, { color: c.foreground }]}>{item.name}</Text>
+      <Text style={[styles.callingCode, { color: c.mutedForeground }]}>{item.callingCode}</Text>
     </TouchableOpacity>
   );
 
@@ -539,7 +543,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
       <View style={[
         styles.selectContainer,
-        { backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderColor: dark ? COLORS.dark3 : COLORS.greyscale300 }
+        { backgroundColor: c.card, borderColor: c.border }
       ]}>
         {options.map((option) => (
           <TouchableOpacity
@@ -604,7 +608,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         keyboardDismissMode="interactive"
       >
         {/* Section Avatar */}
-        <View style={[styles.avatarSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.avatarSection, { backgroundColor: c.card }]}>
           <View style={styles.avatarContainer}>
             {(user as any)?.avatar ? (
               <Image 
@@ -628,7 +632,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
 
         {/* Informations personnelles */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="person" size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -682,7 +686,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
 
         {/* Informations personnelles */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="person" size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -720,8 +724,8 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
             <Text style={[styles.inputLabel, { color: colors.text }]}>Date de naissance</Text>
             <TouchableOpacity
               style={[styles.datePickerButton, { 
-                backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                borderColor: dark ? COLORS.dark3 : COLORS.greyscale300
+                backgroundColor: c.card,
+                borderColor: c.border
               }]}
               onPress={openDatePicker}
             >
@@ -733,7 +737,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               />
               <Text style={[
                 styles.datePickerText, 
-                { color: profile.dateOfBirth ? (dark ? COLORS.white : COLORS.black) : (dark ? COLORS.grayTie : COLORS.grayscale400) }
+                { color: profile.dateOfBirth ? (c.foreground) : (c.mutedForeground) }
               ]}>
                 {profile.dateOfBirth || 'Sélectionner une date'}
               </Text>
@@ -779,7 +783,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
 
         {/* Informations professionnelles */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="work" size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -800,7 +804,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
 
         {/* Informations de l'église */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="church" size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -823,7 +827,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
 
         {/* Préférences de don */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="favorite" size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -892,7 +896,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
         </View>
 
         {/* Informations familiales */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="family-restroom" size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -929,7 +933,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
       {Platform.OS === 'ios' && (
         <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
           <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
-            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: dark ? COLORS.dark2 : COLORS.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 }}>
+            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
                 <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text }}>Date de naissance</Text>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
@@ -964,7 +968,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
             activeOpacity={1}
             onPress={() => setShowCountryModal(false)}
           />
-          <View style={[styles.modalContent, { backgroundColor: dark ? COLORS.dark1 : COLORS.white }]}>
+          <View style={[styles.modalContent, { backgroundColor: c.card }]}>
             <FlatList
               data={countries}
               renderItem={renderCountryItem}
@@ -1093,9 +1097,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'bold',
+    fontSize: 12,
+    fontFamily: 'semiBold',
     marginLeft: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   sectionContent: {
     paddingHorizontal: 20,

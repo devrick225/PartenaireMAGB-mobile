@@ -298,10 +298,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontFamily: 'semiBold',
     color: '#333',
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   description: {
     fontSize: 16, fontFamily: 'regular',

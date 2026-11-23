@@ -18,12 +18,16 @@ import { COLORS, SIZES, illustrations } from '../constants';
 import apiClient, { showApiError } from '../store/services/apiClient';
 
 import { IconButton } from '../design/components';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface ForgotPasswordSmsScreenProps {
   navigation: any;
 }
 
 const ForgotPasswordSmsScreen: React.FC<ForgotPasswordSmsScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -123,35 +127,35 @@ const ForgotPasswordSmsScreen: React.FC<ForgotPasswordSmsScreenProps> = ({ navig
           </View>
 
           {/* Titre et description */}
-          <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>
+          <Text style={[styles.title, { color: c.foreground }]}>
             Réinitialisation par SMS
           </Text>
           
-          <Text style={[styles.subtitle, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
             Entrez votre numéro de téléphone et nous vous enverrons un code de réinitialisation par SMS
           </Text>
 
           {/* Champ téléphone */}
           <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: dark ? COLORS.white : COLORS.black }]}>
+            <Text style={[styles.inputLabel, { color: c.foreground }]}>
               Numéro de téléphone
             </Text>
             <View style={[styles.inputWrapper, { 
-              backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale500,
-              borderColor: dark ? COLORS.dark3 : COLORS.greyscale500 
+              backgroundColor: c.muted,
+              borderColor: c.border 
             }]}>
               <MaterialIcons 
                 name="phone" 
                 size={20} 
-                color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                color={c.mutedForeground} 
                 style={styles.inputIcon}
               />
               <TextInput
                 style={[styles.input, { 
-                  color: dark ? COLORS.white : COLORS.black 
+                  color: c.foreground 
                 }]}
                 placeholder="+225 XX XX XX XX XX"
-                placeholderTextColor={dark ? COLORS.grayscale400 : COLORS.grayscale700}
+                placeholderTextColor={c.mutedForeground}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"

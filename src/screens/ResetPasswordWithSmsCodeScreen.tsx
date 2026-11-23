@@ -20,13 +20,17 @@ import apiClient, { showApiError } from '../store/services/apiClient';
 import { useOtpClipboard } from '../hooks/useOtpClipboard';
 
 import { IconButton } from '../design/components';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface ResetPasswordWithSmsCodeScreenProps {
   navigation: any;
   route: any;
 }
 
 const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenProps> = ({ navigation, route }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const { phone } = route.params;
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -202,17 +206,17 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
           </View>
 
           {/* Titre et description */}
-          <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>
+          <Text style={[styles.title, { color: c.foreground }]}>
             Code SMS reçu
           </Text>
           
-          <Text style={[styles.subtitle, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
             Entrez le code de vérification envoyé au {formatPhoneDisplay(phone)} et votre nouveau mot de passe
           </Text>
 
           {/* Code de vérification */}
           <View style={styles.codeContainer}>
-            <Text style={[styles.codeLabel, { color: dark ? COLORS.white : COLORS.black }]}>
+            <Text style={[styles.codeLabel, { color: c.foreground }]}>
               Code de vérification
             </Text>
             <View style={styles.codeInputsContainer}>
@@ -225,9 +229,9 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
                   style={[
                     styles.codeInput,
                     {
-                      backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                      borderColor: digit ? COLORS.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
-                      color: dark ? COLORS.white : COLORS.black,
+                      backgroundColor: c.card,
+                      borderColor: digit ? COLORS.primary : (c.border),
+                      color: c.foreground,
                     }
                   ]}
                   value={digit}
@@ -252,25 +256,25 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
 
           {/* Nouveau mot de passe */}
           <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: dark ? COLORS.white : COLORS.black }]}>
+            <Text style={[styles.inputLabel, { color: c.foreground }]}>
               Nouveau mot de passe
             </Text>
             <View style={[styles.inputWrapper, { 
-              backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale500,
-              borderColor: dark ? COLORS.dark3 : COLORS.greyscale500 
+              backgroundColor: c.muted,
+              borderColor: c.border 
             }]}>
               <MaterialIcons 
                 name="lock" 
                 size={20} 
-                color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                color={c.mutedForeground} 
                 style={styles.inputIcon}
               />
               <TextInput
                 style={[styles.input, { 
-                  color: dark ? COLORS.white : COLORS.black 
+                  color: c.foreground 
                 }]}
                 placeholder="Nouveau mot de passe"
-                placeholderTextColor={dark ? COLORS.grayscale400 : COLORS.grayscale700}
+                placeholderTextColor={c.mutedForeground}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 secureTextEntry={!showNewPassword}
@@ -282,7 +286,7 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
                 <Ionicons 
                   name={showNewPassword ? "eye-off" : "eye"} 
                   size={20} 
-                  color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                  color={c.mutedForeground} 
                 />
               </TouchableOpacity>
             </View>
@@ -290,25 +294,25 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
 
           {/* Confirmer le mot de passe */}
           <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, { color: dark ? COLORS.white : COLORS.black }]}>
+            <Text style={[styles.inputLabel, { color: c.foreground }]}>
               Confirmer le mot de passe
             </Text>
             <View style={[styles.inputWrapper, { 
-              backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale500,
-              borderColor: dark ? COLORS.dark3 : COLORS.greyscale500 
+              backgroundColor: c.muted,
+              borderColor: c.border 
             }]}>
               <MaterialIcons 
                 name="lock" 
                 size={20} 
-                color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                color={c.mutedForeground} 
                 style={styles.inputIcon}
               />
               <TextInput
                 style={[styles.input, { 
-                  color: dark ? COLORS.white : COLORS.black 
+                  color: c.foreground 
                 }]}
                 placeholder="Confirmer le mot de passe"
-                placeholderTextColor={dark ? COLORS.grayscale400 : COLORS.grayscale700}
+                placeholderTextColor={c.mutedForeground}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
@@ -320,7 +324,7 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
                 <Ionicons 
                   name={showConfirmPassword ? "eye-off" : "eye"} 
                   size={20} 
-                  color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                  color={c.mutedForeground} 
                 />
               </TouchableOpacity>
             </View>
@@ -328,16 +332,16 @@ const ResetPasswordWithSmsCodeScreen: React.FC<ResetPasswordWithSmsCodeScreenPro
 
           {/* Exigences du mot de passe */}
           <View style={styles.requirementsContainer}>
-            <Text style={[styles.requirementsTitle, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+            <Text style={[styles.requirementsTitle, { color: c.mutedForeground }]}>
               Le mot de passe doit contenir :
             </Text>
-            <Text style={[styles.requirement, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+            <Text style={[styles.requirement, { color: c.mutedForeground }]}>
               • Au moins 8 caractères
             </Text>
-            <Text style={[styles.requirement, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+            <Text style={[styles.requirement, { color: c.mutedForeground }]}>
               • Une lettre majuscule et une minuscule
             </Text>
-            <Text style={[styles.requirement, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+            <Text style={[styles.requirement, { color: c.mutedForeground }]}>
               • Au moins un chiffre
             </Text>
           </View>

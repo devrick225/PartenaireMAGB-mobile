@@ -27,6 +27,8 @@ import { updateUser } from '../store/slices/authSlice';
 import { showApiError } from '../store/services/apiClient';
 
 import RefreshableHeader from '../components/RefreshableHeader';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface ProfileImageScreenProps {
@@ -34,7 +36,9 @@ interface ProfileImageScreenProps {
 }
 
 const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
   
@@ -302,7 +306,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
           <Text style={[styles.userName, { color: colors.text }]}>
             {user?.firstName} {user?.lastName}
           </Text>
-          <Text style={[styles.userEmail, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.userEmail, { color: c.mutedForeground }]}>
             {user?.email}
           </Text>
         </View>
@@ -312,7 +316,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
           <TouchableOpacity
             style={[
               styles.actionButton,
-              { backgroundColor: dark ? COLORS.dark2 : COLORS.white }
+              { backgroundColor: c.card }
             ]}
             onPress={showImageOptions}
             disabled={isUploading}
@@ -327,7 +331,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                { backgroundColor: dark ? COLORS.dark2 : COLORS.white }
+                { backgroundColor: c.card }
               ]}
               onPress={() => setShowImageModal(true)}
             >

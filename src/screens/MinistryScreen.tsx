@@ -356,11 +356,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontFamily: 'semiBold',
     color: '#333',
     marginHorizontal: 16,
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   categoriesScroll: {
     paddingHorizontal: 16,

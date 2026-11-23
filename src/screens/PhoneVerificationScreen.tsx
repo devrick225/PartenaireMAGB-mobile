@@ -25,12 +25,16 @@ import { useOtpClipboard } from '../hooks/useOtpClipboard';
 import { showApiError } from '../store/services/apiClient';
 
 import RefreshableHeader from '../components/RefreshableHeader';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface PhoneVerificationScreenProps {
   navigation: any;
 }
 
 const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -232,7 +236,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
             <Text style={[styles.title, { color: colors.text }]}>
               Vérifiez votre téléphone
             </Text>
-            <Text style={[styles.subtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
               Nous avons envoyé un code à 6 chiffres au
             </Text>
             <Text style={[styles.phone, { color: colors.primary }]}>
@@ -255,8 +259,8 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
                   style={[
                     styles.codeInput,
                     {
-                      backgroundColor: dark ? COLORS.dark2 : COLORS.white,
-                      borderColor: digit ? colors.primary : (dark ? COLORS.dark3 : COLORS.greyscale300),
+                      backgroundColor: c.card,
+                      borderColor: digit ? colors.primary : (c.border),
                       color: colors.text,
                     },
                   ]}
@@ -280,7 +284,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
           {/* Timer and Resend */}
           <View style={styles.timerSection}>
             {timer > 0 ? (
-              <Text style={[styles.timerText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.timerText, { color: c.mutedForeground }]}>
                 Renvoyer le code dans {formatTime(timer)}
               </Text>
             ) : (
@@ -308,7 +312,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
               styles.verifyButton,
               {
                 backgroundColor: isLoading || code.some(digit => digit === '') 
-                  ? (dark ? COLORS.dark3 : COLORS.greyscale300)
+                  ? (c.border)
                   : colors.primary,
               },
             ]}
@@ -321,7 +325,7 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
           </TouchableOpacity>
 
           {/* Help Text */}
-          <Text style={[styles.helpText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.helpText, { color: c.mutedForeground }]}>
             Vous ne recevez pas le code ? Vérifiez que votre téléphone est allumé ou{' '}
             <Text style={{ color: colors.primary }} onPress={handleResendCode}>
               renvoyez-le
@@ -330,9 +334,9 @@ const PhoneVerificationScreen: React.FC<PhoneVerificationScreenProps> = ({ navig
 
           {/* Dev Mode Notice */}
           {process.env.NODE_ENV === 'development' && (
-            <View style={[styles.devNotice, { backgroundColor: dark ? COLORS.dark3 : COLORS.warning + '20' }]}>
+            <View style={[styles.devNotice, { backgroundColor: dark ? COLORS.dark3 : c.warning + '20' }]}>
               <MaterialIcons name="info" size={16} color={colors.primary} />
-              <Text style={[styles.devNoticeText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+              <Text style={[styles.devNoticeText, { color: c.mutedForeground }]}>
                 Mode développement : Le code SMS s'affichera dans une alerte
               </Text>
             </View>

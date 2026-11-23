@@ -14,12 +14,16 @@ import { COLORS } from '../constants';
 import RefreshableHeader from '../components/RefreshableHeader';
 import openLink from '../utils/openLink';
 
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface MissionsScreenProps {
   navigation: any;
 }
 
 const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
 
   const handleContact = (type: 'phone' | 'email') => {
     if (type === 'phone') {
@@ -52,7 +56,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Section Objectif */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <Feather name="target" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Notre Objectif</Text>
@@ -68,7 +72,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Section Activités */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="list-alt" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Nos Activités</Text>
@@ -99,7 +103,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Section Ministère */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="person" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Le Ministère</Text>
@@ -111,7 +115,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Section Qu'est-ce qu'un Partenaire */}
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="handshake" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Qu'est-ce qu'un Partenaire</Text>
@@ -127,7 +131,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Section Contact 
-        <View style={[styles.section, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.section, { backgroundColor: c.card }]}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="contact-support" size={24} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Partenaire MAGB</Text>
@@ -230,9 +234,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'bold',
+    fontSize: 12,
+    fontFamily: 'semiBold',
     marginLeft: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   paragraph: {
     fontSize: 16, fontFamily: 'regular',

@@ -22,6 +22,8 @@ import { showApiError } from '../store/services/apiClient';
 import { WebView } from 'react-native-webview';
 import Constants from 'expo-constants';
 
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface DocumentsScreenProps {
   navigation: any;
 }
@@ -35,7 +37,9 @@ interface DownloadItem {
 }
 
 const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const [documents, setDocuments] = useState<AvailableDocuments | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -188,7 +192,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
 
     return (
       <TouchableOpacity
-        style={[styles.documentItem, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}
+        style={[styles.documentItem, { backgroundColor: c.card }]}
         onPress={() => handleDownload(item)}
         disabled={isDownloading}
         activeOpacity={0.7}
@@ -205,7 +209,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
           <Text style={[styles.documentTitle, { color: colors.text }]} numberOfLines={2}>
             {item.title}
           </Text>
-          <Text style={[styles.documentMeta, { color: dark ? COLORS.grayTie : COLORS.gray }]}> 
+          <Text style={[styles.documentMeta, { color: c.mutedForeground }]}> 
             {formatDocumentType(item.type)} • {getDocumentSize(item.type)}
           </Text>
           {item.metadata?.amount && (
@@ -237,8 +241,8 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
           <View style={styles.emptySection}>
-            <MaterialIcons name="info" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
-            <Text style={[styles.emptyText, { color: dark ? COLORS.grayTie : COLORS.gray }]}> 
+            <MaterialIcons name="info" size={24} color={c.mutedForeground} />
+            <Text style={[styles.emptyText, { color: c.mutedForeground }]}> 
               {emptyText}
             </Text>
           </View>
@@ -359,7 +363,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {documents && (
-          <View style={[styles.summaryCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}> 
+          <View style={[styles.summaryCard, { backgroundColor: c.card }]}> 
             <View style={styles.summaryHeader}>
               <MaterialIcons name="description" size={24} color={colors.primary} />
               <Text style={[styles.summaryTitle, { color: colors.text }]}> 
@@ -371,7 +375,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
                 <Text style={[styles.statValue, { color: colors.primary }]}> 
                   {documents.summary.donationsCount}
                 </Text>
-                <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}> 
+                <Text style={[styles.statLabel, { color: c.mutedForeground }]}> 
                   Reçus
                 </Text>
               </View>
@@ -379,7 +383,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
                 <Text style={[styles.statValue, { color: colors.primary }]}> 
                   {documents.summary.recurringDonationsCount}
                 </Text>
-                <Text style={[styles.statLabel, { color: dark ? COLORS.grayTie : COLORS.gray }]}> 
+                <Text style={[styles.statLabel, { color: c.mutedForeground }]}> 
                   Échéanciers
                 </Text>
               </View>
@@ -409,7 +413,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
             </Text>
             {currentDownload && (
               <>
-                <Text style={[styles.progressSubtitle, { color: dark ? COLORS.grayTie : COLORS.gray }]}> 
+                <Text style={[styles.progressSubtitle, { color: c.mutedForeground }]}> 
                   {currentDownload.title}
                 </Text>
                 <View style={styles.progressContainer}>
@@ -457,7 +461,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ navigation }) => {
             )}
           </View>
 
-          <View style={{ flex: 1, backgroundColor: dark ? COLORS.dark2 : COLORS.white }}>
+          <View style={{ flex: 1, backgroundColor: c.card }}>
             {previewType === 'pdf' && previewFilePath ? (
               Platform.OS === 'android' ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -615,9 +619,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontFamily: 'semiBold',
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   emptySection: {
     alignItems: 'center',

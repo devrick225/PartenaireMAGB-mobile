@@ -12,12 +12,16 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 
 import RefreshableHeader from '../components/RefreshableHeader';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface PrivacyPolicyScreenProps {
   navigation: any;
 }
 
 const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
 
   const sections = [
     {
@@ -128,7 +132,7 @@ Pour exercer ces droits, contactez-nous à l'adresse : partenaireadorationgene.b
             </View>
           ))}
 
-          <Text style={[styles.lastUpdate, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.lastUpdate, { color: c.mutedForeground }]}>
             Dernière mise à jour : 12 juillet 2025
           </Text>
 
@@ -183,9 +187,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'bold',
+    fontSize: 12,
+    fontFamily: 'semiBold',
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   sectionContent: {
     fontSize: 16, fontFamily: 'regular',

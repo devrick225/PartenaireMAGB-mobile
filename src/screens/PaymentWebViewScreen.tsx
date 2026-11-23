@@ -27,6 +27,8 @@ import { useTheme } from '../theme/ThemeProvider';
 import { COLORS } from '../constants';
 import logger from '../utils/logger';
 
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface PaymentWebViewScreenProps {
   navigation: any;
   route: {
@@ -42,7 +44,9 @@ interface PaymentWebViewScreenProps {
 }
 
 const PaymentWebViewScreen: React.FC<PaymentWebViewScreenProps> = ({ navigation, route }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const { paymentUrl, donationId, paymentId, transactionId, amount, currency } = route.params;
 
   const webViewRef = useRef<WebView>(null);

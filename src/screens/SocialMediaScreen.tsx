@@ -28,12 +28,16 @@ import SocialMediaCard from '../components/SocialMediaCard';
 import RefreshableHeader from '../components/RefreshableHeader';
 import openLink from '../utils/openLink';
 
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface SocialMediaScreenProps {
   navigation: any;
 }
 
 const SocialMediaScreen: React.FC<SocialMediaScreenProps> = ({ navigation }) => {
-  const { dark, colors } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
 

@@ -18,12 +18,16 @@ import apiClient from '../store/services/apiClient';
 import { showApiError } from '../store/services/apiClient';
 
 import { IconButton } from '../design/components';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface ForgotPasswordCodeScreenProps {
   navigation: any;
 }
 
 const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -94,32 +98,32 @@ const ForgotPasswordCodeScreen: React.FC<ForgotPasswordCodeScreenProps> = ({ nav
           </View>
 
           {/* Titre et description */}
-          <Text style={[styles.title, { color: dark ? COLORS.white : COLORS.black }]}>
+          <Text style={[styles.title, { color: c.foreground }]}>
             Mot de passe oublié ?
           </Text>
           
-          <Text style={[styles.subtitle, { color: dark ? COLORS.grayscale400 : COLORS.grayscale700 }]}>
+          <Text style={[styles.subtitle, { color: c.mutedForeground }]}>
             Entrez votre adresse email et nous vous enverrons un code de réinitialisation
           </Text>
 
           {/* Champ email */}
           <View style={styles.inputContainer}>
             <View style={[styles.inputWrapper, { 
-              backgroundColor: dark ? COLORS.dark2 : COLORS.greyscale500,
-              borderColor: dark ? COLORS.dark3 : COLORS.greyscale500 
+              backgroundColor: c.muted,
+              borderColor: c.border 
             }]}>
               <MaterialIcons 
                 name="email" 
                 size={20} 
-                color={dark ? COLORS.grayscale400 : COLORS.grayscale700} 
+                color={c.mutedForeground} 
                 style={styles.inputIcon}
               />
               <TextInput
                 style={[styles.input, { 
-                  color: dark ? COLORS.white : COLORS.black 
+                  color: c.foreground 
                 }]}
                 placeholder="Adresse email"
-                placeholderTextColor={dark ? COLORS.grayscale400 : COLORS.grayscale700}
+                placeholderTextColor={c.mutedForeground}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"

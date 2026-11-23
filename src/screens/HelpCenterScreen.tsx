@@ -16,6 +16,8 @@ import { COLORS } from '../constants';
 
 import RefreshableHeader from '../components/RefreshableHeader';
 import { IconButton } from '../design/components';
+import { useDS } from '../design/components';
+import { palette } from '../design/tokens';
 interface HelpCategory {
   id: string;
   title: string;
@@ -38,7 +40,9 @@ interface HelpCenterScreenProps {
 }
 
 const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
-  const { colors, dark } = useTheme();
+  const { c, dark } = useDS();
+  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
+  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -376,7 +380,7 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
         {
           backgroundColor: selectedCategory === item.id
             ? colors.primary + '20'
-            : (dark ? COLORS.dark2 : COLORS.white),
+            : (c.card),
           borderColor: selectedCategory === item.id
             ? colors.primary
             : 'transparent',
@@ -392,7 +396,7 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
           <Text style={[styles.categoryTitle, { color: colors.text }]}>
             {item.title}
           </Text>
-          <Text style={[styles.categoryDescription, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.categoryDescription, { color: c.mutedForeground }]}>
             {item.description}
           </Text>
         </View>
@@ -403,7 +407,7 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
           <MaterialIcons
             name={selectedCategory === item.id ? 'expand-less' : 'expand-more'}
             size={24}
-            color={dark ? COLORS.grayTie : COLORS.gray}
+            color={c.mutedForeground}
           />
         </View>
       </View>
@@ -414,7 +418,7 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
     const isExpanded = expandedArticle === item.id;
     
     return (
-      <View style={[styles.articleCard, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+      <View style={[styles.articleCard, { backgroundColor: c.card }]}>
         <TouchableOpacity
           onPress={() => setExpandedArticle(isExpanded ? null : item.id)}
           style={styles.articleHeader}
@@ -432,13 +436,13 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
           </View>
           {/*  
           <View style={styles.articleMeta}>
-            <Text style={[styles.viewCount, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.viewCount, { color: c.mutedForeground }]}>
               {item.views} vues
             </Text>
             <MaterialIcons
               name={isExpanded ? 'expand-less' : 'expand-more'}
               size={24}
-              color={dark ? COLORS.grayTie : COLORS.gray}
+              color={c.mutedForeground}
             />
           </View>
           */}
@@ -446,7 +450,7 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
         
         {isExpanded && (
           <View style={styles.articleContent}>
-            <Text style={[styles.articleText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+            <Text style={[styles.articleText, { color: c.mutedForeground }]}>
               {item.content}
             </Text>
             {/*
@@ -458,8 +462,8 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.helpfulButton}>
-                <MaterialIcons name="share" size={16} color={dark ? COLORS.grayTie : COLORS.gray} />
-                <Text style={[styles.helpfulText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                <MaterialIcons name="share" size={16} color={c.mutedForeground} />
+                <Text style={[styles.helpfulText, { color: c.mutedForeground }]}>
                   Partager
                 </Text>
               </TouchableOpacity>
@@ -484,18 +488,18 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Barre de recherche */}
-        <View style={[styles.searchContainer, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
-          <MaterialIcons name="search" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
+        <View style={[styles.searchContainer, { backgroundColor: c.card }]}>
+          <MaterialIcons name="search" size={24} color={c.mutedForeground} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
             placeholder="Rechercher dans l'aide..."
-            placeholderTextColor={dark ? COLORS.grayTie : COLORS.gray}
+            placeholderTextColor={c.mutedForeground}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialIcons name="clear" size={24} color={dark ? COLORS.grayTie : COLORS.gray} />
+              <MaterialIcons name="clear" size={24} color={c.mutedForeground} />
             </TouchableOpacity>
           )}
         </View>
@@ -562,11 +566,11 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
               scrollEnabled={false}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <MaterialIcons name="search-off" size={48} color={dark ? COLORS.grayTie : COLORS.gray} />
-                  <Text style={[styles.emptyText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                  <MaterialIcons name="search-off" size={48} color={c.mutedForeground} />
+                  <Text style={[styles.emptyText, { color: c.mutedForeground }]}>
                     Aucun article trouvé
                   </Text>
-                  <Text style={[styles.emptySubtext, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+                  <Text style={[styles.emptySubtext, { color: c.mutedForeground }]}>
                     Essayez d'autres mots-clés ou contactez le support
                   </Text>
                 </View>
@@ -576,14 +580,14 @@ const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
         )}
 
         {/* Contact support */}
-        <View style={[styles.contactSection, { backgroundColor: dark ? COLORS.dark2 : COLORS.white }]}>
+        <View style={[styles.contactSection, { backgroundColor: c.card }]}>
           <View style={styles.contactHeader}>
             <MaterialIcons name="help-outline" size={24} color={colors.primary} />
             <Text style={[styles.contactTitle, { color: colors.text }]}>
               Besoin d'aide supplémentaire ?
             </Text>
           </View>
-          <Text style={[styles.contactText, { color: dark ? COLORS.grayTie : COLORS.gray }]}>
+          <Text style={[styles.contactText, { color: c.mutedForeground }]}>
             Notre équipe de support est là pour vous aider 24h/24 et 7j/7
           </Text>
           <TouchableOpacity
@@ -667,10 +671,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'bold',
+    fontSize: 12,
+    fontFamily: 'semiBold',
     marginLeft: 8,
     flex: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   clearFilter: {
     fontSize: 14,
