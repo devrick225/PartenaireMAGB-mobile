@@ -2,9 +2,8 @@ import logger from '../utils/logger';
 import React, { useState, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
   Image,
@@ -13,22 +12,18 @@ import {
   ActionSheetIOS,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useTheme } from '../theme/ThemeProvider';
 import { requestCameraPermission } from '../utils/permissions';
-import { COLORS } from '../constants';
 import userService from '../store/services/userService';
 import { RootState } from '../store';
 import { updateUser } from '../store/slices/authSlice';
 import { showApiError } from '../store/services/apiClient';
 
-import RefreshableHeader from '../components/RefreshableHeader';
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, Screen, HeroHeader, Card, Section, Row } from '../design/components';
+import { spacing } from '../design/tokens';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface ProfileImageScreenProps {
@@ -36,9 +31,7 @@ interface ProfileImageScreenProps {
 }
 
 const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c } = useDS();
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
   
@@ -223,318 +216,86 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
   };
 
   // Rendu de l'avatar
-  const renderAvatar = (size: number = 120) => {
-    if (imageUri) {
-      return (
-        <Image
-          source={{ uri: imageUri }}
-          style={[
-            styles.avatarImage,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-            }
-          ]}
-          onError={() => {
-            logger.log('Erreur chargement image');
-            setImageUri(null);
-          }}
-        />
-      );
-    }
 
-    return (
-      <View
-        style={[
-          styles.avatarPlaceholder,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: colors.primary,
-          }
-        ]}
-      >
-        <Text
-          style={[
-            styles.avatarInitials,
-            { fontSize: size * 0.4 }
-          ]}
-        >
-          {getInitials()}
-        </Text>
-      </View>
-    );
-  };
+  const avatarSize = Math.min(200, screenWidth * 0.5);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <RefreshableHeader title="Photo de profil" onBackPress={() => navigation.goBack()} showRefreshButton={false} />
-
-      {/* Contenu principal */}
-      <View style={styles.content}>
-        {/* Avatar principal */}
-        <View style={styles.avatarContainer}>
-          <TouchableOpacity
-            onPress={() => imageUri && setShowImageModal(true)}
-            disabled={!imageUri}
-          >
-            {renderAvatar(200)}
-          </TouchableOpacity>
-          
-          {/* Bouton d'édition */}
-          <TouchableOpacity
-            style={[
-              styles.editButton,
-              { backgroundColor: colors.primary }
-            ]}
-            onPress={showImageOptions}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <MaterialIcons name="edit" size={20} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Informations utilisateur */}
-        <View style={styles.userInfo}>
-          <Text style={[styles.userName, { color: colors.text }]}>
-            {user?.firstName} {user?.lastName}
-          </Text>
-          <Text style={[styles.userEmail, { color: c.mutedForeground }]}>
-            {user?.email}
-          </Text>
-        </View>
-
-        {/* Actions */}
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              { backgroundColor: c.card }
-            ]}
-            onPress={showImageOptions}
-            disabled={isUploading}
-          >
-            <MaterialIcons name="photo-camera" size={24} color={colors.primary} />
-            <Text style={[styles.actionButtonText, { color: colors.text }]}>
-              {imageUri ? 'Modifier la photo' : 'Ajouter une photo'}
-            </Text>
-          </TouchableOpacity>
-
-          {imageUri && (
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                { backgroundColor: c.card }
-              ]}
-              onPress={() => setShowImageModal(true)}
-            >
-              <MaterialIcons name="fullscreen" size={24} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>
-                Voir en grand
-              </Text>
-            </TouchableOpacity>
+    <Screen
+      hero={
+        <HeroHeader eyebrow="Mon compte" eyebrowIcon="person-circle-outline" title="Photo de profil" onBack={() => navigation.goBack()} />
+      }
+    >
+      <Card style={styles.center}>
+        <Pressable
+          onPress={() => (imageUri ? setShowImageModal(true) : showImageOptions())}
+          accessibilityRole="button"
+          accessibilityLabel={imageUri ? 'Voir la photo en grand' : 'Ajouter une photo'}
+          style={[styles.avatarRing, { borderColor: c.gold, width: avatarSize + 8, height: avatarSize + 8, borderRadius: (avatarSize + 8) / 2 }]}
+        >
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }} />
+          ) : (
+            <View style={[styles.placeholder, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2, backgroundColor: c.primarySoft }]}>
+              <AppText variant="display" color={c.primary} style={{ fontSize: avatarSize / 3, lineHeight: avatarSize / 2.6 }}>{getInitials()}</AppText>
+            </View>
           )}
-        </View>
-      </View>
-
-      {/* Modal pour voir l'image en grand */}
-      <Modal
-        visible={showImageModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowImageModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowImageModal(false)}
-            >
-              <MaterialIcons name="close" size={30} color="#FFFFFF" />
-            </TouchableOpacity>
-            
-            {imageUri && (
-              <Image
-                source={{ uri: imageUri }}
-                style={styles.fullScreenImage}
-                resizeMode="contain"
-              />
-            )}
+          {isUploading ? (
+            <View style={[styles.uploading, { borderRadius: avatarSize / 2 }]}>
+              <ActivityIndicator color="#FFFFFF" size="large" />
+            </View>
+          ) : null}
+          <View style={[styles.editBadge, { backgroundColor: c.gold }]}>
+            <Ionicons name="camera" size={18} color={c.onGold} />
           </View>
+        </Pressable>
+        <AppText variant="title" center>{user?.firstName} {user?.lastName}</AppText>
+        <AppText variant="small" color={c.mutedForeground} center>{user?.email}</AppText>
+      </Card>
+
+      <Section title="Actions">
+        <Row
+          icon="camera-outline"
+          label={imageUri ? 'Changer la photo' : 'Ajouter une photo'}
+          sublabel="Prendre une photo ou choisir dans la galerie"
+          onPress={isUploading ? undefined : showImageOptions}
+          chevron
+          last={!imageUri}
+        />
+        {imageUri ? <Row icon="expand-outline" label="Voir en grand" onPress={() => setShowImageModal(true)} chevron last /> : null}
+      </Section>
+
+      <AppText variant="caption" color={c.mutedForeground} center>
+        Votre photo est visible par l'équipe du ministère sur votre profil partenaire.
+      </AppText>
+
+      <Modal visible={showImageModal} transparent animationType="fade" onRequestClose={() => setShowImageModal(false)}>
+        <View style={styles.viewer}>
+          <Pressable style={styles.close} onPress={() => setShowImageModal(false)} accessibilityRole="button" accessibilityLabel="Fermer" hitSlop={10}>
+            <Ionicons name="close" size={30} color="#FFFFFF" />
+          </Pressable>
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.full} resizeMode="contain" /> : null}
         </View>
       </Modal>
 
-      {/* Indicateur de chargement global */}
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
+      {isLoading ? (
+        <View style={[styles.loading, { backgroundColor: c.overlay }]}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
         </View>
-      )}
-    </SafeAreaView>
+      ) : null}
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 30,
-  },
-  avatarImage: {
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  avatarInitials: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  editButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  userInfo: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  userName: {
-    fontSize: 24,
-    fontFamily: 'bold',
-    marginBottom: 8,
-  },
-  userEmail: {
-    fontSize: 16, fontFamily: 'regular',
-  },
-  actionsContainer: {
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontFamily: 'semiBold',
-    marginLeft: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: screenWidth,
-    height: screenHeight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    zIndex: 1,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fullScreenImage: {
-    width: screenWidth,
-    height: screenHeight,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  center: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
+  avatarRing: { borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  placeholder: { alignItems: 'center', justifyContent: 'center' },
+  uploading: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  editBadge: { position: 'absolute', right: 8, bottom: 8, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  close: { position: 'absolute', top: 56, right: 20, zIndex: 2, padding: 8 },
+  full: { width: screenWidth, height: screenHeight * 0.75 },
+  loading: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
 });
 
 export default ProfileImageScreen;
