@@ -14,21 +14,17 @@
 import React, { useRef, useState, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { WebView, WebViewNavigation } from 'react-native-webview';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { COLORS } from '../constants';
 import logger from '../utils/logger';
 
-import { useDS } from '../design/components';
-import { palette } from '../design/tokens';
+import { useDS, AppText, IconButton, formatAmount } from '../design/components';
+import { spacing } from '../design/tokens';
 interface PaymentWebViewScreenProps {
   navigation: any;
   route: {
@@ -44,9 +40,8 @@ interface PaymentWebViewScreenProps {
 }
 
 const PaymentWebViewScreen: React.FC<PaymentWebViewScreenProps> = ({ navigation, route }) => {
-  const { c, dark } = useDS();
-  // Compatibilité avec les styles historiques : primary reste violet (texte blanc dessus)
-  const colors = { primary: palette.light.primary, text: c.foreground, textSecondary: c.mutedForeground, background: c.background, card: c.card, surface: c.muted, border: c.border, primaryLight: c.primarySoft, secondary: c.gold };
+  const { c, gradient } = useDS();
+  const insets = useSafeAreaInsets();
   const { paymentUrl, donationId, paymentId, transactionId, amount, currency } = route.params;
 
   const webViewRef = useRef<WebView>(null);
@@ -216,42 +211,37 @@ const PaymentWebViewScreen: React.FC<PaymentWebViewScreenProps> = ({ navigation,
     );
   };
 
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity
+    <View style={[styles.flex, { backgroundColor: c.background }]}>
+      {/* Barre sécurisée */}
+      <View style={[styles.bar, { paddingTop: insets.top + spacing.xs, backgroundColor: gradient[0] }]}>
+        <IconButton
+          icon={canGoBack ? 'chevron-back' : 'close'}
+          tone="hero"
+          accessibilityLabel={canGoBack ? 'Page précédente' : 'Annuler le paiement'}
           onPress={canGoBack ? () => webViewRef.current?.goBack() : handleCancel}
-          style={styles.headerBtn}
-        >
-          <MaterialIcons
-            name={canGoBack ? 'arrow-back' : 'close'}
-            size={24}
-            color="#fff"
-          />
-        </TouchableOpacity>
-
-        <View style={styles.headerCenter}>
-          <MaterialIcons name="lock" size={14} color="rgba(255,255,255,0.8)" />
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {pageTitle}
-          </Text>
-        </View>
-
-        {amount && currency && (
-          <View style={styles.headerAmount}>
-            <Text style={styles.headerAmountText}>
-              {amount.toLocaleString()} {currency}
-            </Text>
+        />
+        <View style={styles.center}>
+          <View style={styles.secure}>
+            <Ionicons name="lock-closed" size={12} color={c.gold} />
+            <AppText variant="caption" color={c.heroTextMuted}>Paiement sécurisé</AppText>
           </View>
+          <AppText variant="bodyStrong" color={c.heroText} numberOfLines={1}>{pageTitle}</AppText>
+        </View>
+        {amount && currency ? (
+          <View style={[styles.amount, { backgroundColor: c.heroChip }]}>
+            <AppText variant="smallStrong" color={c.heroText}>{formatAmount(amount, currency)}</AppText>
+          </View>
+        ) : (
+          <View style={{ width: 44 }} />
         )}
       </View>
 
-      {/* WebView */}
       <WebView
         ref={webViewRef}
         source={{ uri: paymentUrl }}
-        style={styles.webview}
+        style={styles.flex}
         onNavigationStateChange={handleNavigationStateChange}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onLoadStart={() => setIsLoading(true)}
@@ -268,81 +258,32 @@ const PaymentWebViewScreen: React.FC<PaymentWebViewScreenProps> = ({ navigation,
             ]
           );
         }}
-        // Sécurité
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        startInLoadingState={true}
-        // Permettre les redirections
-        allowsInlineMediaPlayback={true}
+        javaScriptEnabled
+        domStorageEnabled
+        startInLoadingState
+        allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         // User agent mobile pour MoneyFusion
         userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
       />
 
-      {/* Indicateur de chargement */}
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>
-            Chargement du paiement...
-          </Text>
+      {isLoading ? (
+        <View style={[styles.loading, { backgroundColor: c.background }]} accessibilityLiveRegion="polite">
+          <ActivityIndicator size="large" color={c.primary} />
+          <AppText variant="small" color={c.mutedForeground}>Chargement de la page de paiement…</AppText>
         </View>
-      )}
-    </SafeAreaView>
+      ) : null}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  headerCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    flex: 1,
-  },
-  headerAmount: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  headerAmountText: {
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: 'bold',
-  },
-  webview: { flex: 1 },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16, fontFamily: 'regular',
-  },
+  flex: { flex: 1 },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  center: { flex: 1, alignItems: 'center' },
+  secure: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  amount: { borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 4 },
+  loading: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 120, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
 });
 
 export default PaymentWebViewScreen;
